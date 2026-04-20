@@ -1,0 +1,434 @@
+import { format, isSameDay, getDaysInMonth } from 'date-fns';
+import { ja } from 'date-fns/locale';
+import { Calendar, Check, X, Edit, Trash2, Clock, CheckCheck, XCircle } from 'lucide-react';
+import { Employee, Availability, shiftTypeConfig, ShiftCondition } from '../types';
+
+interface ShiftCalendarProps {
+  year: number;
+  month: number;
+  half: 'first' | 'second';
+  employees: Employee[];
+  availabilities: Availability[];
+  currentUser: Employee;
+  onYearChange: (year: number) => void;
+  onMonthChange: (month: number) => void;
+  onHalfChange: (half: 'first' | 'second') => void;
+  onCellClick: (employeeId: string, date: Date) => void;
+  onApprove: (availabilityId: string) => void;
+  onReject: (availabilityId: string) => void;
+  onRemoveAvailability: (availabilityId: string) => void;
+}
+
+export function ShiftCalendar({
+  year,
+  month,
+  half,
+  employees,
+  availabilities,
+  currentUser,
+  onYearChange,
+  onMonthChange,
+  onHalfChange,
+  onCellClick,
+  onApprove,
+  onReject,
+  onRemoveAvailability,
+}: ShiftCalendarProps) {
+  // 従業員をソート：1行目はログイン中の従業員、それ以降はdisplayOrder順
+  const sortedEmployees = [
+    currentUser,
+    ...employees.filter(emp => emp.id !== currentUser.id).sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0))
+  ];
+
+  // 表示する日付範囲を取得
+  const getDays = () => {
+    const startDay = half === 'first' ? 1 : 16;
+    const daysInMonth = getDaysInMonth(new Date(year, month - 1));
+    const endDay = half === 'first' ? 15 : daysInMonth;
+
+    const days: Date[] = [];
+    for (let day = startDay; day <= endDay; day++) {
+      days.push(new Date(year, month - 1, day));
+    }
+    return days;
+  };
+
+  const displayDays = getDays();
+
+  const getAvailabilitiesForEmployeeAndDate = (employeeId: string, date: Date) => {
+    return availabilities.filter(
+      (availability) => availability.employeeId === employeeId && isSameDay(availability.date, date)
+    );
+  };
+
+  // 年の選択肢を生成（現在年の前後5年）
+  const currentYear = new Date().getFullYear();
+  const yearOptions = Array.from({ length: 11 }, (_, i) => currentYear - 5 + i);
+
+  // シフト条件設定から祝日データを取得
+  const getHolidaysFromShiftCondition = (targetYear: number): string[] => {
+    try {
+      const item = localStorage.getItem(`shift_condition_${targetYear}`);
+      if (!item) return [];
+      const condition: ShiftCondition = JSON.parse(item);
+      const holidayRow = condition.rows.find(row => row.type === 'holiday');
+      return holidayRow ? holidayRow.dates : [];
+    } catch (error) {
+      console.error('Error loading holidays from shift condition:', error);
+      return [];
+    }
+  };
+
+  // 日本の祝日を判定（シフト条件設定から取得）
+  const isHoliday = (date: Date): boolean => {
+    const holidays = getHolidaysFromShiftCondition(date.getFullYear());
+    const key = `${date.getMonth() + 1}/${date.getDate()}`;
+    return holidays.includes(key);
+  };
+
+  // 曜日から要員数を取得
+  const getRequiredStaffCount = (date: Date): number => {
+    try {
+      const item = localStorage.getItem(`shift_condition_${date.getFullYear()}`);
+      if (!item) return 0;
+      const condition: ShiftCondition = JSON.parse(item);
+
+      // 祝日の場合
+      if (isHoliday(date)) {
+        const holidayRow = condition.rows.find(row => row.type === 'holiday');
+        return holidayRow ? holidayRow.requiredStaff : 0;
+      }
+
+      // 曜日から行タイプを取得
+      const dayOfWeek = date.getDay(); // 0:日曜 1:月曜 ... 6:土曜
+      const dayTypeMap: { [key: number]: string } = {
+        0: 'sunday',
+        1: 'monday',
+        2: 'tuesday',
+        3: 'wednesday',
+        4: 'thursday',
+        5: 'friday',
+        6: 'saturday',
+      };
+
+      const dayType = dayTypeMap[dayOfWeek];
+      const row = condition.rows.find(r => r.type === dayType);
+      return row ? row.requiredStaff : 0;
+    } catch (error) {
+      console.error('Error loading required staff count:', error);
+      return 0;
+    }
+  };
+
+  // 日曜日判定
+  const isSunday = (date: Date): boolean => {
+    return date.getDay() === 0;
+  };
+
+  // 土曜日判定
+  const isSaturday = (date: Date): boolean => {
+    return date.getDay() === 6;
+  };
+
+  return (
+    <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-white/50 shadow-xl flex flex-col">
+      {/* 表題部分 */}
+      <div className="flex items-center justify-between p-4 border-b border-gray-200">
+        <div className="flex items-center gap-4">
+          <h2 className="flex items-center gap-2 text-gray-800 text-base">
+            <div className="p-1.5 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-lg shadow-lg">
+              <Calendar className="w-4 h-4 text-white" />
+            </div>
+            シフト管理入力
+          </h2>
+          {/* 凡例 */}
+          <div className="flex gap-2">
+            <div className="flex items-center gap-1 px-2 py-1 rounded-lg border" style={{ backgroundColor: shiftTypeConfig.karintou.bgColor, borderColor: shiftTypeConfig.karintou.borderColor }}>
+              <span className="text-[10px] font-medium" style={{ color: shiftTypeConfig.karintou.color }}>◉ {shiftTypeConfig.karintou.label}</span>
+            </div>
+            <div className="flex items-center gap-1 px-2 py-1 rounded-lg border" style={{ backgroundColor: shiftTypeConfig.cafe.bgColor, borderColor: shiftTypeConfig.cafe.borderColor }}>
+              <span className="text-[10px] font-medium" style={{ color: shiftTypeConfig.cafe.color }}>◆ {shiftTypeConfig.cafe.label}</span>
+            </div>
+            <div className="h-4 w-px bg-gray-300 my-auto"></div>
+            <div className="flex items-center gap-1 bg-gradient-to-r from-gray-50 to-gray-100 px-2 py-1 rounded-lg border border-gray-300">
+              <div className="w-2.5 h-2.5 rounded-md bg-gray-100 border border-gray-400 shadow-sm" />
+              <span className="text-[10px] font-medium text-gray-600">承認待ち（薄色）</span>
+            </div>
+            <div className="flex items-center gap-1 px-2 py-1 rounded-lg border border-gray-300" style={{ backgroundColor: '#333' }}>
+              <div className="w-2.5 h-2.5 rounded-md border shadow-sm" style={{ backgroundColor: '#333', borderColor: '#333' }} />
+              <span className="text-[10px] font-medium text-white">承認済み（濃色）</span>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <select
+            value={year}
+            onChange={(e) => onYearChange(Number(e.target.value))}
+            className="px-2.5 py-1.5 text-sm rounded-lg border border-indigo-200 bg-white text-gray-700 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 hover:border-indigo-300 transition-colors"
+          >
+            {yearOptions.map((y) => (
+              <option key={y} value={y}>
+                {y}年
+              </option>
+            ))}
+          </select>
+          <select
+            value={month}
+            onChange={(e) => onMonthChange(Number(e.target.value))}
+            className="px-2.5 py-1.5 text-sm rounded-lg border border-indigo-200 bg-white text-gray-700 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 hover:border-indigo-300 transition-colors"
+          >
+            {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+              <option key={m} value={m}>
+                {m}月
+              </option>
+            ))}
+          </select>
+          <select
+            value={half}
+            onChange={(e) => onHalfChange(e.target.value as 'first' | 'second')}
+            className="px-2.5 py-1.5 text-sm rounded-lg border border-indigo-200 bg-white text-gray-700 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 hover:border-indigo-300 transition-colors"
+          >
+            <option value="first">前半（1-15日）</option>
+            <option value="second">後半（16-{getDaysInMonth(new Date(year, month - 1))}日）</option>
+          </select>
+        </div>
+      </div>
+
+      {/* テーブル部分（ヘッダー固定、ボディスクロール） */}
+      <div className="overflow-auto max-h-[calc(100vh-320px)]">
+        <table className="w-full border-collapse table-fixed">
+          <colgroup>
+            <col style={{ width: '100px' }} />
+            {displayDays.map((day) => (
+              <col key={day.toISOString()} style={{ width: '90px' }} />
+            ))}
+          </colgroup>
+          <thead className="sticky top-0 z-10 bg-white">
+            <tr>
+              <th className="p-2.5 border border-indigo-100 bg-gradient-to-br from-indigo-50 to-purple-50">従業員</th>
+              {displayDays.map((day) => {
+                const isSundayDay = isSunday(day);
+                const isSaturdayDay = isSaturday(day);
+                const isHolidayDay = isHoliday(day);
+                const isSpecialDay = isSundayDay || isSaturdayDay || isHolidayDay;
+                const requiredStaff = getRequiredStaffCount(day);
+                return (
+                  <th
+                    key={day.toISOString()}
+                    className={`p-2.5 border border-indigo-100 ${isSpecialDay ? 'bg-red-50' : 'bg-gradient-to-br from-indigo-50 to-purple-50'}`}
+                  >
+                    <div className="text-center">
+                      <div className={`font-semibold text-sm ${isSpecialDay ? 'text-red-600' : 'text-gray-800'}`}>
+                        {format(day, 'M/d', { locale: ja })}({format(day, 'E', { locale: ja })})
+                      </div>
+                      <div className={`text-xs ${isSpecialDay ? 'text-red-500' : 'text-indigo-600'}`}>
+                        要員数【{requiredStaff}人】
+                      </div>
+                    </div>
+                  </th>
+                );
+              })}
+            </tr>
+          </thead>
+          <tbody>
+            {sortedEmployees.map((employee) => (
+              <tr key={employee.id} className="hover:bg-indigo-50/30 transition-colors">
+                <td className="p-2.5 border border-indigo-100 bg-white/60">
+                  <div className="flex items-center gap-1.5">
+                    <div
+                      className="w-2.5 h-2.5 rounded-full shadow-md"
+                      style={{ backgroundColor: employee.color }}
+                    />
+                    <span className="font-medium text-gray-700 text-sm">{employee.name}</span>
+                  </div>
+                </td>
+                {displayDays.map((day) => {
+                  const isSundayDay = isSunday(day);
+                  const isSaturdayDay = isSaturday(day);
+                  const isHolidayDay = isHoliday(day);
+                  const isSpecialDay = isSundayDay || isSaturdayDay || isHolidayDay;
+                  const dayAvailabilities = getAvailabilitiesForEmployeeAndDate(employee.id, day);
+                  return (
+                    <td
+                      key={`${employee.id}-${day.toISOString()}`}
+                      className={`p-1.5 border border-indigo-100 align-top ${isSpecialDay ? 'bg-red-50/30' : 'bg-white/40'}`}
+                    >
+                      <div className="space-y-1.5">{dayAvailabilities.map((availability) => {
+                          // シフトタイプの色設定
+                          const shiftColor = shiftTypeConfig[availability.shiftType];
+
+                          // ステータスに応じたスタイル設定
+                          const getStatusStyle = () => {
+                            if (availability.status === 'approved') {
+                              // 承認済み：シフトタイプの濃い色を背景に、白テキスト（反転）
+                              return {
+                                backgroundColor: shiftColor.color,
+                                color: '#ffffff',
+                                borderColor: shiftColor.color,
+                                fontWeight: '600',
+                              };
+                            } else if (availability.status === 'pending') {
+                              // 承認待ち：シフトタイプの薄い色を背景に、濃いテキスト
+                              return {
+                                backgroundColor: shiftColor.bgColor,
+                                color: shiftColor.color,
+                                borderColor: shiftColor.borderColor,
+                                fontWeight: '500',
+                              };
+                            } else {
+                              // 却下：グレー系
+                              return {
+                                backgroundColor: '#f3f4f6',
+                                color: '#6b7280',
+                                borderColor: '#d1d5db',
+                                fontWeight: '400',
+                              };
+                            }
+                          };
+
+                          const statusStyle = getStatusStyle();
+                          const statusLabels = {
+                            pending: { text: '承認待ち', icon: Clock },
+                            approved: { text: '承認済み', icon: CheckCheck },
+                            rejected: { text: '却下', icon: XCircle },
+                          };
+
+                          const StatusIcon = statusLabels[availability.status].icon;
+                          const shiftTypeSymbol = availability.shiftType === 'karintou' ? '◉' : '◆';
+
+                          return (
+                            <div
+                              key={availability.id}
+                              className="px-1.5 py-1.5 rounded-lg text-xs border transition-all duration-200 hover:shadow-md"
+                              style={{
+                                backgroundColor: statusStyle.backgroundColor,
+                                color: statusStyle.color,
+                                borderColor: statusStyle.borderColor,
+                              }}
+                            >
+                              <div className="flex items-center justify-between mb-0.5">
+                                <div className="flex items-center gap-0.5">
+                                  <StatusIcon className="w-2.5 h-2.5" style={{ color: statusStyle.color }} />
+                                  <span className="font-semibold text-[10px]" style={{ fontWeight: statusStyle.fontWeight }}>
+                                    {statusLabels[availability.status].text}
+                                  </span>
+                                </div>
+                                {availability.status === 'pending' && currentUser.isManager && (
+                                  <div className="flex gap-0.5">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        onApprove(availability.id);
+                                      }}
+                                      className="p-0.5 hover:bg-emerald-200 rounded-md transition-all duration-200 hover:scale-110"
+                                      title="承認"
+                                    >
+                                      <Check className="w-2.5 h-2.5" />
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        onReject(availability.id);
+                                      }}
+                                      className="p-0.5 hover:bg-rose-200 rounded-md transition-all duration-200 hover:scale-110"
+                                      title="却下"
+                                    >
+                                      <X className="w-2.5 h-2.5" />
+                                    </button>
+                                  </div>
+                                )}
+                                {availability.status === 'pending' && !currentUser.isManager && availability.employeeId === currentUser.id && (
+                                  <div className="flex gap-0.5">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        onCellClick(availability.employeeId, availability.date);
+                                      }}
+                                      className="p-0.5 hover:bg-blue-200 rounded-md transition-all duration-200 hover:scale-110"
+                                      title="編集"
+                                    >
+                                      <Edit className="w-2.5 h-2.5" />
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        onRemoveAvailability(availability.id);
+                                      }}
+                                      className="p-0.5 hover:bg-rose-200 rounded-md transition-all duration-200 hover:scale-110"
+                                      title="削除"
+                                    >
+                                      <Trash2 className="w-2.5 h-2.5" />
+                                    </button>
+                                  </div>
+                                )}
+                                {availability.status === 'approved' && currentUser.isManager && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onReject(availability.id);
+                                    }}
+                                    className="p-0.5 hover:bg-rose-200 rounded-md transition-all duration-200 hover:scale-110"
+                                    title="却下に変更"
+                                  >
+                                    <X className="w-2.5 h-2.5" />
+                                  </button>
+                                )}
+                                {availability.status === 'rejected' && currentUser.isManager && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onApprove(availability.id);
+                                    }}
+                                    className="p-0.5 hover:bg-emerald-200 rounded-md transition-all duration-200 hover:scale-110"
+                                    title="承認済みに変更"
+                                  >
+                                    <Check className="w-2.5 h-2.5" />
+                                  </button>
+                                )}
+                              </div>
+                              <div className="text-center font-medium text-[10px]">
+                                {shiftTypeSymbol} {availability.startTime} - {availability.endTime}
+                              </div>
+                            </div>
+                          );
+                        })}
+                        {(currentUser.isManager || currentUser.id === employee.id) && (
+                          <button
+                            onClick={() => onCellClick(employee.id, day)}
+                            className="w-full px-1.5 py-1 text-[10px] text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all duration-200 border border-dashed border-indigo-200 hover:border-indigo-400 hover:shadow-sm"
+                          >
+                            + 追加
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="p-4 border-t border-gray-200">
+        {!currentUser.isManager && (
+          <div className="p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl space-y-0.5 border border-blue-200 shadow-sm">
+            <p className="text-xs text-blue-800">
+              ※ 勤務希望の承認・却下は管理者権限を持つ従業員のみが行えます
+            </p>
+            <p className="text-xs text-blue-800">
+              ※ スタッフは自分の承認待ち勤務希望のみ編集・削除できます
+            </p>
+          </div>
+        )}
+        {currentUser.isManager && (
+          <div className="p-3 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl border border-purple-200 shadow-sm">
+            <p className="text-xs text-purple-800">
+              ※ マネージャーは承認済み・却下の勤務データをステータス変更できます
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
