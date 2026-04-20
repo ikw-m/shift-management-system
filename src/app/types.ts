@@ -1,30 +1,44 @@
 export interface Employee {
   id: string;
   name: string;
-  role: string;
-  color: string;
+  email: string;
+  phone: string;
+  position: string;
+  role: 'manager' | 'staff';
   password: string;
-  isManager: boolean;
+  color: string;
+  created_at?: string;
+  // 互換性のため
+  isManager?: boolean;
   displayOrder?: number;
 }
 
 export interface Shift {
   id: string;
   employeeId: string;
-  date: Date;
+  date: Date | string;
   startTime: string;
   endTime: string;
-  type: 'morning' | 'late';
+  notes?: string;
+  status: 'pending' | 'approved' | 'rejected';
+  submittedAt?: string;
+  reviewedAt?: string | null;
+  reviewedBy?: string | null;
+  // 後方互換性
+  type?: 'morning' | 'late';
 }
 
 export interface Availability {
   id: string;
   employeeId: string;
-  date: Date;
+  date: Date | string;
   startTime: string;
   endTime: string;
   status: 'pending' | 'approved' | 'rejected';
   shiftType: 'karintou' | 'cafe';
+  submittedAt?: string;
+  reviewedAt?: string | null;
+  reviewedBy?: string | null;
 }
 
 export const shiftTypeConfig = {

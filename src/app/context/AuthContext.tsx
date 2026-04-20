@@ -1,11 +1,13 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Employee } from '../types';
+import { supabase } from '../../lib/supabase';
 
 interface AuthContextType {
   currentUser: Employee | null;
-  login: (email: string, password: string, employees: Employee[]) => boolean;
+  login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   isManager: boolean;
+  loading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -17,6 +19,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const stored = localStorage.getItem(STORAGE_KEY_CURRENT_USER);
     return stored ? JSON.parse(stored) : null;
   });
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (currentUser) {
@@ -26,16 +29,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [currentUser]);
 
-  const login = (email: string, password: string, employees: Employee[]): boolean => {
-    const user = employees.find(
-      emp => emp.email === email && emp.password === password
-    );
-    
-    if (user) {
-      setCurrentUser(user);
+  const login = async (email: string, password: string): Promise<boolean> => {
+    try {
+      setLoading(true);
+      
+      const { data, error } = await supabase
+        .from('employees')
+        .select('*')
+        .eq('email', email)
+        .eq('password', password)
+        .single();
+      
+      if (error || !data) {
+        return false;
+      }
+      
+      setCurrentUser(data);
       return true;
+    } catch (error) {
+      console.error('ログインに失敗しました:', error);
+      return false;
+    } finally {
+      setLoading(false);
     }
-    return false;
   };
 
   const logout = () => {
@@ -45,7 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isManager = currentUser?.role === 'manager';
 
   return (
-    <AuthContext.Provider value={{ currentUser, login, logout, isManager }}>
+    <AuthContext.Provider value={{ currentUser, login, logout, isManager, loading }}>
       {children}
     </AuthContext.Provider>
   );
