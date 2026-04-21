@@ -84,7 +84,9 @@ export function EmployeeList({ employees, currentUser, onAddEmployee, onEditEmpl
                   </div>
                   <div>
                     <p className="font-semibold text-gray-800">{employee.name}</p>
-                    <p className="text-sm text-indigo-600">{employee.role}</p>
+                    <p className="text-sm text-indigo-600">
+                      {employee.position || (employee.role === 'manager' || employee.isManager ? 'マネージャー' : 'スタッフ')}
+                    </p>
                   </div>
                 </div>
                 {currentUser.isManager && (

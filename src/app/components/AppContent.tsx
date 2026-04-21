@@ -272,7 +272,9 @@ export function AppContent() {
                   />
                   <span className="text-xs font-medium text-gray-900 whitespace-nowrap">{currentUser.name}</span>
                   <span className="text-xs text-gray-400">·</span>
-                  <span className="text-xs text-gray-600 whitespace-nowrap">{currentUser.position || currentUser.role}</span>
+                  <span className="text-xs text-gray-600 whitespace-nowrap">
+                    {currentUser.position || (currentUser.role === 'manager' ? 'マネージャー' : 'スタッフ')}
+                  </span>
                   {currentUserWithManager.isManager && (
                     <span className="ml-1 text-[9px] bg-gradient-to-r from-indigo-500 to-purple-500 text-white px-1.5 py-0.5 rounded font-medium whitespace-nowrap">
                       管理者

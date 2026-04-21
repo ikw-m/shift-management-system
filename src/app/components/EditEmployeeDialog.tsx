@@ -21,7 +21,9 @@ export function EditEmployeeDialog({ isOpen, onClose, employee, employees, onEdi
   useEffect(() => {
     if (employee) {
       setName(employee.name);
-      setRole(employee.role);
+      // roleを日本語に変換（Supabaseから来る場合は'manager'/'staff'）
+      const displayRole = employee.role === 'manager' || employee.isManager ? 'マネージャー' : 'スタッフ';
+      setRole(displayRole);
       setPassword(employee.password);
       setError('');
     }
