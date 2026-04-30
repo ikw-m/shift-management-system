@@ -50,6 +50,13 @@ export function AppContent() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [viewMode, setViewMode] = useState<'calendar' | 'confirmed' | 'employees' | 'shiftCondition'>('calendar');
 
+  // ログインユーザーが変更されたときに画面をリセット
+  useEffect(() => {
+    if (currentUser) {
+      setViewMode('calendar');
+    }
+  }, [currentUser?.id]);
+
   const handleCellClick = (employeeId: string, date: Date) => {
     if (!currentUser) return;
 
@@ -164,6 +171,7 @@ export function AppContent() {
   };
 
   const handleLogout = () => {
+    setViewMode('calendar'); // ログアウト時に画面をリセット
     logout();
   };
 
