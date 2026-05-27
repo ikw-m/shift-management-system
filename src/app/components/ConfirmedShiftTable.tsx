@@ -407,32 +407,24 @@ export function ConfirmedShiftTable({
         @media print {
           @page {
             size: A4 landscape;
-            margin: 8mm;
+            margin: 8mm 8mm;
           }
-
-          * {
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-            color-adjust: exact !important;
-          }
-
+          
           body * {
             visibility: hidden;
           }
-
+          
           .print-container, .print-container * {
             visibility: visible;
           }
-
+          
           .print-container {
-            position: static !important;
-            display: block !important;
+            position: absolute;
             left: 0;
             top: 0;
             width: 100%;
             padding: 0 !important;
             margin: 0 !important;
-            transform: none !important;
           }
           
           .no-print {
@@ -450,28 +442,11 @@ export function ConfirmedShiftTable({
             margin: 0 !important;
             padding: 0 !important;
           }
-
-          /* 印刷時にsticky/fixed要素を無効化 */
-          [class*="sticky"],
-          [class*="fixed"] {
-            position: static !important;
-          }
           
           .print-only {
             display: block !important;
             visibility: visible !important;
             page-break-inside: avoid !important;
-            break-inside: avoid !important;
-          }
-
-          .print-page {
-            display: block !important;
-            width: 100% !important;
-            page-break-after: auto !important;
-            page-break-inside: avoid !important;
-            break-after: auto !important;
-            break-inside: avoid !important;
-            overflow: visible !important;
           }
           
           .print-title {
@@ -480,11 +455,10 @@ export function ConfirmedShiftTable({
             font-weight: bold !important;
             margin-bottom: 8px !important;
             color: #1f2937 !important;
-            display: block !important;
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: center !important;
             page-break-after: avoid !important;
-            page-break-inside: avoid !important;
-            break-after: avoid !important;
-            break-inside: avoid !important;
           }
           
           .print-date-info {
@@ -504,52 +478,32 @@ export function ConfirmedShiftTable({
           }
           
           .print-table-wrapper {
-            display: block !important;
             page-break-inside: auto !important;
             page-break-before: avoid !important;
-            break-inside: auto !important;
-            break-before: avoid !important;
           }
 
           .print-table {
-            width: 100% !important;
-            table-layout: fixed !important;
-            margin: 0 0 6px 0 !important;
-            border-collapse: collapse !important;
+            width: 100%;
+            table-layout: fixed;
+            margin: 0 0 6px 0;
+            border-collapse: collapse;
             border: 2.5px solid #333 !important;
             page-break-inside: avoid !important;
             page-break-before: avoid !important;
             page-break-after: auto !important;
-            break-inside: avoid !important;
-            break-before: avoid !important;
-            break-after: auto !important;
-            display: table !important;
           }
 
           .print-table th,
           .print-table td {
-            display: table-cell !important;
             border: 0.5px solid #999 !important;
             padding: 1px 0.5px !important;
             font-size: 10pt !important;
             line-height: 1.2 !important;
             page-break-inside: avoid !important;
-            break-inside: avoid !important;
-          }
-
-          .print-table thead {
-            display: table-header-group !important;
-          }
-
-          .print-table tbody {
-            display: table-row-group !important;
           }
 
           .print-table th {
-            display: table-cell !important;
             background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
             color: white !important;
             font-weight: bold !important;
             padding: 2px 1px !important;
@@ -586,10 +540,6 @@ export function ConfirmedShiftTable({
             height: 30px !important;
             max-height: 30px !important;
             page-break-inside: avoid !important;
-            page-break-after: auto !important;
-            break-inside: avoid !important;
-            break-after: auto !important;
-            display: table-row !important;
           }
 
           .print-table tbody tr:nth-child(even) {
@@ -601,7 +551,6 @@ export function ConfirmedShiftTable({
           }
 
           .print-table tbody td {
-            display: table-cell !important;
             background-color: transparent !important;
             height: 30px !important;
             max-height: 30px !important;
@@ -611,20 +560,14 @@ export function ConfirmedShiftTable({
           
           .sunday-cell {
             background-color: #fee2e2 !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
           }
 
           .saturday-cell {
             background-color: #fee2e2 !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
           }
 
           .holiday-cell {
             background-color: #fecaca !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
           }
           
           .print-shift-time {
@@ -634,7 +577,7 @@ export function ConfirmedShiftTable({
             font-weight: 700 !important;
             border-radius: 1px !important;
             margin: 0.5px 0 !important;
-            display: block !important;
+            display: flex !important;
             white-space: nowrap !important;
             overflow: visible !important;
             word-break: keep-all !important;
@@ -646,9 +589,10 @@ export function ConfirmedShiftTable({
             height: 30px !important;
             max-height: 30px !important;
             overflow: hidden !important;
-            display: block !important;
+            display: flex !important;
+            flex-direction: column !important;
+            justify-content: center !important;
             padding: 0.5px !important;
-            text-align: center !important;
           }
           
           .print-shift-time.shift-karintou {
@@ -717,17 +661,11 @@ export function ConfirmedShiftTable({
             margin-top: 8px !important;
             padding: 6px 10px !important;
             background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%) !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
             border: 1.5px solid #10b981 !important;
             border-radius: 6px !important;
             page-break-inside: avoid !important;
             page-break-before: auto !important;
-            page-break-after: auto !important;
             break-inside: avoid !important;
-            break-before: auto !important;
-            break-after: auto !important;
-            display: block !important;
           }
 
           .print-procedure-title {
@@ -735,7 +673,9 @@ export function ConfirmedShiftTable({
             font-weight: bold !important;
             color: #047857 !important;
             margin-bottom: 4px !important;
-            display: block !important;
+            display: flex !important;
+            align-items: center !important;
+            gap: 3px !important;
           }
 
           .print-procedure-content {
@@ -788,31 +728,6 @@ export function ConfirmedShiftTable({
             print-color-adjust: exact !important;
             color-adjust: exact !important;
             border-radius: 0 1px 1px 0 !important;
-          }
-
-          /* Safari特有の印刷対応 */
-          @supports (-webkit-hyphens:none) {
-            .print-table {
-              display: table !important;
-              width: 100% !important;
-            }
-
-            .print-table thead {
-              display: table-header-group !important;
-            }
-
-            .print-table tbody {
-              display: table-row-group !important;
-            }
-
-            .print-table tr {
-              display: table-row !important;
-            }
-
-            .print-table th,
-            .print-table td {
-              display: table-cell !important;
-            }
           }
         }
 
@@ -989,42 +904,52 @@ export function ConfirmedShiftTable({
               const pageEmployees = sortedEmployees.slice(startIndex, startIndex + 12);
 
               return (
-                <div key={pageIndex} className="print-page" style={{ pageBreakAfter: pageIndex < Math.ceil(sortedEmployees.length / 12) - 1 ? 'always' : 'auto' }}>
-                  {/* 印刷用タイトル・凡例・印刷日 */}
+                <div key={pageIndex} className="overflow-x-auto rounded-xl print-only" style={{ pageBreakAfter: pageIndex < Math.ceil(sortedEmployees.length / 12) - 1 ? 'always' : 'auto' }}>
+                  {/* 印刷用タイトル・凡例・印刷日を1行に */}
                   <div className="print-title">
-                    <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>
-                      {year}年{month}月{printHalf === 'first' ? '前半' : '後半'}シフト管理表 {sortedEmployees.length > 12 ? `(${pageIndex + 1}/${Math.ceil(sortedEmployees.length / 12)})` : ''}
-                    </div>
-                    <div style={{ fontSize: '8pt', marginBottom: '2px' }}>
-                      <span style={{ fontWeight: 'bold', color: '#6b7280' }}>凡例：</span>
-                      <span style={{
-                        display: 'inline-block',
-                        padding: '2px 6px',
-                        backgroundColor: shiftTypeConfig.karintou.color,
-                        color: 'white',
-                        borderRadius: '3px',
-                        fontWeight: '600',
-                        marginLeft: '4px',
-                        marginRight: '4px'
+                    <div>{year}年{month}月{printHalf === 'first' ? '前半' : '後半'}シフト管理表 {sortedEmployees.length > 12 ? `(${pageIndex + 1}/${Math.ceil(sortedEmployees.length / 12)})` : ''}</div>
+                    <div style={{
+                      display: 'flex',
+                      gap: '12px',
+                      alignItems: 'center'
+                    }}>
+                      <div style={{
+                        display: 'flex',
+                        gap: '8px',
+                        fontSize: '8pt',
+                        alignItems: 'center'
                       }}>
-                        ◉ {shiftTypeConfig.karintou.label}
-                      </span>
-                      <span style={{
-                        display: 'inline-block',
-                        padding: '2px 6px',
-                        backgroundColor: shiftTypeConfig.cafe.color,
-                        color: 'white',
-                        borderRadius: '3px',
-                        fontWeight: '600',
-                        marginRight: '4px'
-                      }}>
-                        ◆ {shiftTypeConfig.cafe.label}
-                      </span>
-                    </div>
-                    <div className="print-date-info" style={{ fontSize: '9pt', color: '#6b7280', textAlign: 'right' }}>
-                      印刷日: {format(new Date(), 'yyyy年M月d日', { locale: ja })}
-                    </div>
+                        <span style={{ fontWeight: 'bold', color: '#6b7280' }}>凡例：</span>
+                        <div style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '3px',
+                          padding: '2px 6px',
+                    backgroundColor: shiftTypeConfig.karintou.color,
+                    color: 'white',
+                    borderRadius: '3px',
+                    fontWeight: '600'
+                  }}>
+                    ◉ {shiftTypeConfig.karintou.label}
                   </div>
+                  <div style={{ 
+                    display: 'inline-flex', 
+                    alignItems: 'center', 
+                    gap: '3px',
+                    padding: '2px 6px',
+                    backgroundColor: shiftTypeConfig.cafe.color,
+                    color: 'white',
+                    borderRadius: '3px',
+                    fontWeight: '600'
+                  }}>
+                    ◆ {shiftTypeConfig.cafe.label}
+                  </div>
+                </div>
+                <div className="print-date-info">
+                  印刷日: {format(new Date(), 'yyyy年M月d日', { locale: ja })}
+                </div>
+              </div>
+            </div>
             
                   <table className="w-full border-collapse print-table">
                     <thead>
