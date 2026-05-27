@@ -1,0 +1,14 @@
+# 環境変数ファイル（秘密の鍵が入っているのでGitHubにアップロードしない）
+.env
+.env.local
+
+# node_modules（ライブラリファイル、容量が大きいのでアップロードしない）
+node_modules
+
+# ビルドファイル
+dist
+build
+.vite
+
+# その他
+.DS_Store

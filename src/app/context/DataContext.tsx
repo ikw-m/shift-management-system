@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Employee, Shift, Availability } from '../types';
+import { Employee, Shift, Availability, ShiftCondition } from '../types';
 import { supabase } from '../../lib/supabase';
 
 interface DataContextType {
@@ -7,8 +7,10 @@ interface DataContextType {
   shifts: Shift[];
   availabilities: Availability[];
   loading: boolean;
+  reloadData: () => Promise<void>;
   addEmployee: (employee: Omit<Employee, 'id'>) => Promise<void>;
   updateEmployee: (id: string, employee: Omit<Employee, 'id'>) => Promise<void>;
+  updateEmployeeOrder: (id: string, displayOrder: number) => Promise<void>;
   deleteEmployee: (id: string) => Promise<void>;
   addShift: (shift: Omit<Shift, 'id' | 'status' | 'submittedAt'>) => Promise<void>;
   updateShift: (id: string, shift: Omit<Shift, 'id' | 'status' | 'submittedAt'>) => Promise<void>;
@@ -20,6 +22,12 @@ interface DataContextType {
   deleteAvailability: (id: string) => Promise<void>;
   approveAvailability: (id: string, reviewerName: string) => Promise<void>;
   rejectAvailability: (id: string, reviewerName: string) => Promise<void>;
+  getDailyNote: (date: string) => Promise<string>;
+  saveDailyNote: (date: string, note: string) => Promise<void>;
+  getMonthlyProcedure: (year: number, month: number) => Promise<string>;
+  saveMonthlyProcedure: (year: number, month: number, procedure: string) => Promise<void>;
+  getShiftCondition: (year: number) => Promise<ShiftCondition | null>;
+  saveShiftCondition: (year: number, condition: ShiftCondition) => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -39,22 +47,21 @@ export function DataProvider({ children }: { children: ReactNode }) {
     try {
       setLoading(true);
 
-      console.log('🔄 Supabaseからデータを読み込み中...');
-
       // 従業員データを取得
       const { data: employeesData, error: employeesError } = await supabase
         .from('employees')
         .select('*')
-        .order('created_at');
+        .order('display_order');
 
-      if (employeesError) {
-        console.error('❌ 従業員データの取得エラー:', employeesError);
-        throw employeesError;
-      }
+      if (employeesError) throw employeesError;
 
-      console.log('✅ 従業員データを取得:', employeesData?.length || 0, '人');
-      console.log('従業員データ:', employeesData);
-      setEmployees(employeesData || []);
+      // display_order を displayOrder に変換
+      const processedEmployees = employeesData?.map(emp => ({
+        ...emp,
+        displayOrder: emp.display_order ?? 0
+      })) || [];
+
+      setEmployees(processedEmployees);
 
       // シフトデータを取得
       const { data: shiftsData, error: shiftsError } = await supabase
@@ -95,45 +102,77 @@ export function DataProvider({ children }: { children: ReactNode }) {
         reviewedAt: a.reviewed_at,
         reviewedBy: a.reviewed_by
       })) || []);
-      
+
     } catch (error) {
-      console.error('❌ データの読み込みに失敗しました:', error);
       // エラーが発生してもローディングを解除
     } finally {
       setLoading(false);
-      console.log('📊 データ読み込み完了');
     }
   };
 
   const addEmployee = async (employee: Omit<Employee, 'id'>) => {
     try {
+      const insertData = {
+        name: employee.name,
+        email: employee.email,
+        phone: employee.phone,
+        position: employee.position,
+        role: employee.role,
+        password: employee.password,
+        color: employee.color,
+        display_order: employee.displayOrder ?? 0
+      };
+
       const { data, error } = await supabase
         .from('employees')
-        .insert([employee])
+        .insert([insertData])
         .select()
         .single();
-      
+
       if (error) throw error;
       if (data) {
-        setEmployees([...employees, data]);
+        setEmployees([...employees, { ...data, displayOrder: data.display_order }]);
       }
     } catch (error) {
-      console.error('従業員の追加に失敗しました:', error);
       throw error;
     }
   };
 
   const updateEmployee = async (id: string, employee: Omit<Employee, 'id'>) => {
     try {
+      const updateData = {
+        name: employee.name,
+        email: employee.email,
+        phone: employee.phone,
+        position: employee.position,
+        role: employee.role,
+        password: employee.password,
+        color: employee.color,
+        display_order: employee.displayOrder ?? 0
+      };
+
       const { error } = await supabase
         .from('employees')
-        .update(employee)
+        .update(updateData)
         .eq('id', id);
-      
+
       if (error) throw error;
-      setEmployees(employees.map(emp => emp.id === id ? { ...employee, id } : emp));
+
+      // ローカル状態は更新しない - reloadData()で再取得する
     } catch (error) {
-      console.error('従業員の更新に失敗しました:', error);
+      throw error;
+    }
+  };
+
+  const updateEmployeeOrder = async (id: string, displayOrder: number) => {
+    try {
+      const { error } = await supabase
+        .from('employees')
+        .update({ display_order: displayOrder })
+        .eq('id', id);
+
+      if (error) throw error;
+    } catch (error) {
       throw error;
     }
   };
@@ -150,7 +189,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setShifts(shifts.filter(shift => shift.employeeId !== id));
       setAvailabilities(availabilities.filter(availability => availability.employeeId !== id));
     } catch (error) {
-      console.error('従業員の削除に失敗しました:', error);
       throw error;
     }
   };
@@ -189,7 +227,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
         }]);
       }
     } catch (error) {
-      console.error('シフトの追加に失敗しました:', error);
       throw error;
     }
   };
@@ -212,7 +249,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
       setShifts(shifts.map(s => s.id === id ? { ...s, ...shift } : s));
     } catch (error) {
-      console.error('シフトの更新に失敗しました:', error);
       throw error;
     }
   };
@@ -227,7 +263,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
       setShifts(shifts.filter(s => s.id !== id));
     } catch (error) {
-      console.error('シフトの削除に失敗しました:', error);
       throw error;
     }
   };
@@ -251,7 +286,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
         reviewedBy: reviewerName 
       } : s));
     } catch (error) {
-      console.error('シフトの承認に失敗しました:', error);
       throw error;
     }
   };
@@ -275,7 +309,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
         reviewedBy: reviewerName 
       } : s));
     } catch (error) {
-      console.error('シフトの却下に失敗しました:', error);
       throw error;
     }
   };
@@ -314,7 +347,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
         }]);
       }
     } catch (error) {
-      console.error('利用可能時間の追加に失敗しました:', error);
       throw error;
     }
   };
@@ -337,7 +369,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
       setAvailabilities(availabilities.map(a => a.id === id ? { ...a, ...availability } : a));
     } catch (error) {
-      console.error('利用可能時間の更新に失敗しました:', error);
       throw error;
     }
   };
@@ -352,7 +383,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
       setAvailabilities(availabilities.filter(a => a.id !== id));
     } catch (error) {
-      console.error('利用可能時間の削除に失敗しました:', error);
       throw error;
     }
   };
@@ -376,7 +406,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
         reviewedBy: reviewerName 
       } : a));
     } catch (error) {
-      console.error('利用可能時間の承認に失敗しました:', error);
       throw error;
     }
   };
@@ -391,16 +420,97 @@ export function DataProvider({ children }: { children: ReactNode }) {
           reviewed_by: reviewerName
         })
         .eq('id', id);
-      
+
       if (error) throw error;
-      setAvailabilities(availabilities.map(a => a.id === id ? { 
-        ...a, 
-        status: 'rejected' as const, 
-        reviewedAt: new Date().toISOString(), 
-        reviewedBy: reviewerName 
+      setAvailabilities(availabilities.map(a => a.id === id ? {
+        ...a,
+        status: 'rejected' as const,
+        reviewedAt: new Date().toISOString(),
+        reviewedBy: reviewerName
       } : a));
     } catch (error) {
-      console.error('利用可能時間の却下に失敗しました:', error);
+      throw error;
+    }
+  };
+
+  const getDailyNote = async (date: string): Promise<string> => {
+    try {
+      const { data, error } = await supabase
+        .from('daily_notes')
+        .select('note')
+        .eq('date', date)
+        .single();
+
+      if (error && error.code !== 'PGRST116') throw error;
+      return data?.note || '';
+    } catch (error) {
+      return '';
+    }
+  };
+
+  const saveDailyNote = async (date: string, note: string): Promise<void> => {
+    try {
+      const { error } = await supabase
+        .from('daily_notes')
+        .upsert({ date, note }, { onConflict: 'date' });
+
+      if (error) throw error;
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const getMonthlyProcedure = async (year: number, month: number): Promise<string> => {
+    try {
+      const { data, error } = await supabase
+        .from('monthly_procedures')
+        .select('procedure')
+        .eq('year', year)
+        .eq('month', month)
+        .single();
+
+      if (error && error.code !== 'PGRST116') throw error;
+      return data?.procedure || '';
+    } catch (error) {
+      return '';
+    }
+  };
+
+  const saveMonthlyProcedure = async (year: number, month: number, procedure: string): Promise<void> => {
+    try {
+      const { error } = await supabase
+        .from('monthly_procedures')
+        .upsert({ year, month, procedure }, { onConflict: 'year,month' });
+
+      if (error) throw error;
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const getShiftCondition = async (year: number): Promise<ShiftCondition | null> => {
+    try {
+      const { data, error } = await supabase
+        .from('shift_conditions')
+        .select('data')
+        .eq('year', year)
+        .single();
+
+      if (error && error.code !== 'PGRST116') throw error;
+      return data?.data || null;
+    } catch (error) {
+      return null;
+    }
+  };
+
+  const saveShiftCondition = async (year: number, condition: ShiftCondition): Promise<void> => {
+    try {
+      const { error } = await supabase
+        .from('shift_conditions')
+        .upsert({ year, data: condition }, { onConflict: 'year' });
+
+      if (error) throw error;
+    } catch (error) {
       throw error;
     }
   };
@@ -412,8 +522,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
         shifts,
         availabilities,
         loading,
+        reloadData: loadData,
         addEmployee,
         updateEmployee,
+        updateEmployeeOrder,
         deleteEmployee,
         addShift,
         updateShift,
@@ -425,6 +537,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
         deleteAvailability,
         approveAvailability,
         rejectAvailability,
+        getDailyNote,
+        saveDailyNote,
+        getMonthlyProcedure,
+        saveMonthlyProcedure,
+        getShiftCondition,
+        saveShiftCondition,
       }}
     >
       {children}
