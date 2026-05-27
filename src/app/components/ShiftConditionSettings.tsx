@@ -1,6 +1,7 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Settings, Save, Trash2, X } from 'lucide-react';
 import { ShiftCondition, ShiftConditionRow, ShiftConditionRowType } from '../types';
+import { useData } from '../context/DataContext';
 
 const ROW_LABELS: Record<ShiftConditionRowType, string> = {
   monday: '月曜日',
@@ -168,40 +169,14 @@ const getAutumnalEquinoxDay = (year: number): number => {
 };
 
 export function ShiftConditionSettings() {
+  const { getShiftCondition, saveShiftCondition } = useData();
   const [inputYear, setInputYear] = useState('');
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [mode, setMode] = useState<'register' | 'update' | null>(null);
   const [rows, setRows] = useState<ShiftConditionRow[]>([]);
   const inputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
 
-  const loadFromLocalStorage = (year: number): ShiftCondition | null => {
-    try {
-      const item = localStorage.getItem(`shift_condition_${year}`);
-      if (!item) return null;
-      return JSON.parse(item);
-    } catch (error) {
-      console.error('Error loading shift condition:', error);
-      return null;
-    }
-  };
-
-  const saveToLocalStorage = (condition: ShiftCondition) => {
-    try {
-      localStorage.setItem(`shift_condition_${condition.year}`, JSON.stringify(condition));
-    } catch (error) {
-      console.error('Error saving shift condition:', error);
-    }
-  };
-
-  const deleteFromLocalStorage = (year: number) => {
-    try {
-      localStorage.removeItem(`shift_condition_${year}`);
-    } catch (error) {
-      console.error('Error deleting shift condition:', error);
-    }
-  };
-
-  const handleDisplay = () => {
+  const handleDisplay = async () => {
     const year = parseInt(inputYear);
     if (isNaN(year) || year < 1900 || year > 2100) {
       alert('正しい年を入力してください（1900-2100）');
@@ -209,7 +184,7 @@ export function ShiftConditionSettings() {
     }
 
     setSelectedYear(year);
-    const existing = loadFromLocalStorage(year);
+    const existing = await getShiftCondition(year);
 
     if (existing) {
       // 更新モード
@@ -227,7 +202,7 @@ export function ShiftConditionSettings() {
     }
   };
 
-  const handleRegister = () => {
+  const handleRegister = async () => {
     if (!selectedYear) return;
 
     // 空の日付を除外してからデータを保存
@@ -240,12 +215,17 @@ export function ShiftConditionSettings() {
       year: selectedYear,
       rows: cleanedRows,
     };
-    saveToLocalStorage(condition);
-    alert('登録しました');
-    handleCancel();
+
+    try {
+      await saveShiftCondition(selectedYear, condition);
+      alert('登録しました');
+      handleCancel();
+    } catch (error) {
+      alert('登録に失敗しました');
+    }
   };
 
-  const handleUpdate = () => {
+  const handleUpdate = async () => {
     if (!selectedYear) return;
 
     // 空の日付を除外してからデータを保存
@@ -258,21 +238,31 @@ export function ShiftConditionSettings() {
       year: selectedYear,
       rows: cleanedRows,
     };
-    saveToLocalStorage(condition);
-    alert('更新しました');
-    handleCancel();
+
+    try {
+      await saveShiftCondition(selectedYear, condition);
+      alert('更新しました');
+      handleCancel();
+    } catch (error) {
+      alert('更新に失敗しました');
+    }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!selectedYear) return;
 
     if (!window.confirm(`${selectedYear}年のシフト条件を削除してもよろしいですか？`)) {
       return;
     }
 
-    deleteFromLocalStorage(selectedYear);
-    alert('削除しました');
-    handleCancel();
+    try {
+      // 空のデータで上書きして削除と同等の処理をする
+      await saveShiftCondition(selectedYear, { year: selectedYear, rows: [] });
+      alert('削除しました');
+      handleCancel();
+    } catch (error) {
+      alert('削除に失敗しました');
+    }
   };
 
   const handleCancel = () => {

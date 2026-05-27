@@ -1,8 +1,9 @@
 import { format, isSameDay, getDaysInMonth, getDay } from 'date-fns';
 import { ja } from 'date-fns/locale';
-import { FileCheck, Printer } from 'lucide-react';
+import { FileCheck, Printer, ClipboardList } from 'lucide-react';
 import { Employee, Availability, shiftTypeConfig, ShiftCondition } from '../types';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useData } from '../context/DataContext';
 
 interface ConfirmedShiftTableProps {
   year: number;
@@ -10,6 +11,7 @@ interface ConfirmedShiftTableProps {
   half: 'first' | 'second';
   employees: Employee[];
   availabilities: Availability[];
+  currentUser: Employee | null;
   onYearChange: (year: number) => void;
   onMonthChange: (month: number) => void;
   onHalfChange: (half: 'first' | 'second') => void;
@@ -21,11 +23,84 @@ export function ConfirmedShiftTable({
   half,
   employees,
   availabilities,
+  currentUser,
   onYearChange,
   onMonthChange,
   onHalfChange,
 }: ConfirmedShiftTableProps) {
+  const { getDailyNote, saveDailyNote, getMonthlyProcedure, saveMonthlyProcedure, getShiftCondition } = useData();
   const [printHalf, setPrintHalf] = useState<'first' | 'second' | null>(null);
+  const [noteText, setNoteText] = useState('このシフト確認表には、管理者によって承認された勤務希望のみが表示されています。');
+  const [dailyNotes, setDailyNotes] = useState<{ [key: string]: string }>({});
+  const [shiftCondition, setShiftCondition] = useState<ShiftCondition | null>(null);
+
+  const isManager = currentUser?.role === 'manager' || currentUser?.isManager || false;
+
+  // シフト条件設定を読み込み
+  useEffect(() => {
+    const loadShiftCondition = async () => {
+      const condition = await getShiftCondition(year);
+      setShiftCondition(condition);
+    };
+    loadShiftCondition();
+  }, [year, getShiftCondition]);
+
+  // 月別業務手順を読み込み
+  useEffect(() => {
+    const loadMonthlyProcedure = async () => {
+      try {
+        const procedure = await getMonthlyProcedure(year, month);
+        setNoteText(procedure || 'このシフト確認表には、管理者によって承認された勤務希望のみが表示されています。');
+      } catch (error) {
+        console.error('月別業務手順の読み込みに失敗しました:', error);
+      }
+    };
+    loadMonthlyProcedure();
+  }, [year, month, getMonthlyProcedure]);
+
+  // 表示する日付範囲の備考を読み込み
+  useEffect(() => {
+    const loadDailyNotes = async () => {
+      const days = getDisplayDays();
+      const notes: { [key: string]: string } = {};
+      for (const day of days) {
+        try {
+          const dateStr = format(day, 'yyyy-MM-dd');
+          const note = await getDailyNote(dateStr);
+          if (note) {
+            notes[day.toISOString()] = note;
+          }
+        } catch (error) {
+          console.error('日別備考の読み込みに失敗しました:', error);
+        }
+      }
+      setDailyNotes(notes);
+    };
+    loadDailyNotes();
+  }, [year, month, half, getDailyNote]);
+
+  const handleNoteChange = async (date: Date, value: string) => {
+    if (!isManager) return;
+    const key = date.toISOString();
+    const dateStr = format(date, 'yyyy-MM-dd');
+    setDailyNotes(prev => ({ ...prev, [key]: value }));
+
+    try {
+      await saveDailyNote(dateStr, value);
+    } catch (error) {
+      console.error('日別備考の保存に失敗しました:', error);
+    }
+  };
+
+  const handleProcedureChange = async (value: string) => {
+    setNoteText(value);
+
+    try {
+      await saveMonthlyProcedure(year, month, value);
+    } catch (error) {
+      console.error('月別業務手順の保存に失敗しました:', error);
+    }
+  };
 
   // 従業員をdisplayOrderでソート（最大15人まで表示）
   const sortedEmployees = [...employees].sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0)).slice(0, 15);
@@ -118,27 +193,20 @@ export function ConfirmedShiftTable({
 
   // シフト数に応じたフォントサイズを決定
   const getShiftFontSize = () => {
-    if (maxShifts === 1) return '8pt';
-    if (maxShifts === 2) return '6.5pt';
-    if (maxShifts === 3) return '5.5pt';
-    if (maxShifts === 4) return '4.8pt';
-    return '4.2pt'; // 5つ以上
+    if (maxShifts === 1) return '6.5pt';
+    if (maxShifts === 2) return '5.5pt';
+    if (maxShifts === 3) return '4.8pt';
+    if (maxShifts === 4) return '4.2pt';
+    return '3.8pt'; // 5つ以上
   };
 
   const shiftFontSize = getShiftFontSize();
 
   // シフト条件設定から祝日データを取得
   const getHolidaysFromShiftCondition = (targetYear: number): string[] => {
-    try {
-      const item = localStorage.getItem(`shift_condition_${targetYear}`);
-      if (!item) return [];
-      const condition: ShiftCondition = JSON.parse(item);
-      const holidayRow = condition.rows.find(row => row.type === 'holiday');
-      return holidayRow ? holidayRow.dates : [];
-    } catch (error) {
-      console.error('Error loading holidays from shift condition:', error);
-      return [];
-    }
+    if (!shiftCondition || shiftCondition.year !== targetYear) return [];
+    const holidayRow = shiftCondition.rows.find(row => row.type === 'holiday');
+    return holidayRow ? holidayRow.dates : [];
   };
 
   // 日本の祝日を判定（シフト条件設定から取得）
@@ -150,36 +218,47 @@ export function ConfirmedShiftTable({
 
   // 曜日から要員数を取得
   const getRequiredStaffCount = (date: Date): number => {
-    try {
-      const item = localStorage.getItem(`shift_condition_${date.getFullYear()}`);
-      if (!item) return 0;
-      const condition: ShiftCondition = JSON.parse(item);
+    if (!shiftCondition || shiftCondition.year !== date.getFullYear()) return 0;
 
-      // 祝日の場合
-      if (isHoliday(date)) {
-        const holidayRow = condition.rows.find(row => row.type === 'holiday');
-        return holidayRow ? holidayRow.requiredStaff : 0;
-      }
+    const key = `${date.getMonth() + 1}/${date.getDate()}`;
 
-      // 曜日から行タイプを取得
-      const dayOfWeek = date.getDay(); // 0:日曜 1:月曜 ... 6:土曜
-      const dayTypeMap: { [key: number]: string } = {
-        0: 'sunday',
-        1: 'monday',
-        2: 'tuesday',
-        3: 'wednesday',
-        4: 'thursday',
-        5: 'friday',
-        6: 'saturday',
-      };
-
-      const dayType = dayTypeMap[dayOfWeek];
-      const row = condition.rows.find(r => r.type === dayType);
-      return row ? row.requiredStaff : 0;
-    } catch (error) {
-      console.error('Error loading required staff count:', error);
-      return 0;
+    // セールイベントの場合（最優先）
+    const springSaleRow = shiftCondition.rows.find(row => row.type === 'springSale');
+    if (springSaleRow && springSaleRow.dates.includes(key)) {
+      return springSaleRow.requiredStaff;
     }
+
+    const summerSaleRow = shiftCondition.rows.find(row => row.type === 'summerSale');
+    if (summerSaleRow && summerSaleRow.dates.includes(key)) {
+      return summerSaleRow.requiredStaff;
+    }
+
+    const winterSaleRow = shiftCondition.rows.find(row => row.type === 'winterSale');
+    if (winterSaleRow && winterSaleRow.dates.includes(key)) {
+      return winterSaleRow.requiredStaff;
+    }
+
+    // 祝日の場合
+    if (isHoliday(date)) {
+      const holidayRow = shiftCondition.rows.find(row => row.type === 'holiday');
+      return holidayRow ? holidayRow.requiredStaff : 0;
+    }
+
+    // 曜日から行タイプを取得
+    const dayOfWeek = date.getDay(); // 0:日曜 1:月曜 ... 6:土曜
+    const dayTypeMap: { [key: number]: string } = {
+      0: 'sunday',
+      1: 'monday',
+      2: 'tuesday',
+      3: 'wednesday',
+      4: 'thursday',
+      5: 'friday',
+      6: 'saturday',
+    };
+
+    const dayType = dayTypeMap[dayOfWeek];
+    const row = shiftCondition.rows.find(r => r.type === dayType);
+    return row ? row.requiredStaff : 0;
   };
 
   // 日曜日判定
@@ -195,10 +274,140 @@ export function ConfirmedShiftTable({
   return (
     <>
       <style>{`
+        .confirmed-shift-fixed-column {
+          left: -2px !important;
+          padding-left: 4px;
+        }
+        .confirmed-shift-fixed-column-left::before {
+          content: '';
+          position: absolute;
+          left: 0;
+          top: 0;
+          bottom: 0;
+          width: 2px;
+          background-color: #6ee7b7;
+          z-index: 50;
+        }
+        .confirmed-shift-fixed-column-right::after {
+          content: '';
+          position: absolute;
+          right: 0;
+          top: 0;
+          bottom: 0;
+          width: 2px;
+          background-color: #6ee7b7;
+          z-index: 50;
+        }
+        .confirmed-shift-fixed-row-top::before {
+          content: '';
+          position: absolute;
+          left: 0;
+          right: 0;
+          top: -1px;
+          height: 3px;
+          background-color: #6ee7b7;
+          z-index: 50;
+        }
+        .confirmed-shift-fixed-row-bottom::after {
+          content: '';
+          position: absolute;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          height: 2px;
+          background-color: #6ee7b7;
+          z-index: 50;
+        }
+        .confirmed-shift-corner-cell {
+          left: -2px !important;
+          top: -1px !important;
+          padding: 11px 10px 10px 12px !important;
+        }
+        .confirmed-shift-corner-cell::before {
+          content: '';
+          position: absolute;
+          left: 0;
+          top: 0;
+          right: 0;
+          bottom: 0;
+          border-top: 2px solid #6ee7b7;
+          border-left: 2px solid #6ee7b7;
+          z-index: 50;
+          pointer-events: none;
+        }
+        .confirmed-shift-corner-cell::after {
+          content: '';
+          position: absolute;
+          left: 0;
+          top: 0;
+          right: 0;
+          bottom: 0;
+          border-bottom: 2px solid #6ee7b7;
+          border-right: 2px solid #6ee7b7;
+          z-index: 50;
+          pointer-events: none;
+        }
+
+        .confirmed-shift-notes-column {
+          right: -2px !important;
+          padding-right: 4px;
+        }
+        .confirmed-shift-notes-column-left::before {
+          content: '';
+          position: absolute;
+          left: 0;
+          top: 0;
+          bottom: 0;
+          width: 2px;
+          background-color: #6ee7b7;
+          z-index: 50;
+        }
+        .confirmed-shift-notes-column-right::after {
+          content: '';
+          position: absolute;
+          right: 0;
+          top: 0;
+          bottom: 0;
+          width: 2px;
+          background-color: #6ee7b7;
+          z-index: 50;
+        }
+
+        .confirmed-shift-notes-header-cell {
+          right: -2px !important;
+          top: -1px !important;
+          padding: 11px 10px 10px 12px !important;
+        }
+        .confirmed-shift-notes-header-cell::before {
+          content: '';
+          position: absolute;
+          left: 0;
+          top: 0;
+          right: 0;
+          bottom: 0;
+          border-top: 2px solid #6ee7b7;
+          border-left: 2px solid #6ee7b7;
+          z-index: 50;
+          pointer-events: none;
+        }
+        .confirmed-shift-notes-header-cell::after {
+          content: '';
+          position: absolute;
+          left: 0;
+          top: 0;
+          right: 0;
+          bottom: 0;
+          border-bottom: 2px solid #6ee7b7;
+          border-right: 2px solid #6ee7b7;
+          z-index: 50;
+          pointer-events: none;
+        }
+
+
         @media print {
           @page {
             size: A4 landscape;
-            margin: 8mm;
+            margin: 8mm 8mm;
           }
           
           body * {
@@ -269,25 +478,25 @@ export function ConfirmedShiftTable({
           }
           
           .print-table-wrapper {
-            page-break-inside: avoid !important;
+            page-break-inside: auto !important;
             page-break-before: avoid !important;
           }
 
           .print-table {
             width: 100%;
             table-layout: fixed;
-            margin: 0;
+            margin: 0 0 6px 0;
             border-collapse: collapse;
             border: 2.5px solid #333 !important;
             page-break-inside: avoid !important;
             page-break-before: avoid !important;
-            page-break-after: avoid !important;
+            page-break-after: auto !important;
           }
 
           .print-table th,
           .print-table td {
             border: 0.5px solid #999 !important;
-            padding: 2px 1px !important;
+            padding: 1px 0.5px !important;
             font-size: 10pt !important;
             line-height: 1.2 !important;
             page-break-inside: avoid !important;
@@ -297,10 +506,10 @@ export function ConfirmedShiftTable({
             background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
             color: white !important;
             font-weight: bold !important;
-            padding: 4px 2px !important;
+            padding: 2px 1px !important;
             border: 1px solid #047857 !important;
-            height: 42px !important;
-            max-height: 42px !important;
+            height: 38px !important;
+            max-height: 38px !important;
             overflow: hidden !important;
           }
           
@@ -309,17 +518,27 @@ export function ConfirmedShiftTable({
             min-width: 50px !important;
             max-width: 50px !important;
             border-right: 2px solid #666 !important;
-            padding: 1px !important;
+            padding: 0.5px !important;
           }
 
           .print-table .employee-column {
-            width: calc((100% - 50px) / 15) !important;
+            width: calc((100% - 50px) / 14) !important;
+          }
+
+          .print-table .notes-column {
+            width: calc((100% - 50px) / 14 * 2) !important;
+            border-left: 2px solid #666 !important;
+            font-size: 7pt !important;
+            padding: 1px 2px !important;
+            word-wrap: break-word !important;
+            overflow-wrap: break-word !important;
+            line-height: 1.3 !important;
           }
 
           .print-table tbody tr {
             border-bottom: 0.5px solid #ccc !important;
-            height: 32px !important;
-            max-height: 32px !important;
+            height: 30px !important;
+            max-height: 30px !important;
             page-break-inside: avoid !important;
           }
 
@@ -333,8 +552,8 @@ export function ConfirmedShiftTable({
 
           .print-table tbody td {
             background-color: transparent !important;
-            height: 32px !important;
-            max-height: 32px !important;
+            height: 30px !important;
+            max-height: 30px !important;
             overflow: hidden !important;
             vertical-align: middle !important;
           }
@@ -353,37 +572,35 @@ export function ConfirmedShiftTable({
           
           .print-shift-time {
             font-size: ${shiftFontSize} !important;
-            padding: 2px 2px !important;
-            line-height: 1.2 !important;
+            padding: 0 !important;
+            line-height: 1.1 !important;
             font-weight: 700 !important;
-            border-radius: 2px !important;
+            border-radius: 1px !important;
             margin: 0.5px 0 !important;
-            display: block !important;
+            display: flex !important;
             white-space: nowrap !important;
-            overflow: hidden !important;
-            text-overflow: ellipsis !important;
+            overflow: visible !important;
+            word-break: keep-all !important;
+            border: 1px solid !important;
           }
 
+
           .print-shift-container {
-            height: 32px !important;
-            max-height: 32px !important;
+            height: 30px !important;
+            max-height: 30px !important;
             overflow: hidden !important;
             display: flex !important;
             flex-direction: column !important;
             justify-content: center !important;
-            padding: 1px !important;
+            padding: 0.5px !important;
           }
           
-          .shift-karintou {
-            background-color: ${shiftTypeConfig.karintou.color} !important;
-            color: white !important;
-            border: 1px solid ${shiftTypeConfig.karintou.color} !important;
+          .print-shift-time.shift-karintou {
+            border-color: #78350f !important;
           }
-          
-          .shift-cafe {
-            background-color: ${shiftTypeConfig.cafe.color} !important;
-            color: white !important;
-            border: 1px solid ${shiftTypeConfig.cafe.color} !important;
+
+          .print-shift-time.shift-cafe {
+            border-color: #FFC72C !important;
           }
           
           .shift-type-label {
@@ -403,24 +620,26 @@ export function ConfirmedShiftTable({
           }
           
           .print-employee-name {
-            font-size: 9pt !important;
-            line-height: 1.3 !important;
+            font-size: 7pt !important;
+            line-height: 1.2 !important;
             font-weight: bold !important;
           }
 
           .print-date-text {
-            font-size: 8.5pt !important;
+            font-size: 7pt !important;
             line-height: 1.1 !important;
             font-weight: bold !important;
             white-space: nowrap !important;
+            margin-bottom: 2px !important;
           }
 
           .print-date-day {
-            font-size: 7.5pt !important;
+            font-size: 6pt !important;
             line-height: 1.1 !important;
             font-weight: bold !important;
             color: #059669 !important;
             white-space: nowrap !important;
+            margin-top: 2px !important;
           }
           
           .sunday-date .print-date-text,
@@ -437,13 +656,86 @@ export function ConfirmedShiftTable({
           .holiday-date .print-date-day {
             color: #dc2626 !important;
           }
+
+          .print-procedure-section {
+            margin-top: 8px !important;
+            padding: 6px 10px !important;
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%) !important;
+            border: 1.5px solid #10b981 !important;
+            border-radius: 6px !important;
+            page-break-inside: avoid !important;
+            page-break-before: auto !important;
+            break-inside: avoid !important;
+          }
+
+          .print-procedure-title {
+            font-size: 8pt !important;
+            font-weight: bold !important;
+            color: #047857 !important;
+            margin-bottom: 4px !important;
+            display: flex !important;
+            align-items: center !important;
+            gap: 3px !important;
+          }
+
+          .print-procedure-content {
+            font-size: 7pt !important;
+            line-height: 1.3 !important;
+            color: #065f46 !important;
+            white-space: pre-wrap !important;
+            word-wrap: break-word !important;
+          }
+
+          span.print-shift-icon-karintou {
+            padding: 1px 3px !important;
+            display: inline-block !important;
+            background: #78350f !important;
+            color: white !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+            border-radius: 1px 0 0 1px !important;
+          }
+
+          span.print-shift-text-karintou {
+            padding: 1px 3px !important;
+            display: inline-block !important;
+            background: transparent !important;
+            color: #78350f !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+            border-radius: 0 1px 1px 0 !important;
+          }
+
+          span.print-shift-icon-cafe {
+            padding: 1px 3px !important;
+            display: inline-block !important;
+            background: #FFC72C !important;
+            color: white !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+            border-radius: 1px 0 0 1px !important;
+          }
+
+          span.print-shift-text-cafe {
+            padding: 1px 3px !important;
+            display: inline-block !important;
+            background: transparent !important;
+            color: #FFC72C !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+            border-radius: 0 1px 1px 0 !important;
+          }
         }
-        
+
         .print-only {
           display: none;
         }
       `}</style>
-      <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-white/50 shadow-xl print-container flex flex-col">
+      <div className="bg-white backdrop-blur-sm rounded-2xl border border-white/50 shadow-xl print-container flex flex-col">
         {/* 表題部分 */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 no-print">
           <div className="flex items-center gap-4">
@@ -515,13 +807,13 @@ export function ConfirmedShiftTable({
         {/* 画面表示用テーブル（横に従業員、縦に日付） */}
         <div className="overflow-auto max-h-[calc(100vh-320px)] screen-only">
           <table className="w-full border-collapse">
-            <thead className="sticky top-0 z-10 bg-white">
+            <thead>
               <tr>
-                <th className="p-2.5 border border-emerald-100 bg-gradient-to-br from-emerald-50 to-green-50 min-w-[60px]">日付</th>
+                <th className="p-2.5 border border-emerald-100 bg-emerald-100 min-w-[60px] sticky z-20 relative confirmed-shift-corner-cell">日付</th>
                 {sortedEmployees.map((employee) => (
                   <th
                     key={employee.id}
-                    className="p-2.5 border border-emerald-100 bg-gradient-to-br from-emerald-50 to-green-50 min-w-[120px]"
+                    className="p-2.5 border border-emerald-100 bg-emerald-100 min-w-[120px] sticky top-0 z-10 confirmed-shift-fixed-row-top confirmed-shift-fixed-row-bottom"
                   >
                     <div className="text-center">
                       <div className="flex items-center justify-center gap-1 mb-1">
@@ -534,6 +826,9 @@ export function ConfirmedShiftTable({
                     </div>
                   </th>
                 ))}
+                <th className="p-2.5 border border-emerald-100 bg-emerald-100 min-w-[120px] sticky z-20 relative confirmed-shift-notes-header-cell">
+                  備考
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -547,7 +842,7 @@ export function ConfirmedShiftTable({
 
                 return (
                   <tr key={day.toISOString()} className="hover:bg-emerald-50/30 transition-colors">
-                    <td className={`p-1.5 border border-emerald-100 ${isSpecialDay ? 'bg-red-50' : 'bg-white/60'} w-28`}>
+                    <td className={`p-1.5 border border-emerald-100 ${isSpecialDay ? 'bg-red-100' : 'bg-white'} w-28 sticky left-0 z-10 relative confirmed-shift-fixed-column confirmed-shift-fixed-column-left confirmed-shift-fixed-column-right`}>
                       <div className="text-center">
                         <div className={`font-semibold text-xs leading-tight ${isSpecialDay ? 'text-red-600' : 'text-gray-800'}`}>
                           {day.getDate()}日({format(day, 'E', { locale: ja })})
@@ -584,6 +879,15 @@ export function ConfirmedShiftTable({
                         </td>
                       );
                     })}
+                    <td className={`p-1.5 border border-emerald-100 ${isSpecialDay ? 'bg-red-50' : 'bg-white'} sticky right-0 z-10 relative confirmed-shift-notes-column confirmed-shift-notes-column-left confirmed-shift-notes-column-right`}>
+                      <textarea
+                        value={dailyNotes[day.toISOString()] || ''}
+                        onChange={(e) => handleNoteChange(day, e.target.value)}
+                        disabled={!isManager}
+                        className={`w-full px-1.5 py-1 text-xs bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-emerald-400 rounded resize-none min-h-[60px] ${!isManager ? 'cursor-not-allowed opacity-60' : ''}`}
+                        placeholder={isManager ? '' : ''}
+                      />
+                    </td>
                   </tr>
                 );
               })}
@@ -593,27 +897,34 @@ export function ConfirmedShiftTable({
 
         {/* 印刷用テーブル（日付が縦） */}
         {printHalf && (
-          <div className="overflow-x-auto rounded-xl print-only">
-            {/* 印刷用タイトル・凡例・印刷日を1行に */}
-            <div className="print-title">
-              <div>{year}年{month}月{printHalf === 'first' ? '前半' : '後半'}シフト管理表</div>
-              <div style={{ 
-                display: 'flex', 
-                gap: '12px', 
-                alignItems: 'center'
-              }}>
-                <div style={{ 
-                  display: 'flex', 
-                  gap: '8px', 
-                  fontSize: '8pt',
-                  alignItems: 'center'
-                }}>
-                  <span style={{ fontWeight: 'bold', color: '#6b7280' }}>凡例：</span>
-                  <div style={{ 
-                    display: 'inline-flex', 
-                    alignItems: 'center', 
-                    gap: '3px',
-                    padding: '2px 6px',
+          <>
+            {/* 従業員を12人ずつのページに分割 */}
+            {Array.from({ length: Math.ceil(sortedEmployees.length / 12) }, (_, pageIndex) => {
+              const startIndex = pageIndex * 12;
+              const pageEmployees = sortedEmployees.slice(startIndex, startIndex + 12);
+
+              return (
+                <div key={pageIndex} className="overflow-x-auto rounded-xl print-only" style={{ pageBreakAfter: pageIndex < Math.ceil(sortedEmployees.length / 12) - 1 ? 'always' : 'auto' }}>
+                  {/* 印刷用タイトル・凡例・印刷日を1行に */}
+                  <div className="print-title">
+                    <div>{year}年{month}月{printHalf === 'first' ? '前半' : '後半'}シフト管理表 {sortedEmployees.length > 12 ? `(${pageIndex + 1}/${Math.ceil(sortedEmployees.length / 12)})` : ''}</div>
+                    <div style={{
+                      display: 'flex',
+                      gap: '12px',
+                      alignItems: 'center'
+                    }}>
+                      <div style={{
+                        display: 'flex',
+                        gap: '8px',
+                        fontSize: '8pt',
+                        alignItems: 'center'
+                      }}>
+                        <span style={{ fontWeight: 'bold', color: '#6b7280' }}>凡例：</span>
+                        <div style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '3px',
+                          padding: '2px 6px',
                     backgroundColor: shiftTypeConfig.karintou.color,
                     color: 'white',
                     borderRadius: '3px',
@@ -640,91 +951,128 @@ export function ConfirmedShiftTable({
               </div>
             </div>
             
-            <table className="w-full border-collapse print-table">
-              <thead>
-                <tr>
-                  <th className="date-column">日付</th>
-                  {Array.from({ length: 15 }, (_, index) => {
-                    const employee = sortedEmployees[index];
-                    return (
-                      <th
-                        key={employee?.id || `empty-${index}`}
-                        className="employee-column"
-                      >
-                        {employee ? (
-                          <div className="text-center">
-                            <div className="flex items-center justify-center gap-1 mb-1">
-                              <div
-                                className="w-2 h-2 rounded-full shadow-sm"
-                                style={{ backgroundColor: employee.color }}
-                              />
-                            </div>
-                            <div className="font-semibold text-gray-800 print-employee-name">{employee.name}</div>
-                          </div>
-                        ) : (
-                          <div className="text-center text-gray-400">-</div>
-                        )}
-                      </th>
-                    );
-                  })}
-                </tr>
-              </thead>
-              <tbody>
-                {printDays.map((day) => {
-                  const isSundayDay = isSunday(day);
-                  const isSaturdayDay = isSaturday(day);
-                  const isHolidayDay = isHoliday(day);
-                  const dateClassName = isSundayDay ? 'sunday-date' : isSaturdayDay ? 'saturday-date' : isHolidayDay ? 'holiday-date' : '';
-                  const cellClassName = isSundayDay ? 'sunday-cell' : isSaturdayDay ? 'saturday-cell' : isHolidayDay ? 'holiday-cell' : '';
-                  const requiredStaff = getRequiredStaffCount(day);
-                  const approvedCount = getApprovedShiftsCountForDate(day);
-
-                  return (
-                    <tr key={day.toISOString()}>
-                      <td className={`date-column ${cellClassName}`}>
-                        <div className={`text-center ${dateClassName}`}>
-                          <div className="font-semibold text-gray-800 print-date-text">{day.getDate()}日({format(day, 'E', { locale: ja })})</div>
-                          <div className="text-emerald-600 print-date-day">
-                            【{approvedCount}/{requiredStaff}】
-                          </div>
-                        </div>
-                      </td>
-                      {Array.from({ length: 15 }, (_, index) => {
-                        const employee = sortedEmployees[index];
-                        const confirmedShifts = employee ? getConfirmedShiftsForEmployeeAndDate(employee.id, day) : [];
-                        return (
-                          <td
-                            key={`${day.toISOString()}-${employee?.id || `empty-${index}`}`}
-                            className={`employee-column ${cellClassName}`}
-                          >
-                            <div className="print-shift-container">
-                              {confirmedShifts.map((shift) => (
-                                <div
-                                  key={shift.id}
-                                  className={`text-center print-shift-time shift-${shift.shiftType}`}
-                                >
-                                  {shift.shiftType === 'karintou' ? '◉' : '◆'} {shift.startTime}-{shift.endTime}
+                  <table className="w-full border-collapse print-table">
+                    <thead>
+                      <tr>
+                        <th className="date-column">日付</th>
+                        {Array.from({ length: 12 }, (_, index) => {
+                          const employee = pageEmployees[index];
+                          return (
+                            <th
+                              key={employee?.id || `empty-${pageIndex}-${index}`}
+                              className="employee-column"
+                            >
+                              {employee ? (
+                                <div className="text-center">
+                                  <div className="flex items-center justify-center gap-1 mb-1">
+                                    <div
+                                      className="w-2 h-2 rounded-full shadow-sm"
+                                      style={{ backgroundColor: employee.color }}
+                                    />
+                                  </div>
+                                  <div className="font-semibold text-gray-800 print-employee-name">{employee.name}</div>
                                 </div>
-                              ))}
-                              {confirmedShifts.length === 0 && (
-                                <div className="text-center print-no-shift">×</div>
+                              ) : (
+                                <div className="text-center text-gray-400">-</div>
                               )}
-                            </div>
-                          </td>
+                            </th>
+                          );
+                        })}
+                        <th className="notes-column">備考</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {printDays.map((day) => {
+                        const isSundayDay = isSunday(day);
+                        const isSaturdayDay = isSaturday(day);
+                        const isHolidayDay = isHoliday(day);
+                        const dateClassName = isSundayDay ? 'sunday-date' : isSaturdayDay ? 'saturday-date' : isHolidayDay ? 'holiday-date' : '';
+                        const cellClassName = isSundayDay ? 'sunday-cell' : isSaturdayDay ? 'saturday-cell' : isHolidayDay ? 'holiday-cell' : '';
+                        const requiredStaff = getRequiredStaffCount(day);
+                        const approvedCount = getApprovedShiftsCountForDate(day);
+
+                        return (
+                          <tr key={day.toISOString()}>
+                            <td className={`date-column ${cellClassName}`}>
+                              <div className={`text-center ${dateClassName}`}>
+                                <div className="font-semibold text-gray-800 print-date-text">{day.getDate()}日({format(day, 'E', { locale: ja })})</div>
+                                <div className="text-emerald-600 print-date-day">
+                                  【{approvedCount}/{requiredStaff}】
+                                </div>
+                              </div>
+                            </td>
+                            {Array.from({ length: 12 }, (_, index) => {
+                              const employee = pageEmployees[index];
+                              const confirmedShifts = employee ? getConfirmedShiftsForEmployeeAndDate(employee.id, day) : [];
+                              return (
+                                <td
+                                  key={`${day.toISOString()}-${employee?.id || `empty-${pageIndex}-${index}`}`}
+                                  className={`employee-column ${cellClassName}`}
+                                >
+                                  <div className="print-shift-container">
+                                    {confirmedShifts.map((shift) => (
+                                      <div
+                                        key={shift.id}
+                                        className={`print-shift-time shift-${shift.shiftType}`}
+                                      >
+                                        <span className={`print-shift-icon-${shift.shiftType}`}>
+                                          {shift.shiftType === 'karintou' ? '◉' : '◆'}
+                                        </span>
+                                        <span className={`print-shift-text-${shift.shiftType}`}>
+                                          {shift.startTime}-{shift.endTime}
+                                        </span>
+                                      </div>
+                                    ))}
+                                    {confirmedShifts.length === 0 && employee && (
+                                      <div className="text-center print-no-shift">×</div>
+                                    )}
+                                  </div>
+                                </td>
+                              );
+                            })}
+                            <td className={`notes-column ${cellClassName}`}>
+                              <div style={{ fontSize: '7pt', lineHeight: '1.3', wordWrap: 'break-word' }}>
+                                {dailyNotes[day.toISOString()] || ''}
+                              </div>
+                            </td>
+                          </tr>
                         );
                       })}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                    </tbody>
+                  </table>
+
+                  {/* 業務手順セクション（印刷用） */}
+                  {noteText && (
+                    <div className="print-procedure-section">
+                      <div className="print-procedure-title">
+                        📋 業務手順
+                      </div>
+                      <div className="print-procedure-content">
+                        {noteText}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </>
         )}
 
-        <div className="p-4 border-t border-gray-200 no-print">
-          <p className="text-xs text-emerald-800">
-            このシフト確認表には、管理者によって承認された勤務希望のみが表示されています。
-          </p>
+        <div className="p-3 border-t border-emerald-100 bg-gradient-to-br from-emerald-50/50 to-green-50/50 no-print">
+          <div className="flex items-center gap-1.5 mb-2">
+            <div className="p-1.5 bg-gradient-to-br from-emerald-500 to-green-500 rounded-lg shadow-md">
+              <ClipboardList className="w-3.5 h-3.5 text-white" />
+            </div>
+            <h3 className="text-sm font-semibold text-gray-800">業務手順</h3>
+          </div>
+          <textarea
+            value={noteText}
+            onChange={(e) => handleProcedureChange(e.target.value)}
+            disabled={!isManager}
+            className={`w-full px-3 py-2 text-xs text-gray-700 bg-white border border-emerald-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none shadow-sm transition-shadow ${isManager ? 'hover:shadow-md' : 'cursor-not-allowed opacity-60'}`}
+            rows={2}
+            placeholder={isManager ? '業務手順や備考を入力してください...' : ''}
+          />
         </div>
       </div>
     </>

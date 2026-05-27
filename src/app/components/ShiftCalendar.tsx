@@ -1,7 +1,9 @@
+import { useRef, forwardRef, useImperativeHandle, useState, useEffect } from 'react';
 import { format, isSameDay, getDaysInMonth } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { Calendar, Check, X, Edit, Trash2, Clock, CheckCheck, XCircle } from 'lucide-react';
 import { Employee, Availability, shiftTypeConfig, ShiftCondition } from '../types';
+import { useData } from '../context/DataContext';
 
 interface ShiftCalendarProps {
   year: number;
@@ -19,7 +21,12 @@ interface ShiftCalendarProps {
   onRemoveAvailability: (availabilityId: string) => void;
 }
 
-export function ShiftCalendar({
+export interface ShiftCalendarRef {
+  getScrollTop: () => number;
+  setScrollTop: (position: number) => void;
+}
+
+export const ShiftCalendar = forwardRef<ShiftCalendarRef, ShiftCalendarProps>(({
   year,
   month,
   half,
@@ -33,7 +40,29 @@ export function ShiftCalendar({
   onApprove,
   onReject,
   onRemoveAvailability,
-}: ShiftCalendarProps) {
+}, ref) => {
+  const { getShiftCondition } = useData();
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [shiftCondition, setShiftCondition] = useState<ShiftCondition | null>(null);
+
+  // シフト条件設定を読み込み
+  useEffect(() => {
+    const loadShiftCondition = async () => {
+      const condition = await getShiftCondition(year);
+      setShiftCondition(condition);
+    };
+    loadShiftCondition();
+  }, [year, getShiftCondition]);
+
+  // 親コンポーネントからスクロール位置にアクセスできるようにする
+  useImperativeHandle(ref, () => ({
+    getScrollTop: () => scrollContainerRef.current?.scrollTop || 0,
+    setScrollTop: (position: number) => {
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollTop = position;
+      }
+    }
+  }));
   // 従業員をソート：1行目はログイン中の従業員、それ以降はdisplayOrder順
   const sortedEmployees = [
     currentUser,
@@ -67,16 +96,9 @@ export function ShiftCalendar({
 
   // シフト条件設定から祝日データを取得
   const getHolidaysFromShiftCondition = (targetYear: number): string[] => {
-    try {
-      const item = localStorage.getItem(`shift_condition_${targetYear}`);
-      if (!item) return [];
-      const condition: ShiftCondition = JSON.parse(item);
-      const holidayRow = condition.rows.find(row => row.type === 'holiday');
-      return holidayRow ? holidayRow.dates : [];
-    } catch (error) {
-      console.error('Error loading holidays from shift condition:', error);
-      return [];
-    }
+    if (!shiftCondition || shiftCondition.year !== targetYear) return [];
+    const holidayRow = shiftCondition.rows.find(row => row.type === 'holiday');
+    return holidayRow ? holidayRow.dates : [];
   };
 
   // 日本の祝日を判定（シフト条件設定から取得）
@@ -88,36 +110,47 @@ export function ShiftCalendar({
 
   // 曜日から要員数を取得
   const getRequiredStaffCount = (date: Date): number => {
-    try {
-      const item = localStorage.getItem(`shift_condition_${date.getFullYear()}`);
-      if (!item) return 0;
-      const condition: ShiftCondition = JSON.parse(item);
+    if (!shiftCondition || shiftCondition.year !== date.getFullYear()) return 0;
 
-      // 祝日の場合
-      if (isHoliday(date)) {
-        const holidayRow = condition.rows.find(row => row.type === 'holiday');
-        return holidayRow ? holidayRow.requiredStaff : 0;
-      }
+    const key = `${date.getMonth() + 1}/${date.getDate()}`;
 
-      // 曜日から行タイプを取得
-      const dayOfWeek = date.getDay(); // 0:日曜 1:月曜 ... 6:土曜
-      const dayTypeMap: { [key: number]: string } = {
-        0: 'sunday',
-        1: 'monday',
-        2: 'tuesday',
-        3: 'wednesday',
-        4: 'thursday',
-        5: 'friday',
-        6: 'saturday',
-      };
-
-      const dayType = dayTypeMap[dayOfWeek];
-      const row = condition.rows.find(r => r.type === dayType);
-      return row ? row.requiredStaff : 0;
-    } catch (error) {
-      console.error('Error loading required staff count:', error);
-      return 0;
+    // セールイベントの場合（最優先）
+    const springSaleRow = shiftCondition.rows.find(row => row.type === 'springSale');
+    if (springSaleRow && springSaleRow.dates.includes(key)) {
+      return springSaleRow.requiredStaff;
     }
+
+    const summerSaleRow = shiftCondition.rows.find(row => row.type === 'summerSale');
+    if (summerSaleRow && summerSaleRow.dates.includes(key)) {
+      return summerSaleRow.requiredStaff;
+    }
+
+    const winterSaleRow = shiftCondition.rows.find(row => row.type === 'winterSale');
+    if (winterSaleRow && winterSaleRow.dates.includes(key)) {
+      return winterSaleRow.requiredStaff;
+    }
+
+    // 祝日の場合
+    if (isHoliday(date)) {
+      const holidayRow = shiftCondition.rows.find(row => row.type === 'holiday');
+      return holidayRow ? holidayRow.requiredStaff : 0;
+    }
+
+    // 曜日から行タイプを取得
+    const dayOfWeek = date.getDay(); // 0:日曜 1:月曜 ... 6:土曜
+    const dayTypeMap: { [key: number]: string } = {
+      0: 'sunday',
+      1: 'monday',
+      2: 'tuesday',
+      3: 'wednesday',
+      4: 'thursday',
+      5: 'friday',
+      6: 'saturday',
+    };
+
+    const dayType = dayTypeMap[dayOfWeek];
+    const row = shiftCondition.rows.find(r => r.type === dayType);
+    return row ? row.requiredStaff : 0;
   };
 
   // 日曜日判定
@@ -131,7 +164,83 @@ export function ShiftCalendar({
   };
 
   return (
-    <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-white/50 shadow-xl flex flex-col">
+    <>
+      <style>{`
+        .shift-calendar-fixed-column {
+          left: -2px !important;
+          padding-left: 4px;
+        }
+        .shift-calendar-fixed-column-left::before {
+          content: '';
+          position: absolute;
+          left: 0;
+          top: 0;
+          bottom: 0;
+          width: 2px;
+          background-color: #a5b4fc;
+          z-index: 50;
+        }
+        .shift-calendar-fixed-column-right::after {
+          content: '';
+          position: absolute;
+          right: 0;
+          top: 0;
+          bottom: 0;
+          width: 2px;
+          background-color: #a5b4fc;
+          z-index: 50;
+        }
+        .shift-calendar-fixed-row-top::before {
+          content: '';
+          position: absolute;
+          left: 0;
+          right: 0;
+          top: -1px;
+          height: 3px;
+          background-color: #a5b4fc;
+          z-index: 50;
+        }
+        .shift-calendar-fixed-row-bottom::after {
+          content: '';
+          position: absolute;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          height: 2px;
+          background-color: #a5b4fc;
+          z-index: 50;
+        }
+        .shift-calendar-corner-cell {
+          left: -2px !important;
+          top: -1px !important;
+          padding: 11px 10px 10px 12px !important;
+        }
+        .shift-calendar-corner-cell::before {
+          content: '';
+          position: absolute;
+          left: 0;
+          top: 0;
+          right: 0;
+          bottom: 0;
+          border-top: 2px solid #a5b4fc;
+          border-left: 2px solid #a5b4fc;
+          z-index: 50;
+          pointer-events: none;
+        }
+        .shift-calendar-corner-cell::after {
+          content: '';
+          position: absolute;
+          left: 0;
+          top: 0;
+          right: 0;
+          bottom: 0;
+          border-bottom: 2px solid #a5b4fc;
+          border-right: 2px solid #a5b4fc;
+          z-index: 50;
+          pointer-events: none;
+        }
+      `}</style>
+      <div className="bg-white backdrop-blur-sm rounded-2xl border border-white/50 shadow-xl flex flex-col">
       {/* 表題部分 */}
       <div className="flex items-center justify-between p-4 border-b border-gray-200">
         <div className="flex items-center gap-4">
@@ -195,7 +304,7 @@ export function ShiftCalendar({
       </div>
 
       {/* テーブル部分（ヘッダー固定、ボディスクロール） */}
-      <div className="overflow-auto max-h-[calc(100vh-320px)]">
+      <div ref={scrollContainerRef} className="overflow-auto max-h-[calc(100vh-320px)]">
         <table className="w-full border-collapse table-fixed">
           <colgroup>
             <col style={{ width: '100px' }} />
@@ -203,9 +312,9 @@ export function ShiftCalendar({
               <col key={day.toISOString()} style={{ width: '90px' }} />
             ))}
           </colgroup>
-          <thead className="sticky top-0 z-10 bg-white">
+          <thead>
             <tr>
-              <th className="p-2.5 border border-indigo-100 bg-gradient-to-br from-indigo-50 to-purple-50">従業員</th>
+              <th className="p-2.5 border border-indigo-100 bg-indigo-100 sticky z-20 relative shift-calendar-corner-cell">従業員</th>
               {displayDays.map((day) => {
                 const isSundayDay = isSunday(day);
                 const isSaturdayDay = isSaturday(day);
@@ -215,7 +324,7 @@ export function ShiftCalendar({
                 return (
                   <th
                     key={day.toISOString()}
-                    className={`p-2.5 border border-indigo-100 ${isSpecialDay ? 'bg-red-50' : 'bg-gradient-to-br from-indigo-50 to-purple-50'}`}
+                    className={`p-2.5 border border-indigo-100 sticky top-0 z-10 shift-calendar-fixed-row-top shift-calendar-fixed-row-bottom ${isSpecialDay ? 'bg-red-100' : 'bg-indigo-100'}`}
                   >
                     <div className="text-center">
                       <div className={`font-semibold text-sm ${isSpecialDay ? 'text-red-600' : 'text-gray-800'}`}>
@@ -233,7 +342,7 @@ export function ShiftCalendar({
           <tbody>
             {sortedEmployees.map((employee) => (
               <tr key={employee.id} className="hover:bg-indigo-50/30 transition-colors">
-                <td className="p-2.5 border border-indigo-100 bg-white/60">
+                <td className="p-2.5 border border-indigo-100 bg-white sticky left-0 z-10 relative shift-calendar-fixed-column shift-calendar-fixed-column-left shift-calendar-fixed-column-right">
                   <div className="flex items-center gap-1.5">
                     <div
                       className="w-2.5 h-2.5 rounded-full shadow-md"
@@ -430,5 +539,8 @@ export function ShiftCalendar({
         )}
       </div>
     </div>
+    </>
   );
-}
+});
+
+ShiftCalendar.displayName = 'ShiftCalendar';
