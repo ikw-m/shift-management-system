@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { LogIn, User, Database, AlertCircle } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
+import { LogIn, User, Database } from 'lucide-react';
 import { Employee } from '../types';
+import { supabase } from '../../lib/supabase';
 
 interface LoginDialogProps {
   employees: Employee[];
@@ -12,36 +12,36 @@ export function LoginDialog({ employees, onLogin }: LoginDialogProps) {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [dbStatus, setDbStatus] = useState<'checking' | 'connected' | 'error'>('checking');
-  const [dbError, setDbError] = useState<string>('');
-  const [dataSource, setDataSource] = useState<'localStorage' | 'supabase'>('localStorage');
   const [isLoading, setIsLoading] = useState(false);
+  const [dataSource, setDataSource] = useState<'supabase' | 'checking'>('checking');
+  const [dbStatus, setDbStatus] = useState<'connected' | 'error' | 'checking'>('checking');
+  const [dbError, setDbError] = useState<string>('');
 
   useEffect(() => {
-    checkSupabaseConnection();
-  }, []);
-
-  const checkSupabaseConnection = async () => {
-    try {
-      console.log('🔍 Supabase接続確認中...');
-      const { data, error } = await supabase.from('employees').select('count');
-      if (error) {
-        console.error('❌ Supabase接続エラー:', error);
+    const checkSupabase = async () => {
+      try {
+        const { data, error } = await supabase.from('employees').select('id').limit(1);
+        if (error) {
+          setDbStatus('error');
+          setDbError(`データベースエラー: ${error.message}`);
+          setDataSource('supabase');
+        } else {
+          setDbStatus('connected');
+          setDbError('');
+          setDataSource('supabase');
+        }
+      } catch (err) {
         setDbStatus('error');
-        setDbError(error.message);
-        setDataSource('localStorage');
-      } else {
-        console.log('✅ Supabase接続成功:', data);
-        setDbStatus('connected');
+        if (err instanceof TypeError && err.message.includes('fetch')) {
+          setDbError('Supabaseに接続できません。.envファイルでURLとキーを設定してください。');
+        } else {
+          setDbError(err instanceof Error ? err.message : '不明なエラー');
+        }
         setDataSource('supabase');
       }
-    } catch (err) {
-      console.error('❌ Supabase接続例外:', err);
-      setDbStatus('error');
-      setDbError(err instanceof Error ? err.message : '不明なエラー');
-      setDataSource('localStorage');
-    }
-  };
+    };
+    checkSupabase();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -148,44 +148,29 @@ export function LoginDialog({ employees, onLogin }: LoginDialogProps) {
           </p>
         </div>
 
-        {/* デバッグ情報 */}
-        <div className="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200 text-xs space-y-2">
-          <div className="flex items-center gap-2 font-semibold text-gray-700">
-            <Database className="w-4 h-4" />
-            <span>データソース状態</span>
+        <div className="mt-4 p-4 bg-gray-100 rounded-xl border border-gray-300 shadow-sm">
+          <div className="flex items-center gap-2 mb-2">
+            <Database className="w-4 h-4 text-gray-600" />
+            <h3 className="text-sm font-semibold text-gray-700">データソース状態</h3>
           </div>
-
-          <div className="space-y-1 pl-6">
-            <div className="flex items-center gap-2">
-              <span className="font-medium text-gray-600">接続状態:</span>
+          <div className="space-y-1 ml-6">
+            <p className="text-xs text-gray-600">
+              <span className="font-medium">データソース:</span> {dataSource === 'supabase' ? <span className="text-blue-600">Supabase (クラウドDB)</span> : '確認中...'}
+            </p>
+            <p className="text-xs text-gray-600">
+              <span className="font-medium">接続状態:</span>{' '}
+              {dbStatus === 'connected' && <span className="text-green-600">✓ 接続成功</span>}
+              {dbStatus === 'error' && <span className="text-red-600">✗ 接続エラー</span>}
               {dbStatus === 'checking' && <span className="text-yellow-600">確認中...</span>}
-              {dbStatus === 'connected' && <span className="text-green-600 font-semibold">✓ Supabase接続成功</span>}
-              {dbStatus === 'error' && (
-                <div className="flex items-center gap-1 text-red-600">
-                  <AlertCircle className="w-3 h-3" />
-                  <span className="font-semibold">接続エラー</span>
-                </div>
-              )}
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="font-medium text-gray-600">データソース:</span>
-              <span className={dataSource === 'supabase' ? 'text-blue-600 font-semibold' : 'text-orange-600 font-semibold'}>
-                {dataSource === 'supabase' ? 'Supabase (クラウド)' : 'LocalStorage (ローカル)'}
-              </span>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="font-medium text-gray-600">従業員数:</span>
-              <span className="text-gray-800">{employees?.length || 0}人</span>
-            </div>
-
+            </p>
             {dbError && (
-              <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-red-700">
-                <div className="font-semibold">エラー詳細:</div>
-                <div className="break-words">{dbError}</div>
-              </div>
+              <p className="text-xs text-red-600">
+                <span className="font-medium">エラー:</span> {dbError}
+              </p>
             )}
+            <p className="text-xs text-gray-600">
+              <span className="font-medium">従業員数:</span> {employees?.length || 0}人
+            </p>
           </div>
         </div>
       </div>
