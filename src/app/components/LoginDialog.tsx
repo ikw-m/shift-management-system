@@ -75,7 +75,10 @@ export function LoginDialog({ employees, onLogin }: LoginDialogProps) {
           <div className="p-3 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-xl shadow-lg">
             <LogIn className="w-8 h-8 text-white" />
           </div>
-          <h1 className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">シフト管理システム</h1>
+          <div className="flex flex-col items-start">
+            <h1 className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">シフト管理システム</h1>
+            <span className="text-xs text-gray-500 ml-1">Ver 1.0</span>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">

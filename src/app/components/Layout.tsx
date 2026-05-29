@@ -40,7 +40,10 @@ export function Layout() {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-2">
               <Calendar className="w-8 h-8 text-blue-600" />
-              <h1 className="font-semibold text-xl">シフト管理システム</h1>
+              <div className="flex flex-col">
+                <h1 className="font-semibold text-xl leading-tight">シフト管理システム</h1>
+                <span className="text-xs text-gray-500">Ver 1.0</span>
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <Badge className="bg-blue-500 text-white px-2 py-1 rounded-full text-sm">
