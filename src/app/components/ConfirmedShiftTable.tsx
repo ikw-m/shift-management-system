@@ -994,78 +994,77 @@ export function ConfirmedShiftTable({
 
         {/* 印刷用テーブル（日付が縦） */}
         {printHalf && (
-          <div id="print-content" className="print-only">
+          <div id="print-content" style={{ display: 'none', backgroundColor: '#ffffff', color: '#000000', fontFamily: 'Arial, sans-serif' }}>
             {/* 従業員を12人ずつのページに分割 */}
             {Array.from({ length: Math.ceil(sortedEmployees.length / 12) }, (_, pageIndex) => {
               const startIndex = pageIndex * 12;
               const pageEmployees = sortedEmployees.slice(startIndex, startIndex + 12);
 
               return (
-                <div key={pageIndex} className="print-page" style={{ pageBreakAfter: pageIndex < Math.ceil(sortedEmployees.length / 12) - 1 ? 'always' : 'auto' }}>
+                <div key={pageIndex} style={{ display: 'block', width: '100%', pageBreakAfter: pageIndex < Math.ceil(sortedEmployees.length / 12) - 1 ? 'always' : 'auto' }}>
                   {/* 印刷用タイトル・凡例・印刷日 */}
-                  <div className="print-title">
+                  <div style={{ textAlign: 'left', fontSize: '14pt', fontWeight: 'bold', marginBottom: '8px', color: '#1f2937' }}>
                     <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>
-                      {year}年{month}月{printHalf === 'first' ? '前半' : '後半'}シフト管理表 <span style={{ fontSize: '8pt', color: '#6b7280', fontWeight: 'normal' }}>[Ver 1.0]</span> {sortedEmployees.length > 12 ? `(${pageIndex + 1}/${Math.ceil(sortedEmployees.length / 12)})` : ''}
+                      {year}年{month}月{printHalf === 'first' ? '前半' : '後半'}シフト管理表 <span style={{ fontSize: '8pt', color: '#6b7280', fontWeight: 'normal' }}>[Ver 2.0]</span> {sortedEmployees.length > 12 ? `(${pageIndex + 1}/${Math.ceil(sortedEmployees.length / 12)})` : ''}
                     </div>
                     <div style={{ fontSize: '8pt', marginBottom: '2px' }}>
                       <span style={{ fontWeight: 'bold', color: '#6b7280' }}>凡例：</span>
                       <span style={{
                         display: 'inline-block',
                         padding: '2px 6px',
-                        backgroundColor: shiftTypeConfig.karintou.color,
-                        color: 'white',
+                        backgroundColor: '#78350f',
+                        color: '#ffffff',
                         borderRadius: '3px',
                         fontWeight: '600',
                         marginLeft: '4px',
                         marginRight: '4px'
                       }}>
-                        ◉ {shiftTypeConfig.karintou.label}
+                        ◉ かりんとう
                       </span>
                       <span style={{
                         display: 'inline-block',
                         padding: '2px 6px',
-                        backgroundColor: shiftTypeConfig.cafe.color,
-                        color: 'white',
+                        backgroundColor: '#FFC72C',
+                        color: '#ffffff',
                         borderRadius: '3px',
                         fontWeight: '600',
                         marginRight: '4px'
                       }}>
-                        ◆ {shiftTypeConfig.cafe.label}
+                        ◆ カフェ
                       </span>
                     </div>
-                    <div className="print-date-info" style={{ fontSize: '9pt', color: '#6b7280', textAlign: 'right' }}>
+                    <div style={{ fontSize: '9pt', color: '#6b7280', textAlign: 'right', fontWeight: 'normal' }}>
                       印刷日: {format(new Date(), 'yyyy年M月d日', { locale: ja })}
                     </div>
                   </div>
-            
-                  <table className="w-full border-collapse print-table">
+
+                  <table style={{ width: '100%', borderCollapse: 'collapse', margin: '0 0 6px 0', border: '2.5px solid #333' }}>
                     <thead>
                       <tr>
-                        <th className="date-column">日付</th>
+                        <th style={{ display: 'table-cell', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: '#ffffff', fontWeight: 'bold', padding: '2px 1px', border: '1px solid #047857', height: '38px', maxHeight: '38px', overflow: 'hidden', width: '50px', minWidth: '50px', maxWidth: '50px', borderRight: '2px solid #666', fontSize: '10pt', lineHeight: '1.2' }}>日付</th>
                         {Array.from({ length: 12 }, (_, index) => {
                           const employee = pageEmployees[index];
                           return (
                             <th
                               key={employee?.id || `empty-${pageIndex}-${index}`}
-                              className="employee-column"
+                              style={{ display: 'table-cell', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: '#ffffff', fontWeight: 'bold', padding: '2px 1px', border: '1px solid #047857', height: '38px', maxHeight: '38px', overflow: 'hidden', fontSize: '10pt', lineHeight: '1.2' }}
                             >
                               {employee ? (
-                                <div className="text-center">
-                                  <div className="flex items-center justify-center gap-1 mb-1">
+                                <div style={{ textAlign: 'center' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', marginBottom: '4px' }}>
                                     <div
-                                      className="w-2 h-2 rounded-full shadow-sm"
-                                      style={{ backgroundColor: employee.color }}
+                                      style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: employee.color }}
                                     />
                                   </div>
-                                  <div className="font-semibold text-gray-800 print-employee-name">{employee.name}</div>
+                                  <div style={{ fontWeight: 'bold', color: '#1f2937', fontSize: '7pt', lineHeight: '1.2' }}>{employee.name}</div>
                                 </div>
                               ) : (
-                                <div className="text-center text-gray-400">-</div>
+                                <div style={{ textAlign: 'center', color: '#9ca3af' }}>-</div>
                               )}
                             </th>
                           );
                         })}
-                        <th className="notes-column">備考</th>
+                        <th style={{ display: 'table-cell', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: '#ffffff', fontWeight: 'bold', padding: '2px 1px', border: '1px solid #047857', height: '38px', maxHeight: '38px', overflow: 'hidden', borderLeft: '2px solid #666', fontSize: '10pt', lineHeight: '1.2' }}>備考</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1073,17 +1072,17 @@ export function ConfirmedShiftTable({
                         const isSundayDay = isSunday(day);
                         const isSaturdayDay = isSaturday(day);
                         const isHolidayDay = isHoliday(day);
-                        const dateClassName = isSundayDay ? 'sunday-date' : isSaturdayDay ? 'saturday-date' : isHolidayDay ? 'holiday-date' : '';
-                        const cellClassName = isSundayDay ? 'sunday-cell' : isSaturdayDay ? 'saturday-cell' : isHolidayDay ? 'holiday-cell' : '';
+                        const cellBgColor = isSundayDay || isSaturdayDay ? '#fee2e2' : isHolidayDay ? '#fecaca' : '#ffffff';
+                        const dateColor = isSundayDay || isSaturdayDay || isHolidayDay ? '#dc2626' : '#1f2937';
                         const requiredStaff = getRequiredStaffCount(day);
                         const approvedCount = getApprovedShiftsCountForDate(day);
 
                         return (
-                          <tr key={day.toISOString()}>
-                            <td className={`date-column ${cellClassName}`}>
-                              <div className={`text-center ${dateClassName}`}>
-                                <div className="font-semibold text-gray-800 print-date-text">{day.getDate()}日({format(day, 'E', { locale: ja })})</div>
-                                <div className="text-emerald-600 print-date-day">
+                          <tr key={day.toISOString()} style={{ display: 'table-row', borderBottom: '0.5px solid #ccc', height: '30px', maxHeight: '30px' }}>
+                            <td style={{ display: 'table-cell', border: '0.5px solid #999', padding: '0.5px', fontSize: '10pt', lineHeight: '1.2', height: '30px', maxHeight: '30px', overflow: 'hidden', verticalAlign: 'middle', width: '50px', minWidth: '50px', maxWidth: '50px', borderRight: '2px solid #666', backgroundColor: cellBgColor }}>
+                              <div style={{ textAlign: 'center' }}>
+                                <div style={{ fontWeight: 'bold', color: dateColor, fontSize: '7pt', lineHeight: '1.1', whiteSpace: 'nowrap', marginBottom: '2px' }}>{day.getDate()}日({format(day, 'E', { locale: ja })})</div>
+                                <div style={{ fontSize: '6pt', lineHeight: '1.1', fontWeight: 'bold', color: isSundayDay || isSaturdayDay || isHolidayDay ? '#dc2626' : '#059669', whiteSpace: 'nowrap', marginTop: '2px' }}>
                                   【{approvedCount}/{requiredStaff}】
                                 </div>
                               </div>
@@ -1094,30 +1093,37 @@ export function ConfirmedShiftTable({
                               return (
                                 <td
                                   key={`${day.toISOString()}-${employee?.id || `empty-${pageIndex}-${index}`}`}
-                                  className={`employee-column ${cellClassName}`}
+                                  style={{ display: 'table-cell', border: '0.5px solid #999', padding: '0.5px', fontSize: '10pt', lineHeight: '1.2', height: '30px', maxHeight: '30px', overflow: 'hidden', verticalAlign: 'middle', backgroundColor: cellBgColor }}
                                 >
-                                  <div className="print-shift-container">
-                                    {confirmedShifts.map((shift) => (
-                                      <div
-                                        key={shift.id}
-                                        className={`print-shift-time shift-${shift.shiftType}`}
-                                      >
-                                        <span className={`print-shift-icon-${shift.shiftType}`}>
-                                          {shift.shiftType === 'karintou' ? '◉' : '◆'}
-                                        </span>
-                                        <span className={`print-shift-text-${shift.shiftType}`}>
-                                          {shift.startTime}-{shift.endTime}
-                                        </span>
-                                      </div>
-                                    ))}
+                                  <div style={{ height: '30px', maxHeight: '30px', overflow: 'hidden', display: 'block', padding: '0.5px', textAlign: 'center' }}>
+                                    {confirmedShifts.map((shift) => {
+                                      const shiftFontSize = maxShifts === 1 ? '6.5pt' : maxShifts === 2 ? '5.5pt' : maxShifts === 3 ? '4.8pt' : maxShifts === 4 ? '4.2pt' : '3.8pt';
+                                      const iconBg = shift.shiftType === 'karintou' ? '#78350f' : '#FFC72C';
+                                      const textColor = shift.shiftType === 'karintou' ? '#78350f' : '#FFC72C';
+                                      const borderColor = shift.shiftType === 'karintou' ? '#78350f' : '#FFC72C';
+
+                                      return (
+                                        <div
+                                          key={shift.id}
+                                          style={{ fontSize: shiftFontSize, padding: '0', lineHeight: '1.1', fontWeight: '700', borderRadius: '1px', margin: '0.5px 0', display: 'block', whiteSpace: 'nowrap', overflow: 'visible', wordBreak: 'keep-all', border: `1px solid ${borderColor}` }}
+                                        >
+                                          <span style={{ padding: '1px 3px', display: 'inline-block', background: iconBg, color: '#ffffff', borderRadius: '1px 0 0 1px' }}>
+                                            {shift.shiftType === 'karintou' ? '◉' : '◆'}
+                                          </span>
+                                          <span style={{ padding: '1px 3px', display: 'inline-block', background: 'transparent', color: textColor, borderRadius: '0 1px 1px 0' }}>
+                                            {shift.startTime}-{shift.endTime}
+                                          </span>
+                                        </div>
+                                      );
+                                    })}
                                     {confirmedShifts.length === 0 && employee && (
-                                      <div className="text-center print-no-shift">×</div>
+                                      <div style={{ fontSize: '11pt', color: '#9ca3af', fontWeight: 'normal', textAlign: 'center' }}>×</div>
                                     )}
                                   </div>
                                 </td>
                               );
                             })}
-                            <td className={`notes-column ${cellClassName}`}>
+                            <td style={{ display: 'table-cell', border: '0.5px solid #999', padding: '1px 2px', fontSize: '7pt', lineHeight: '1.3', height: '30px', maxHeight: '30px', overflow: 'hidden', verticalAlign: 'middle', borderLeft: '2px solid #666', wordWrap: 'break-word', overflowWrap: 'break-word', backgroundColor: cellBgColor }}>
                               <div style={{ fontSize: '7pt', lineHeight: '1.3', wordWrap: 'break-word' }}>
                                 {dailyNotes[day.toISOString()] || ''}
                               </div>
@@ -1130,11 +1136,11 @@ export function ConfirmedShiftTable({
 
                   {/* 業務手順セクション（印刷用） */}
                   {noteText && (
-                    <div className="print-procedure-section">
-                      <div className="print-procedure-title">
+                    <div style={{ marginTop: '8px', padding: '6px 10px', background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)', border: '1.5px solid #10b981', borderRadius: '6px', display: 'block', maxHeight: '70px', overflow: 'hidden' }}>
+                      <div style={{ fontSize: '8pt', fontWeight: 'bold', color: '#047857', marginBottom: '4px', display: 'block' }}>
                         📋 業務手順
                       </div>
-                      <div className="print-procedure-content">
+                      <div style={{ fontSize: '7pt', lineHeight: '1.3', color: '#065f46', whiteSpace: 'pre-wrap', wordWrap: 'break-word' }}>
                         {noteText}
                       </div>
                     </div>

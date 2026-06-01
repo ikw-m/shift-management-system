@@ -12,42 +12,22 @@ export async function generateShiftPDF(elementId: string, filename: string) {
   console.log('[PDF] 要素を取得しました');
 
   try {
-    // 要素をクローンして、全てのclassNameを削除
-    console.log('[PDF] クローン作成中...');
-    const clonedElement = element.cloneNode(true) as HTMLElement;
-    clonedElement.id = 'temp-print-clone';
-
-    // 全ての子要素からclassNameを削除
-    const allElements = clonedElement.getElementsByTagName('*');
-    console.log('[PDF] className削除中... 対象要素数:', allElements.length);
-    for (let i = 0; i < allElements.length; i++) {
-      const el = allElements[i] as HTMLElement;
-      el.removeAttribute('class');
-    }
-    clonedElement.removeAttribute('class');
-    console.log('[PDF] className削除完了');
-
-    // クローンを一時的にDOMに追加（画面外に配置）
-    clonedElement.style.position = 'fixed';
-    clonedElement.style.left = '-9999px';
-    clonedElement.style.top = '-9999px';
-    clonedElement.style.width = element.offsetWidth + 'px';
-    clonedElement.style.backgroundColor = '#ffffff';
-    document.body.appendChild(clonedElement);
-    console.log('[PDF] クローンをDOMに追加');
+    // 要素を一時的に表示
+    console.log('[PDF] 要素を表示中...');
+    element.style.display = 'block';
 
     // HTMLをPNG画像に変換
     console.log('[PDF] PNG変換開始...');
-    const dataUrl = await toPng(clonedElement, {
+    const dataUrl = await toPng(element, {
       quality: 1.0,
       pixelRatio: 2,
       backgroundColor: '#ffffff',
     });
     console.log('[PDF] PNG変換完了');
 
-    // クローンを削除
-    document.body.removeChild(clonedElement);
-    console.log('[PDF] クローンを削除');
+    // 要素を再度非表示
+    element.style.display = 'none';
+    console.log('[PDF] 要素を非表示に戻しました');
 
     // 画像サイズを取得
     console.log('[PDF] 画像読み込み中...');
