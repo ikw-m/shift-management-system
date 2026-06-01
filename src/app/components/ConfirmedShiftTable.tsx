@@ -1001,7 +1001,7 @@ export function ConfirmedShiftTable({
               const pageEmployees = sortedEmployees.slice(startIndex, startIndex + 12);
 
               return (
-                <div key={pageIndex} style={{ display: 'block', width: '100%', pageBreakAfter: pageIndex < Math.ceil(sortedEmployees.length / 12) - 1 ? 'always' : 'auto' }}>
+                <div key={pageIndex} id={`print-page-${pageIndex}`} className="pdf-page" style={{ display: 'block', width: '100%', pageBreakAfter: pageIndex < Math.ceil(sortedEmployees.length / 12) - 1 ? 'always' : 'auto' }}>
                   {/* 印刷用タイトル・凡例・印刷日 */}
                   <div style={{ textAlign: 'left', fontSize: '14pt', fontWeight: 'bold', marginBottom: '8px', color: '#1f2937' }}>
                     <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>
