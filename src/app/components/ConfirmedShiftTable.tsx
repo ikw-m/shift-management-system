@@ -149,18 +149,19 @@ export function ConfirmedShiftTable({
     );
   };
 
-  const handlePrint = (half: 'first' | 'second') => {
+  const handlePrint = async (half: 'first' | 'second') => {
+    // 印刷用要素を表示
+    setPrintHalf(half);
+
+    // DOMの更新を待つ
+    await new Promise(resolve => setTimeout(resolve, 100));
+
     // PDF生成
-    generateShiftPDF({
-      year,
-      month,
-      half,
-      employees: sortedEmployees,
-      availabilities,
-      dailyNotes,
-      monthlyProcedure: noteText,
-      shiftCondition,
-    });
+    const filename = `シフト管理表_${year}年${month}月_${half === 'first' ? '前半' : '後半'}_Ver2.0.pdf`;
+    await generateShiftPDF('print-content', filename);
+
+    // 印刷用要素を非表示に戻す
+    setPrintHalf(null);
   };
 
   // 印刷用の日付範囲を取得
@@ -993,7 +994,7 @@ export function ConfirmedShiftTable({
 
         {/* 印刷用テーブル（日付が縦） */}
         {printHalf && (
-          <>
+          <div id="print-content" className="print-only">
             {/* 従業員を12人ずつのページに分割 */}
             {Array.from({ length: Math.ceil(sortedEmployees.length / 12) }, (_, pageIndex) => {
               const startIndex = pageIndex * 12;
@@ -1141,7 +1142,7 @@ export function ConfirmedShiftTable({
                 </div>
               );
             })}
-          </>
+          </div>
         )}
 
         <div className="p-3 border-t border-emerald-100 bg-gradient-to-br from-emerald-50/50 to-green-50/50 no-print">
