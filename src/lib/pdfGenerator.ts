@@ -12,8 +12,24 @@ export async function generateShiftPDF(elementId: string, filename: string) {
   const canvas = await html2canvas(element, {
     scale: 2,
     useCORS: true,
-    logging: false,
+    logging: true, // エラー詳細を確認するためloggingをtrueに
     backgroundColor: '#ffffff',
+    onclone: (clonedDoc) => {
+      // Tailwind v4のoklch()カラーを安全な形式に置き換え
+      const style = clonedDoc.createElement('style');
+      style.textContent = `
+        * {
+          color: inherit !important;
+          background-color: transparent !important;
+          border-color: inherit !important;
+        }
+        #${elementId} {
+          background-color: #ffffff !important;
+          color: #000000 !important;
+        }
+      `;
+      clonedDoc.head.appendChild(style);
+    },
   });
 
   // CanvasをPDFに変換
