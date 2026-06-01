@@ -60,10 +60,24 @@ export async function generateShiftPDF(elementId: string, filename: string) {
     // 要素を元に戻す
     element.style.display = originalDisplay;
 
-    // PDFを保存
+    // PDFをBlobとして取得
     console.log('[PDF] PDF保存中...', filename);
-    pdf.save(filename);
-    console.log('[PDF] 処理完了');
+    const pdfBlob = pdf.output('blob');
+
+    // Safari対応：a要素を使って手動でダウンロード
+    const url = URL.createObjectURL(pdfBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+
+    // クリーンアップ（Safariのため遅延）
+    setTimeout(() => {
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      console.log('[PDF] 処理完了');
+    }, 100);
   } catch (error) {
     console.error('[PDF] エラー発生:', error);
     alert('PDF生成に失敗しました。コンソールを確認してください。');
