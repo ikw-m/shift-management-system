@@ -1,9 +1,10 @@
 import { format, isSameDay, getDaysInMonth, getDay } from 'date-fns';
 import { ja } from 'date-fns/locale';
-import { FileCheck, Printer, ClipboardList } from 'lucide-react';
+import { FileCheck, Printer, ClipboardList, Download } from 'lucide-react';
 import { Employee, Availability, shiftTypeConfig, ShiftCondition } from '../types';
 import { useState, useEffect } from 'react';
 import { useData } from '../context/DataContext';
+import { generateShiftPDF } from '../../lib/pdfGenerator';
 
 interface ConfirmedShiftTableProps {
   year: number;
@@ -149,11 +150,17 @@ export function ConfirmedShiftTable({
   };
 
   const handlePrint = (half: 'first' | 'second') => {
-    setPrintHalf(half);
-    setTimeout(() => {
-      window.print();
-      setPrintHalf(null);
-    }, 100);
+    // PDF生成
+    generateShiftPDF({
+      year,
+      month,
+      half,
+      employees: sortedEmployees,
+      availabilities,
+      dailyNotes,
+      monthlyProcedure: noteText,
+      shiftCondition,
+    });
   };
 
   // 印刷用の日付範囲を取得
@@ -850,15 +857,15 @@ export function ConfirmedShiftTable({
               onClick={() => handlePrint('first')}
               className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-xl transition-all duration-200 shadow-md hover:shadow-lg hover:scale-105"
             >
-              <Printer className="w-3.5 h-3.5" />
-              <span className="text-xs font-medium">印刷（前半）</span>
+              <Download className="w-3.5 h-3.5" />
+              <span className="text-xs font-medium">PDF出力（前半）</span>
             </button>
             <button
               onClick={() => handlePrint('second')}
               className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-xl transition-all duration-200 shadow-md hover:shadow-lg hover:scale-105"
             >
-              <Printer className="w-3.5 h-3.5" />
-              <span className="text-xs font-medium">印刷（後半）</span>
+              <Download className="w-3.5 h-3.5" />
+              <span className="text-xs font-medium">PDF出力（後半）</span>
             </button>
             <select
               value={year}
@@ -997,7 +1004,7 @@ export function ConfirmedShiftTable({
                   {/* 印刷用タイトル・凡例・印刷日 */}
                   <div className="print-title">
                     <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>
-                      {year}年{month}月{printHalf === 'first' ? '前半' : '後半'}シフト管理表 <span style={{ fontSize: '8pt', color: '#6b7280', fontWeight: 'normal' }}>[Ver 2.0]</span> {sortedEmployees.length > 12 ? `(${pageIndex + 1}/${Math.ceil(sortedEmployees.length / 12)})` : ''}
+                      {year}年{month}月{printHalf === 'first' ? '前半' : '後半'}シフト管理表 <span style={{ fontSize: '8pt', color: '#6b7280', fontWeight: 'normal' }}>[Ver 1.0]</span> {sortedEmployees.length > 12 ? `(${pageIndex + 1}/${Math.ceil(sortedEmployees.length / 12)})` : ''}
                     </div>
                     <div style={{ fontSize: '8pt', marginBottom: '2px' }}>
                       <span style={{ fontWeight: 'bold', color: '#6b7280' }}>凡例：</span>
