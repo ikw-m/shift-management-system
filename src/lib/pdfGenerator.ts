@@ -51,10 +51,29 @@ export async function generateShiftPDF(elementId: string, filename: string) {
 
     // 画像サイズを取得
     console.log('[PDF] 画像読み込み中...');
+    console.log('[PDF] dataUrlの長さ:', dataUrl.length, '文字');
+    console.log('[PDF] dataUrlの先頭100文字:', dataUrl.substring(0, 100));
+
     const img = new Image();
     img.src = dataUrl;
-    await new Promise((resolve) => {
-      img.onload = resolve;
+
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        console.error('[PDF] 画像読み込みタイムアウト');
+        reject(new Error('画像読み込みタイムアウト'));
+      }, 10000); // 10秒でタイムアウト
+
+      img.onload = () => {
+        clearTimeout(timeout);
+        console.log('[PDF] img.onload発火');
+        resolve(true);
+      };
+
+      img.onerror = (err) => {
+        clearTimeout(timeout);
+        console.error('[PDF] img.onerror発火:', err);
+        reject(new Error('画像読み込みエラー'));
+      };
     });
     console.log('[PDF] 画像読み込み完了:', img.width, 'x', img.height);
 
