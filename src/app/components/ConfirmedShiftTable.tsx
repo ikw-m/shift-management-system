@@ -1038,16 +1038,16 @@ export function ConfirmedShiftTable({
                     </div>
                   </div>
 
-                  <table style={{ width: '100%', borderCollapse: 'collapse', margin: '0 0 6px 0', border: '2.5px solid #333' }}>
+                  <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', margin: '0 0 6px 0', border: '2.5px solid #333' }}>
                     <thead>
                       <tr>
-                        <th style={{ display: 'table-cell', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: '#ffffff', fontWeight: 'bold', padding: '2px 1px', border: '1px solid #047857', height: '38px', maxHeight: '38px', overflow: 'hidden', width: '50px', minWidth: '50px', maxWidth: '50px', borderRight: '2px solid #666', fontSize: '10pt', lineHeight: '1.2' }}>日付</th>
+                        <th style={{ display: 'table-cell', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: '#ffffff', fontWeight: 'bold', padding: '2px 1px', border: '1px solid #047857', height: '38px', maxHeight: '38px', overflow: 'hidden', width: '7.14%', borderRight: '2px solid #666', fontSize: '10pt', lineHeight: '1.2' }}>日付</th>
                         {Array.from({ length: 12 }, (_, index) => {
                           const employee = pageEmployees[index];
                           return (
                             <th
                               key={employee?.id || `empty-${pageIndex}-${index}`}
-                              style={{ display: 'table-cell', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: '#ffffff', fontWeight: 'bold', padding: '2px 1px', border: '1px solid #047857', height: '38px', maxHeight: '38px', overflow: 'hidden', fontSize: '10pt', lineHeight: '1.2' }}
+                              style={{ display: 'table-cell', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: '#ffffff', fontWeight: 'bold', padding: '2px 1px', border: '1px solid #047857', height: '38px', maxHeight: '38px', overflow: 'hidden', width: '6.43%', fontSize: '10pt', lineHeight: '1.2' }}
                             >
                               {employee ? (
                                 <div style={{ textAlign: 'center' }}>
@@ -1064,7 +1064,7 @@ export function ConfirmedShiftTable({
                             </th>
                           );
                         })}
-                        <th style={{ display: 'table-cell', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: '#ffffff', fontWeight: 'bold', padding: '2px 1px', border: '1px solid #047857', height: '38px', maxHeight: '38px', overflow: 'hidden', borderLeft: '2px solid #666', fontSize: '10pt', lineHeight: '1.2' }}>備考</th>
+                        <th style={{ display: 'table-cell', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: '#ffffff', fontWeight: 'bold', padding: '2px 1px', border: '1px solid #047857', height: '38px', maxHeight: '38px', overflow: 'hidden', width: '14.28%', borderLeft: '2px solid #666', fontSize: '10pt', lineHeight: '1.2' }}>備考</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1079,7 +1079,7 @@ export function ConfirmedShiftTable({
 
                         return (
                           <tr key={day.toISOString()} style={{ display: 'table-row', borderBottom: '0.5px solid #ccc', height: '30px', maxHeight: '30px' }}>
-                            <td style={{ display: 'table-cell', border: '0.5px solid #999', padding: '0.5px', fontSize: '10pt', lineHeight: '1.2', height: '30px', maxHeight: '30px', overflow: 'hidden', verticalAlign: 'middle', width: '50px', minWidth: '50px', maxWidth: '50px', borderRight: '2px solid #666', backgroundColor: cellBgColor }}>
+                            <td style={{ display: 'table-cell', border: '0.5px solid #999', padding: '0.5px', fontSize: '10pt', lineHeight: '1.2', height: '30px', maxHeight: '30px', overflow: 'hidden', verticalAlign: 'middle', width: '7.14%', borderRight: '2px solid #666', backgroundColor: cellBgColor }}>
                               <div style={{ textAlign: 'center' }}>
                                 <div style={{ fontWeight: 'bold', color: dateColor, fontSize: '7pt', lineHeight: '1.1', whiteSpace: 'nowrap', marginBottom: '2px' }}>{day.getDate()}日({format(day, 'E', { locale: ja })})</div>
                                 <div style={{ fontSize: '6pt', lineHeight: '1.1', fontWeight: 'bold', color: isSundayDay || isSaturdayDay || isHolidayDay ? '#dc2626' : '#059669', whiteSpace: 'nowrap', marginTop: '2px' }}>
@@ -1093,7 +1093,7 @@ export function ConfirmedShiftTable({
                               return (
                                 <td
                                   key={`${day.toISOString()}-${employee?.id || `empty-${pageIndex}-${index}`}`}
-                                  style={{ display: 'table-cell', border: '0.5px solid #999', padding: '0.5px', fontSize: '10pt', lineHeight: '1.2', height: '30px', maxHeight: '30px', overflow: 'hidden', verticalAlign: 'middle', backgroundColor: cellBgColor }}
+                                  style={{ display: 'table-cell', border: '0.5px solid #999', padding: '0.5px', fontSize: '10pt', lineHeight: '1.2', height: '30px', maxHeight: '30px', overflow: 'hidden', verticalAlign: 'middle', width: '6.43%', backgroundColor: cellBgColor }}
                                 >
                                   <div style={{ height: '30px', maxHeight: '30px', overflow: 'hidden', display: 'block', padding: '0.5px', textAlign: 'center' }}>
                                     {confirmedShifts.map((shift) => {
@@ -1123,7 +1123,7 @@ export function ConfirmedShiftTable({
                                 </td>
                               );
                             })}
-                            <td style={{ display: 'table-cell', border: '0.5px solid #999', padding: '1px 2px', fontSize: '7pt', lineHeight: '1.3', height: '30px', maxHeight: '30px', overflow: 'hidden', verticalAlign: 'middle', borderLeft: '2px solid #666', wordWrap: 'break-word', overflowWrap: 'break-word', backgroundColor: cellBgColor }}>
+                            <td style={{ display: 'table-cell', border: '0.5px solid #999', padding: '1px 2px', fontSize: '7pt', lineHeight: '1.3', height: '30px', maxHeight: '30px', overflow: 'hidden', verticalAlign: 'middle', width: '14.28%', borderLeft: '2px solid #666', wordWrap: 'break-word', overflowWrap: 'break-word', backgroundColor: cellBgColor }}>
                               <div style={{ fontSize: '7pt', lineHeight: '1.3', wordWrap: 'break-word' }}>
                                 {dailyNotes[day.toISOString()] || ''}
                               </div>

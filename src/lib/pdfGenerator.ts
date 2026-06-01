@@ -14,7 +14,10 @@ export async function generateShiftPDF(elementId: string, filename: string) {
   try {
     // 要素を一時的に表示
     console.log('[PDF] 要素を表示中...');
+    const originalDisplay = element.style.display;
+    const originalWidth = element.style.width;
     element.style.display = 'block';
+    element.style.width = '1122px'; // A4横向きのピクセル幅（at 96dpi）
 
     // HTMLをPNG画像に変換
     console.log('[PDF] PNG変換開始...');
@@ -22,12 +25,15 @@ export async function generateShiftPDF(elementId: string, filename: string) {
       quality: 1.0,
       pixelRatio: 2,
       backgroundColor: '#ffffff',
+      width: 1122,
+      height: 794, // A4縦のピクセル高さ（at 96dpi）
     });
     console.log('[PDF] PNG変換完了');
 
-    // 要素を再度非表示
-    element.style.display = 'none';
-    console.log('[PDF] 要素を非表示に戻しました');
+    // 要素を元に戻す
+    element.style.display = originalDisplay;
+    element.style.width = originalWidth;
+    console.log('[PDF] 要素を元に戻しました');
 
     // 画像サイズを取得
     console.log('[PDF] 画像読み込み中...');
