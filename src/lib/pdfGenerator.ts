@@ -37,31 +37,23 @@ export async function generateShiftPDF(elementId: string, filename: string) {
       const page = pages[i] as HTMLElement;
       console.log(`[PDF] ページ ${i + 1}/${pages.length} を処理中...`);
 
-      // ページを画像に変換
+      // ページを画像に変換（A4横向きサイズで固定）
       const dataUrl = await toPng(page, {
         quality: 1.0,
         pixelRatio: 2,
         backgroundColor: '#ffffff',
+        width: 1122,  // A4横向き幅（at 96dpi）
+        height: 794,  // A4横向き高さ（at 96dpi）
       });
       console.log(`[PDF] ページ ${i + 1} 画像変換完了`);
 
-      // 画像サイズを取得
-      const img = new Image();
-      img.src = dataUrl;
-      await new Promise((resolve) => {
-        img.onload = resolve;
-      });
-
-      // 画像をPDFに追加（アスペクト比を保持）
-      const imgWidth = 297; // A4横幅
-      const imgHeight = (img.height * imgWidth) / img.width;
-
+      // 画像をPDFに追加（A4サイズで固定）
       if (i > 0) {
         pdf.addPage();
       }
 
-      pdf.addImage(dataUrl, 'PNG', 0, 0, imgWidth, imgHeight);
-      console.log(`[PDF] ページ ${i + 1} PDF追加完了 (${imgWidth}mm x ${imgHeight.toFixed(2)}mm)`);
+      pdf.addImage(dataUrl, 'PNG', 0, 0, 297, 210);
+      console.log(`[PDF] ページ ${i + 1} PDF追加完了`);
     }
 
     // 要素を元に戻す
