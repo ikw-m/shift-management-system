@@ -1136,7 +1136,7 @@ export function ConfirmedShiftTable({
 
                   {/* 業務手順セクション（印刷用） */}
                   {noteText && (
-                    <div style={{ marginTop: '8px', padding: '6px 10px', background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)', border: '1.5px solid #10b981', borderRadius: '6px', display: 'block', maxHeight: '70px', overflow: 'hidden' }}>
+                    <div style={{ marginTop: '8px', padding: '6px 10px', background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)', border: '1.5px solid #10b981', borderRadius: '6px', display: 'block', maxHeight: '60px', overflow: 'hidden' }}>
                       <div style={{ fontSize: '8pt', fontWeight: 'bold', color: '#047857', marginBottom: '4px', display: 'block' }}>
                         📋 業務手順
                       </div>
