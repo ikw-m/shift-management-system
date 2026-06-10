@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { ja } from 'date-fns/locale';
-import { X, Check, XCircle, Edit, Save, Clock, CheckCheck, CheckCircle } from 'lucide-react';
+import { X, Check, XCircle, Edit, Save, Clock, CheckCheck, CheckCircle, Trash2 } from 'lucide-react';
 import { Employee, Availability, shiftTypeConfig } from '../types';
 
 interface ShiftDialogProps {
@@ -292,7 +292,7 @@ export function ShiftDialog({
                                   className="p-1.5 text-rose-600 hover:bg-rose-100 rounded-lg transition-all duration-200 hover:scale-110"
                                   title="削除"
                                 >
-                                  <X className="w-4 h-4" />
+                                  <Trash2 className="w-4 h-4" />
                                 </button>
                               )}
                             </div>

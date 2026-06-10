@@ -9,6 +9,9 @@ import { EditEmployeeDialog } from './EditEmployeeDialog';
 import { ConfirmedShiftTable } from './ConfirmedShiftTable';
 import { LoginDialog } from './LoginDialog';
 import { ShiftConditionSettings } from './ShiftConditionSettings';
+import { MobileLogin } from './mobile/MobileLogin';
+import { MobileAppContent } from './mobile/MobileAppContent';
+import { useIsMobile } from '../hooks/useIsMobile';
 import { Employee, Availability } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
@@ -21,6 +24,7 @@ const employeeColors = [
 
 export function AppContent() {
   const { currentUser, logout, login } = useAuth();
+  const isMobile = useIsMobile();
   const {
     employees,
     availabilities,
@@ -272,6 +276,9 @@ export function AppContent() {
   }
 
   if (!currentUser) {
+    if (isMobile) {
+      return <MobileLogin employees={employees} onLogin={login} />;
+    }
     return <LoginDialog employees={employees} onLogin={login} />;
   }
 
@@ -291,6 +298,23 @@ export function AppContent() {
     ...currentUser,
     isManager: currentUser.role === 'manager' || currentUser.isManager === true,
   };
+
+  // スマホの場合はモバイルUIを表示
+  if (isMobile) {
+    return (
+      <MobileAppContent
+        currentUser={currentUserWithManager}
+        employees={processedEmployees}
+        availabilities={processedAvailabilities}
+        onLogout={logout}
+        onAddAvailability={handleAddAvailability}
+        onEditAvailability={handleEditAvailability}
+        onRemoveAvailability={handleRemoveAvailability}
+        onApprove={handleApproveAvailability}
+        onReject={handleRejectAvailability}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen p-4" style={{ background: 'linear-gradient(135deg, #f5f7fa 0%, #e8ebf0 100%)' }}>

@@ -108,6 +108,16 @@ export const ShiftCalendar = forwardRef<ShiftCalendarRef, ShiftCalendarProps>(({
     return holidays.includes(key);
   };
 
+  // セール日判定
+  const isSaleDay = (date: Date): boolean => {
+    if (!shiftCondition || shiftCondition.year !== date.getFullYear()) return false;
+    const key = `${date.getMonth() + 1}/${date.getDate()}`;
+    return ['springSale', 'summerSale', 'winterSale'].some(type => {
+      const row = shiftCondition.rows.find(r => r.type === type);
+      return row?.dates.includes(key);
+    });
+  };
+
   // 曜日から要員数を取得
   const getRequiredStaffCount = (date: Date): number => {
     if (!shiftCondition || shiftCondition.year !== date.getFullYear()) return 0;
@@ -259,6 +269,13 @@ export const ShiftCalendar = forwardRef<ShiftCalendarRef, ShiftCalendarProps>(({
               <span className="text-[10px] font-medium" style={{ color: shiftTypeConfig.cafe.color }}>◆ {shiftTypeConfig.cafe.label}</span>
             </div>
             <div className="h-4 w-px bg-gray-300 my-auto"></div>
+            <div className="flex items-center gap-1 px-2 py-1 rounded-lg border border-red-300 bg-red-100">
+              <span className="text-[10px] font-medium text-red-700">休日（赤）</span>
+            </div>
+            <div className="flex items-center gap-1 px-2 py-1 rounded-lg border border-green-300 bg-green-100">
+              <span className="text-[10px] font-medium text-green-700">セール日（緑）</span>
+            </div>
+            <div className="h-4 w-px bg-gray-300 my-auto"></div>
             <div className="flex items-center gap-1 bg-gradient-to-r from-gray-50 to-gray-100 px-2 py-1 rounded-lg border border-gray-300">
               <div className="w-2.5 h-2.5 rounded-md bg-gray-100 border border-gray-400 shadow-sm" />
               <span className="text-[10px] font-medium text-gray-600">承認待ち（薄色）</span>
@@ -319,18 +336,22 @@ export const ShiftCalendar = forwardRef<ShiftCalendarRef, ShiftCalendarProps>(({
                 const isSundayDay = isSunday(day);
                 const isSaturdayDay = isSaturday(day);
                 const isHolidayDay = isHoliday(day);
+                const isSaleDayFlag = isSaleDay(day);
                 const isSpecialDay = isSundayDay || isSaturdayDay || isHolidayDay;
                 const requiredStaff = getRequiredStaffCount(day);
+                const headerBg = isSpecialDay ? 'bg-red-100' : isSaleDayFlag ? 'bg-green-100' : 'bg-indigo-100';
+                const headerText = isSpecialDay ? 'text-red-600' : isSaleDayFlag ? 'text-green-700' : 'text-gray-800';
+                const subText = isSpecialDay ? 'text-red-500' : isSaleDayFlag ? 'text-green-600' : 'text-indigo-600';
                 return (
                   <th
                     key={day.toISOString()}
-                    className={`p-2.5 border border-indigo-100 sticky top-0 z-10 shift-calendar-fixed-row-top shift-calendar-fixed-row-bottom ${isSpecialDay ? 'bg-red-100' : 'bg-indigo-100'}`}
+                    className={`p-2.5 border border-indigo-100 sticky top-0 z-10 shift-calendar-fixed-row-top shift-calendar-fixed-row-bottom ${headerBg}`}
                   >
                     <div className="text-center">
-                      <div className={`font-semibold text-sm ${isSpecialDay ? 'text-red-600' : 'text-gray-800'}`}>
+                      <div className={`font-semibold text-sm ${headerText}`}>
                         {format(day, 'M/d', { locale: ja })}({format(day, 'E', { locale: ja })})
                       </div>
-                      <div className={`text-xs ${isSpecialDay ? 'text-red-500' : 'text-indigo-600'}`}>
+                      <div className={`text-xs ${subText}`}>
                         要員数【{requiredStaff}人】
                       </div>
                     </div>
@@ -355,12 +376,14 @@ export const ShiftCalendar = forwardRef<ShiftCalendarRef, ShiftCalendarProps>(({
                   const isSundayDay = isSunday(day);
                   const isSaturdayDay = isSaturday(day);
                   const isHolidayDay = isHoliday(day);
+                  const isSaleDayFlag = isSaleDay(day);
                   const isSpecialDay = isSundayDay || isSaturdayDay || isHolidayDay;
+                  const cellBg = isSpecialDay ? 'bg-red-50/30' : isSaleDayFlag ? 'bg-green-50/40' : 'bg-white/40';
                   const dayAvailabilities = getAvailabilitiesForEmployeeAndDate(employee.id, day);
                   return (
                     <td
                       key={`${employee.id}-${day.toISOString()}`}
-                      className={`p-1.5 border border-indigo-100 align-top ${isSpecialDay ? 'bg-red-50/30' : 'bg-white/40'}`}
+                      className={`p-1.5 border border-indigo-100 align-top ${cellBg}`}
                     >
                       <div className="space-y-1.5">{dayAvailabilities.map((availability) => {
                           // シフトタイプの色設定
@@ -442,7 +465,7 @@ export const ShiftCalendar = forwardRef<ShiftCalendarRef, ShiftCalendarProps>(({
                                       className="p-0.5 hover:bg-rose-200 rounded-md transition-all duration-200 hover:scale-110"
                                       title="却下"
                                     >
-                                      <X className="w-2.5 h-2.5" />
+                                      <XCircle className="w-2.5 h-2.5" />
                                     </button>
                                   </div>
                                 )}
@@ -479,7 +502,7 @@ export const ShiftCalendar = forwardRef<ShiftCalendarRef, ShiftCalendarProps>(({
                                     className="p-0.5 hover:bg-rose-200 rounded-md transition-all duration-200 hover:scale-110"
                                     title="却下に変更"
                                   >
-                                    <X className="w-2.5 h-2.5" />
+                                    <XCircle className="w-2.5 h-2.5" />
                                   </button>
                                 )}
                                 {availability.status === 'rejected' && currentUser.isManager && (
