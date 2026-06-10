@@ -29,22 +29,29 @@ export function MobileAppContent({
 
   return (
     <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
-      {/* ヘッダー */}
-      <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200 no-print flex-shrink-0">
-        <div className="flex items-center gap-2">
-          <span
-            className="w-3 h-3 rounded-full flex-shrink-0"
-            style={{ backgroundColor: currentUser.color }}
-          />
-          <span className="font-semibold text-gray-800 text-sm">{currentUser.name}</span>
-          {isManager && (
-            <span className="text-xs bg-gradient-to-r from-indigo-500 to-purple-500 text-white px-2 py-0.5 rounded-full">
-              管理者
-            </span>
-          )}
+      {/* ヘッダー（固定） */}
+      <div className="sticky top-0 z-10 bg-white border-b border-gray-200 no-print flex-shrink-0">
+        {/* システム名行 */}
+        <div className="px-4 pt-3 pb-1 flex items-baseline gap-2">
+          <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent font-bold">
+            シフト管理システム
+          </span>
+          <span className="text-gray-500" style={{ fontSize: '0.7em' }}>Ver. 3.0</span>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-400">Ver. 3.0</span>
+        {/* ユーザー情報行 */}
+        <div className="flex items-center justify-between px-4 py-2">
+          <div className="flex items-center gap-2">
+            <span
+              className="w-3 h-3 rounded-full flex-shrink-0"
+              style={{ backgroundColor: currentUser.color }}
+            />
+            <span className="font-semibold text-gray-800 text-sm">{currentUser.name}</span>
+            {isManager && (
+              <span className="text-xs bg-gradient-to-r from-indigo-500 to-purple-500 text-white px-2 py-0.5 rounded-full">
+                管理者
+              </span>
+            )}
+          </div>
           <button
             onClick={onLogout}
             className="p-2 rounded-xl bg-gray-100 active:bg-gray-200"

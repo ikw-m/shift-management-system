@@ -40,6 +40,7 @@ export function MobileShiftManager({
   const [newStartTime, setNewStartTime] = useState('08:00');
   const [newEndTime, setNewEndTime] = useState('17:00');
   const [newShiftType, setNewShiftType] = useState<'karintou' | 'cafe'>('karintou');
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>(currentUser.id);
   const [shiftCondition, setShiftCondition] = useState<ShiftCondition | null>(null);
 
   const { getShiftCondition } = useData();
@@ -49,11 +50,19 @@ export function MobileShiftManager({
     getShiftCondition(year).then(setShiftCondition);
   }, [year, getShiftCondition]);
 
+  const clearDayState = () => {
+    setExpandedDay(null);
+    setAddingDay(null);
+    setEditingId(null);
+  };
+
   const prevMonth = () => {
+    clearDayState();
     if (month === 1) { setYear(y => y - 1); setMonth(12); }
     else setMonth(m => m - 1);
   };
   const nextMonth = () => {
+    clearDayState();
     if (month === 12) { setYear(y => y + 1); setMonth(1); }
     else setMonth(m => m + 1);
   };
@@ -147,7 +156,7 @@ export function MobileShiftManager({
   const handleAdd = (day: number) => {
     const date = new Date(year, month - 1, day);
     onAddAvailability({
-      employeeId: currentUser.id,
+      employeeId: isManager ? selectedEmployeeId : currentUser.id,
       date,
       startTime: newStartTime,
       endTime: newEndTime,
@@ -157,6 +166,7 @@ export function MobileShiftManager({
     setNewStartTime('08:00');
     setNewEndTime('17:00');
     setNewShiftType('karintou');
+    setSelectedEmployeeId(currentUser.id);
   };
 
   const daysInMonth = getDaysInMonth(new Date(year, month - 1));
@@ -405,10 +415,27 @@ export function MobileShiftManager({
                     </div>
                   )}
 
-                  {/* 自分のシフト追加フォーム */}
+                  {/* シフト追加フォーム */}
                   {isAdding ? (
                     <div className="bg-white rounded-xl border border-indigo-200 p-3 space-y-3">
-                      <p className="text-xs font-semibold text-indigo-700">勤務希望を追加</p>
+                      <p className="text-xs font-semibold text-indigo-700">シフトを追加</p>
+                      {/* マネージャーの場合は従業員選択ドロップダウンを表示 */}
+                      {isManager && (
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">対象スタッフ</label>
+                          <select
+                            value={selectedEmployeeId}
+                            onChange={e => setSelectedEmployeeId(e.target.value)}
+                            className="w-full px-3 py-2.5 bg-gray-50 border border-indigo-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          >
+                            {[currentUser, ...employees.filter(e => e.id !== currentUser.id)].map(emp => (
+                              <option key={emp.id} value={emp.id}>
+                                {emp.name}{emp.id === currentUser.id ? '（自分）' : ''}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
                       <div className="flex gap-2 items-center">
                         <div className="flex-1">
                           <label className="block text-xs text-gray-500 mb-1">開始</label>
@@ -464,11 +491,14 @@ export function MobileShiftManager({
                     </div>
                   ) : (
                     <button
-                      onClick={() => setAddingDay(day)}
+                      onClick={() => {
+                        setAddingDay(day);
+                        setSelectedEmployeeId(currentUser.id);
+                      }}
                       className="w-full py-2.5 border-2 border-dashed border-indigo-300 rounded-xl text-indigo-600 text-sm font-medium flex items-center justify-center gap-1 active:bg-indigo-50"
                     >
                       <Plus className="w-4 h-4" />
-                      自分のシフトを追加
+                      {isManager ? 'シフトを追加' : '自分のシフトを追加'}
                     </button>
                   )}
                 </div>

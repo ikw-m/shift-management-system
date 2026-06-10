@@ -439,13 +439,12 @@ export function ConfirmedShiftTable({
           .print-page {
             display: block !important;
             width: 100% !important;
-            page-break-after: auto !important;
-            page-break-inside: avoid !important;
-            page-break-before: auto !important;
-            break-after: auto !important;
-            break-inside: avoid-page !important;
-            break-before: auto !important;
             overflow: visible !important;
+          }
+
+          .print-page-break {
+            page-break-before: always !important;
+            break-before: page !important;
           }
           
           .print-title {
@@ -965,7 +964,7 @@ export function ConfirmedShiftTable({
               const pageEmployees = sortedEmployees.slice(startIndex, startIndex + 12);
 
               return (
-                <div key={pageIndex} className="print-page" style={{ pageBreakAfter: pageIndex < Math.ceil(sortedEmployees.length / 12) - 1 ? 'always' : 'auto' }}>
+                <div key={pageIndex} className={`print-page${pageIndex > 0 ? ' print-page-break' : ''}`}>
                   {/* 印刷用タイトル・凡例・印刷日 */}
                   <div className="print-title">
                     <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>
