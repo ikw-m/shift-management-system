@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getMonth, getYear } from 'date-fns';
 import { LogOut } from 'lucide-react';
-import { EmployeeList } from './EmployeeList';
-import { ShiftCalendar } from './ShiftCalendar';
+import { EmployeeList, EmployeeListRef } from './EmployeeList';
+import { ShiftCalendar, ShiftCalendarRef } from './ShiftCalendar';
 import { ShiftDialog } from './ShiftDialog';
 import { AddEmployeeDialog } from './AddEmployeeDialog';
 import { EditEmployeeDialog } from './EditEmployeeDialog';
@@ -25,8 +25,10 @@ export function AppContent() {
     employees,
     availabilities,
     loading,
+    reloadData,
     addEmployee,
     updateEmployee,
+    updateEmployeeOrder,
     deleteEmployee,
     addAvailability,
     updateAvailability,
@@ -35,6 +37,8 @@ export function AppContent() {
     rejectAvailability,
   } = useData();
 
+  const employeeListRef = useRef<EmployeeListRef>(null);
+  const shiftCalendarRef = useRef<ShiftCalendarRef>(null);
   const now = new Date();
   const [selectedYear, setSelectedYear] = useState(getYear(now));
   const [selectedMonth, setSelectedMonth] = useState(getMonth(now) + 1);
@@ -76,7 +80,11 @@ export function AppContent() {
 
   const handleAddAvailability = async (availability: Omit<Availability, 'id' | 'status'>) => {
     try {
+      const scrollTop = shiftCalendarRef.current?.getScrollTop() || 0;
       await addAvailability(availability);
+      setTimeout(() => {
+        shiftCalendarRef.current?.setScrollTop(scrollTop);
+      }, 50);
     } catch (error) {
       alert('シフトの追加に失敗しました');
     }
@@ -84,7 +92,11 @@ export function AppContent() {
 
   const handleRemoveAvailability = async (availabilityId: string) => {
     try {
+      const scrollTop = shiftCalendarRef.current?.getScrollTop() || 0;
       await deleteAvailability(availabilityId);
+      setTimeout(() => {
+        shiftCalendarRef.current?.setScrollTop(scrollTop);
+      }, 50);
     } catch (error) {
       alert('シフトの削除に失敗しました');
     }
@@ -95,6 +107,7 @@ export function AppContent() {
     if (!availability) return;
 
     try {
+      const scrollTop = shiftCalendarRef.current?.getScrollTop() || 0;
       await updateAvailability(availabilityId, {
         employeeId: availability.employeeId,
         date: availability.date,
@@ -102,6 +115,9 @@ export function AppContent() {
         endTime,
         shiftType: availability.shiftType,
       });
+      setTimeout(() => {
+        shiftCalendarRef.current?.setScrollTop(scrollTop);
+      }, 50);
     } catch (error) {
       alert('シフトの更新に失敗しました');
     }
@@ -110,7 +126,11 @@ export function AppContent() {
   const handleApproveAvailability = async (availabilityId: string) => {
     if (!currentUser) return;
     try {
+      const scrollTop = shiftCalendarRef.current?.getScrollTop() || 0;
       await approveAvailability(availabilityId, currentUser.name);
+      setTimeout(() => {
+        shiftCalendarRef.current?.setScrollTop(scrollTop);
+      }, 50);
     } catch (error) {
       alert('シフトの承認に失敗しました');
     }
@@ -119,7 +139,11 @@ export function AppContent() {
   const handleRejectAvailability = async (availabilityId: string) => {
     if (!currentUser) return;
     try {
+      const scrollTop = shiftCalendarRef.current?.getScrollTop() || 0;
       await rejectAvailability(availabilityId, currentUser.name);
+      setTimeout(() => {
+        shiftCalendarRef.current?.setScrollTop(scrollTop);
+      }, 50);
     } catch (error) {
       alert('シフトの却下に失敗しました');
     }
@@ -217,14 +241,20 @@ export function AppContent() {
     const swapOrder = swapEmployee.displayOrder ?? newIndex;
 
     try {
-      await updateEmployee(currentEmployee.id, {
-        ...currentEmployee,
-        displayOrder: swapOrder,
-      });
-      await updateEmployee(swapEmployee.id, {
-        ...swapEmployee,
-        displayOrder: currentOrder,
-      });
+      // 現在のスクロール位置を保存
+      const scrollTop = employeeListRef.current?.getScrollTop() || 0;
+
+      // display_orderだけを更新
+      await updateEmployeeOrder(currentEmployee.id, swapOrder);
+      await updateEmployeeOrder(swapEmployee.id, currentOrder);
+
+      // データを再読み込みして、最新の状態を反映
+      await reloadData();
+
+      // スクロール位置を復元
+      setTimeout(() => {
+        employeeListRef.current?.setScrollTop(scrollTop);
+      }, 50);
     } catch (error) {
       alert('従業員の並び替えに失敗しました');
     }
@@ -265,7 +295,7 @@ export function AppContent() {
   return (
     <div className="min-h-screen p-4" style={{ background: 'linear-gradient(135deg, #f5f7fa 0%, #e8ebf0 100%)' }}>
       <div className="max-w-7xl mx-auto mb-6">
-        <header>
+        <header className="no-print">
           <div className="flex items-center justify-between mb-4 h-[44px]">
             <div className="w-[320px]">
               <h1 className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">シフト管理システム</h1>
@@ -359,6 +389,7 @@ export function AppContent() {
       <div className={viewMode === 'employees' ? 'max-w-2xl mx-auto' : viewMode === 'shiftCondition' ? 'max-w-7xl mx-auto' : 'max-w-7xl mx-auto'}>
         {viewMode === 'calendar' ? (
           <ShiftCalendar
+            ref={shiftCalendarRef}
             year={selectedYear}
             month={selectedMonth}
             half={selectedHalf}
@@ -380,6 +411,7 @@ export function AppContent() {
             half={confirmedHalf}
             employees={processedEmployees}
             availabilities={processedAvailabilities.filter((a) => a.status === 'approved')}
+            currentUser={currentUser}
             onYearChange={setConfirmedYear}
             onMonthChange={setConfirmedMonth}
             onHalfChange={setConfirmedHalf}
@@ -388,6 +420,7 @@ export function AppContent() {
           <ShiftConditionSettings />
         ) : (
           <EmployeeList
+            ref={employeeListRef}
             employees={processedEmployees}
             currentUser={currentUserWithManager}
             onAddEmployee={() => setAddEmployeeDialogOpen(true)}
