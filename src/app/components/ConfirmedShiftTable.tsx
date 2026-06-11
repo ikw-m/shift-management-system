@@ -968,7 +968,7 @@ export function ConfirmedShiftTable({
                   {/* 印刷用タイトル・凡例・印刷日 */}
                   <div className="print-title">
                     <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>
-                      {year}年{month}月{printHalf === 'first' ? '前半' : '後半'}シフト管理表 <span style={{ fontSize: '8pt', color: '#6b7280', fontWeight: 'normal' }}>[Ver. 3.0]</span> {sortedEmployees.length > 12 ? `(${pageIndex + 1}/${Math.ceil(sortedEmployees.length / 12)})` : ''}
+                      {year}年{month}月{printHalf === 'first' ? '前半' : '後半'}シフト管理表 <span style={{ fontSize: '8pt', color: '#6b7280', fontWeight: 'normal' }}>[Ver. 3.1]</span> {sortedEmployees.length > 12 ? `(${pageIndex + 1}/${Math.ceil(sortedEmployees.length / 12)})` : ''}
                     </div>
                     <div style={{ fontSize: '8pt', marginBottom: '2px' }}>
                       <span style={{ fontWeight: 'bold', color: '#6b7280' }}>凡例：</span>

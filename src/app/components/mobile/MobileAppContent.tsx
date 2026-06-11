@@ -36,7 +36,7 @@ export function MobileAppContent({
           <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent font-bold">
             シフト管理システム
           </span>
-          <span className="text-gray-500" style={{ fontSize: '0.7em' }}>Ver. 3.0</span>
+          <span className="text-gray-500" style={{ fontSize: '0.7em' }}>Ver. 3.1</span>
         </div>
         {/* ユーザー情報行 */}
         <div className="flex items-center justify-between px-4 py-2">

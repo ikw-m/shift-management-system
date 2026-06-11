@@ -42,7 +42,7 @@ export function Layout() {
               <Calendar className="w-8 h-8 text-blue-600" />
               <div className="flex flex-col">
                 <h1 className="font-semibold text-xl leading-tight">シフト管理システム</h1>
-                <span className="text-xs text-gray-500">Ver. 3.0</span>
+                <span className="text-xs text-gray-500">Ver. 3.1</span>
               </div>
             </div>
             <div className="flex items-center gap-2">

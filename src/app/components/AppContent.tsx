@@ -321,8 +321,9 @@ export function AppContent() {
       <div className="max-w-7xl mx-auto mb-6">
         <header className="no-print">
           <div className="flex items-center justify-between mb-4 h-[44px]">
-            <div className="w-[320px]">
+            <div className="w-[320px] flex items-baseline gap-2">
               <h1 className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">シフト管理システム</h1>
+              <span className="text-xs text-gray-500">Ver. 3.1</span>
             </div>
 
             <div className="flex items-center gap-2">

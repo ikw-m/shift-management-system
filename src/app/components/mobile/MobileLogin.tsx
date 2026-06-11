@@ -59,7 +59,7 @@ export function MobileLogin({ employees, onLogin }: MobileLoginProps) {
         <h1 className="text-2xl bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent font-bold">
           シフト管理システム
         </h1>
-        <span className="text-sm text-gray-500 mt-1">Ver. 3.0</span>
+        <span className="text-sm text-gray-500 mt-1">Ver. 3.1</span>
         <div className="flex items-center gap-1 mt-2">
           <span
             className={`w-2 h-2 rounded-full ${
