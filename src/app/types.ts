@@ -13,20 +13,6 @@ export interface Employee {
   displayOrder?: number;
 }
 
-export interface Shift {
-  id: string;
-  employeeId: string;
-  date: Date | string;
-  startTime: string;
-  endTime: string;
-  notes?: string;
-  status: 'pending' | 'approved' | 'rejected';
-  submittedAt?: string;
-  reviewedAt?: string | null;
-  reviewedBy?: string | null;
-  // 後方互換性
-  type?: 'morning' | 'late';
-}
 
 export interface Availability {
   id: string;

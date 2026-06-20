@@ -187,6 +187,7 @@ export function AppContent() {
         color: employee.color,
         displayOrder: employee.displayOrder,
       });
+      await reloadData();
       setEditEmployeeDialogOpen(false);
     } catch (error) {
       alert('従業員の更新に失敗しました');
@@ -230,32 +231,29 @@ export function AppContent() {
   };
 
   const handleMoveEmployee = async (id: string, direction: 'up' | 'down') => {
-    const sortedEmployees = [...employees].sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
-    const currentIndex = sortedEmployees.findIndex((e) => e.id === id);
+    // 現在の順序で並べた配列を作成
+    const sorted = [...employees].sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
+    const currentIndex = sorted.findIndex((e) => e.id === id);
 
     if (currentIndex === -1) return;
     if (direction === 'up' && currentIndex === 0) return;
-    if (direction === 'down' && currentIndex === sortedEmployees.length - 1) return;
+    if (direction === 'down' && currentIndex === sorted.length - 1) return;
 
+    // 配列内で要素を入れ替える
     const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-    const currentEmployee = sortedEmployees[currentIndex];
-    const swapEmployee = sortedEmployees[newIndex];
-
-    const currentOrder = currentEmployee.displayOrder ?? currentIndex;
-    const swapOrder = swapEmployee.displayOrder ?? newIndex;
+    const reordered = [...sorted];
+    [reordered[currentIndex], reordered[newIndex]] = [reordered[newIndex], reordered[currentIndex]];
 
     try {
-      // 現在のスクロール位置を保存
       const scrollTop = employeeListRef.current?.getScrollTop() || 0;
 
-      // display_orderだけを更新
-      await updateEmployeeOrder(currentEmployee.id, swapOrder);
-      await updateEmployeeOrder(swapEmployee.id, currentOrder);
+      // 全員に連番（0,1,2...）を振り直してDBに保存することで重複・歯抜けを解消
+      await Promise.all(
+        reordered.map((emp, index) => updateEmployeeOrder(emp.id, index))
+      );
 
-      // データを再読み込みして、最新の状態を反映
       await reloadData();
 
-      // スクロール位置を復元
       setTimeout(() => {
         employeeListRef.current?.setScrollTop(scrollTop);
       }, 50);

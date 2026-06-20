@@ -232,39 +232,82 @@ export function MobileShiftManager({
                   setAddingDay(null);
                   setEditingId(null);
                 }}
-                className={`w-full flex items-center justify-between px-4 py-3 ${getDayHeaderBgClass(date)} active:opacity-80`}
+                className={`w-full flex flex-col px-4 py-3 ${getDayHeaderBgClass(date)} active:opacity-80`}
               >
-                <div className="flex items-center gap-2">
-                  <span className={`font-bold text-base ${getDayTextClass(date)}`}>
-                    {dayLabel}
-                    {isHoliday(date) && <span className="ml-1 text-xs font-normal text-red-500">祝</span>}
-                  </span>
-                  <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full ${
-                    achieved ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'
-                  }`}>
-                    {approvedCount}/{required}人
-                    {achieved && ' ✓'}
-                  </span>
-                  {shifts.filter(a => a.status === 'pending').length > 0 && (
-                    <span className="text-xs bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded-full border border-yellow-300">
-                      待ち{shifts.filter(a => a.status === 'pending').length}
+                {/* 1段目：日付・達成バッジ・承認待ち件数・ドット・矢印 */}
+                <div className="flex items-center justify-between w-full">
+                  <div className="flex items-center gap-2">
+                    <span className={`font-bold text-base ${getDayTextClass(date)}`}>
+                      {dayLabel}
+                      {isHoliday(date) && <span className="ml-1 text-xs font-normal text-red-500">祝</span>}
                     </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="flex gap-0.5">
-                    {shifts.filter(a => a.status === 'approved').slice(0, 4).map(a => (
-                      <span
-                        key={a.id}
-                        className="w-2 h-2 rounded-full"
-                        style={{ backgroundColor: shiftTypeConfig[a.shiftType].color }}
-                      />
-                    ))}
+                    <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full ${
+                      achieved ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'
+                    }`}>
+                      {approvedCount}/{required}人
+                      {achieved && ' ✓'}
+                    </span>
+                    {shifts.filter(a => a.status === 'pending').length > 0 && (
+                      <span className="text-xs bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded-full border border-yellow-300">
+                        待ち{shifts.filter(a => a.status === 'pending').length}
+                      </span>
+                    )}
                   </div>
-                  {isExpanded
-                    ? <ChevronUp className="w-4 h-4 text-gray-400" />
-                    : <ChevronDown className="w-4 h-4 text-gray-400" />}
+                  <div className="flex items-center gap-2">
+                    <div className="flex gap-0.5">
+                      {shifts.filter(a => a.status === 'approved').slice(0, 4).map(a => (
+                        <span
+                          key={a.id}
+                          className="w-2 h-2 rounded-full"
+                          style={{ backgroundColor: shiftTypeConfig[a.shiftType].color }}
+                        />
+                      ))}
+                    </div>
+                    {isExpanded
+                      ? <ChevronUp className="w-4 h-4 text-gray-400" />
+                      : <ChevronDown className="w-4 h-4 text-gray-400" />}
+                  </div>
                 </div>
+
+                {/* 2段目：自分のシフトバッジ */}
+                {myShifts.length > 0 && (
+                  <div className="flex gap-1.5 flex-wrap mt-1.5">
+                    {myShifts.map(a => {
+                      const cfg = shiftTypeConfig[a.shiftType];
+                      const icon = a.shiftType === 'karintou' ? '◉' : '◆';
+                      if (a.status === 'approved') {
+                        return (
+                          <span
+                            key={a.id}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold text-white"
+                            style={{ backgroundColor: cfg.color }}
+                          >
+                            {icon} {a.startTime}〜{a.endTime} ✓
+                          </span>
+                        );
+                      }
+                      if (a.status === 'pending') {
+                        return (
+                          <span
+                            key={a.id}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold border-2 bg-white"
+                            style={{ borderColor: cfg.color, color: cfg.color }}
+                          >
+                            {icon} {a.startTime}〜{a.endTime} …
+                          </span>
+                        );
+                      }
+                      return (
+                        <span
+                          key={a.id}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold border border-gray-300 bg-white text-gray-400 line-through"
+                        >
+                          {icon} {a.startTime}〜{a.endTime}
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
               </button>
 
               {/* 展開パネル */}
