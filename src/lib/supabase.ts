@@ -32,6 +32,7 @@ export interface Database {
           start_time: string;
           end_time: string;
           shift_type: 'karintou' | 'cafe';
+          wish_level: number | null;
           status: 'pending' | 'approved' | 'rejected';
           submitted_at: string;
           reviewed_at: string | null;

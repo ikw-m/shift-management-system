@@ -8,7 +8,7 @@ interface MobileAppContentProps {
   availabilities: Availability[];
   onLogout: () => void;
   onAddAvailability: (a: Omit<Availability, 'id' | 'status'>) => void;
-  onEditAvailability: (id: string, startTime: string, endTime: string) => void;
+  onEditAvailability: (id: string, startTime: string, endTime: string, shiftType: 'karintou' | 'cafe', wishLevel: number) => void;
   onRemoveAvailability: (id: string) => void;
   onApprove: (id: string) => void;
   onReject: (id: string) => void;

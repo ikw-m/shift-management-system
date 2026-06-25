@@ -51,6 +51,7 @@ export function AppContent() {
   const [confirmedMonth, setConfirmedMonth] = useState(getMonth(now) + 1);
   const [confirmedHalf, setConfirmedHalf] = useState<'first' | 'second'>('first');
   const [shiftDialogOpen, setShiftDialogOpen] = useState(false);
+  const [shiftDialogMode, setShiftDialogMode] = useState<'add' | 'manage'>('add');
   const [addEmployeeDialogOpen, setAddEmployeeDialogOpen] = useState(false);
   const [editEmployeeDialogOpen, setEditEmployeeDialogOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
@@ -67,17 +68,24 @@ export function AppContent() {
 
   const handleCellClick = (employeeId: string, date: Date) => {
     if (!currentUser) return;
-
-    // マネージャー以外は自分以外の勤務を追加できない
-    const isManager = currentUser.role === 'manager' || currentUser.isManager;
-    if (!isManager && employeeId !== currentUser.id) {
-      return;
-    }
-
     const employee = employees.find((e) => e.id === employeeId);
     if (employee) {
       setSelectedEmployee(employee);
       setSelectedDate(date);
+      setShiftDialogMode('manage');
+      setShiftDialogOpen(true);
+    }
+  };
+
+  const handleAddClick = (employeeId: string, date: Date) => {
+    if (!currentUser) return;
+    const isManager = currentUser.role === 'manager' || currentUser.isManager;
+    if (!isManager && employeeId !== currentUser.id) return;
+    const employee = employees.find((e) => e.id === employeeId);
+    if (employee) {
+      setSelectedEmployee(employee);
+      setSelectedDate(date);
+      setShiftDialogMode('add');
       setShiftDialogOpen(true);
     }
   };
@@ -106,7 +114,13 @@ export function AppContent() {
     }
   };
 
-  const handleEditAvailability = async (availabilityId: string, startTime: string, endTime: string) => {
+  const handleEditAvailability = async (
+    availabilityId: string,
+    startTime: string,
+    endTime: string,
+    shiftType: 'karintou' | 'cafe',
+    wishLevel: number,
+  ) => {
     const availability = availabilities.find(a => a.id === availabilityId);
     if (!availability) return;
 
@@ -117,7 +131,8 @@ export function AppContent() {
         date: availability.date,
         startTime,
         endTime,
-        shiftType: availability.shiftType,
+        shiftType,
+        wishLevel,
       });
       setTimeout(() => {
         shiftCalendarRef.current?.setScrollTop(scrollTop);
@@ -423,6 +438,7 @@ export function AppContent() {
             onMonthChange={setSelectedMonth}
             onHalfChange={setSelectedHalf}
             onCellClick={handleCellClick}
+            onAddClick={handleAddClick}
             onApprove={handleApproveAvailability}
             onReject={handleRejectAvailability}
             onRemoveAvailability={handleRemoveAvailability}
@@ -457,6 +473,7 @@ export function AppContent() {
       <ShiftDialog
         isOpen={shiftDialogOpen}
         onClose={() => setShiftDialogOpen(false)}
+        mode={shiftDialogMode}
         employee={selectedEmployee}
         date={selectedDate}
         availabilities={processedAvailabilities}

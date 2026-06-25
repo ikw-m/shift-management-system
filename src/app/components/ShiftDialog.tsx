@@ -2,17 +2,18 @@ import { useState } from 'react';
 import { format } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { X, Check, XCircle, Edit, Save, Clock, CheckCheck, CheckCircle, Trash2 } from 'lucide-react';
-import { Employee, Availability, shiftTypeConfig } from '../types';
+import { Employee, Availability, shiftTypeConfig, wishLevelConfig } from '../types';
 
 interface ShiftDialogProps {
   isOpen: boolean;
   onClose: () => void;
+  mode: 'add' | 'manage';
   employee: Employee | null;
   date: Date | null;
   availabilities: Availability[];
   currentUser: Employee;
   onAddAvailability: (availability: Omit<Availability, 'id' | 'status'>) => void;
-  onEditAvailability: (availabilityId: string, startTime: string, endTime: string) => void;
+  onEditAvailability: (availabilityId: string, startTime: string, endTime: string, shiftType: 'karintou' | 'cafe', wishLevel: number) => void;
   onRemoveAvailability: (availabilityId: string) => void;
   onApprove: (availabilityId: string) => void;
   onReject: (availabilityId: string) => void;
@@ -21,6 +22,7 @@ interface ShiftDialogProps {
 export function ShiftDialog({
   isOpen,
   onClose,
+  mode,
   employee,
   date,
   availabilities,
@@ -34,9 +36,12 @@ export function ShiftDialog({
   const [startTime, setStartTime] = useState('08:00');
   const [endTime, setEndTime] = useState('17:00');
   const [shiftType, setShiftType] = useState<'karintou' | 'cafe'>('karintou');
+  const [wishLevel, setWishLevel] = useState(2);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editStartTime, setEditStartTime] = useState('');
   const [editEndTime, setEditEndTime] = useState('');
+  const [editShiftType, setEditShiftType] = useState<'karintou' | 'cafe'>('karintou');
+  const [editWishLevel, setEditWishLevel] = useState(2);
 
   if (!isOpen || !employee || !date) return null;
 
@@ -47,20 +52,24 @@ export function ShiftDialog({
       startTime,
       endTime,
       shiftType,
+      wishLevel,
     });
     setStartTime('08:00');
     setEndTime('17:00');
     setShiftType('karintou');
+    setWishLevel(2);
   };
 
   const handleStartEdit = (availability: Availability) => {
     setEditingId(availability.id);
     setEditStartTime(availability.startTime);
     setEditEndTime(availability.endTime);
+    setEditShiftType(availability.shiftType);
+    setEditWishLevel(availability.wishLevel ?? 2);
   };
 
   const handleSaveEdit = (availabilityId: string) => {
-    onEditAvailability(availabilityId, editStartTime, editEndTime);
+    onEditAvailability(availabilityId, editStartTime, editEndTime, editShiftType, editWishLevel);
     setEditingId(null);
   };
 
@@ -92,7 +101,9 @@ export function ShiftDialog({
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
       <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-4 border border-indigo-100 max-h-[90vh] overflow-y-auto shadow-2xl">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">勤務希望管理</h3>
+          <h3 className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+            {mode === 'add' ? '勤務希望を追加' : '登録済みシフトの管理'}
+          </h3>
           <button
             onClick={onClose}
             className="p-2 hover:bg-indigo-50 rounded-xl transition-all duration-200 hover:scale-110"
@@ -112,6 +123,12 @@ export function ShiftDialog({
           <p className="text-gray-800 font-semibold">{format(date, 'yyyy年M月d日 (E)', { locale: ja })}</p>
         </div>
 
+        {mode === 'manage' && currentAvailabilities.length === 0 && (
+          <p className="text-sm text-gray-400 text-center py-4">この日の登録済みシフトはありません</p>
+        )}
+
+        {mode === 'add' && (
+        <>
         <div className="mb-6">
           <p className="text-gray-700 mb-3 font-medium">勤務可能時間を入力</p>
           <div className="space-y-4">
@@ -147,17 +164,43 @@ export function ShiftDialog({
                 ))}
               </select>
             </div>
+            <div>
+              <label className="block mb-2 text-gray-700">希望レベル</label>
+              <div className="flex gap-2">
+                {[3, 2, 1].map(level => {
+                  const cfg = wishLevelConfig[level];
+                  const isSelected = wishLevel === level;
+                  return (
+                    <button
+                      key={level}
+                      type="button"
+                      onClick={() => setWishLevel(level)}
+                      className={`flex-1 py-2.5 px-2 rounded-xl border-2 text-xs font-bold transition-all duration-200 hover:scale-105 ${
+                        isSelected
+                          ? `${cfg.bgColor} ${cfg.textColor} ${cfg.borderColor}`
+                          : 'bg-white text-gray-400 border-gray-200'
+                      }`}
+                    >
+                      <div className="text-base leading-none mb-1">{cfg.badge}</div>
+                      <div>{cfg.label}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </div>
 
-        <button
-          onClick={handleAddAvailability}
-          className="w-full px-4 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:shadow-lg hover:scale-105 transition-all duration-200 mb-4 shadow-md"
-        >
-          勤務希望を追加
-        </button>
+          <button
+            onClick={handleAddAvailability}
+            className="w-full px-4 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:shadow-lg hover:scale-105 transition-all duration-200 mb-4 shadow-md"
+          >
+            勤務希望を追加
+          </button>
+        </>
+        )}
 
-        {currentAvailabilities.length > 0 && (
+        {mode === 'manage' && currentAvailabilities.length > 0 && (
           <div>
             <p className="text-gray-700 mb-3 font-medium">登録済み勤務希望</p>
             {!currentUser.isManager ? (
@@ -183,7 +226,7 @@ export function ShiftDialog({
                   >
                     {editingId === availability.id ? (
                       <div>
-                        <p className="text-sm font-semibold mb-3 text-gray-800">勤務時間を編集</p>
+                        <p className="text-sm font-semibold mb-3 text-gray-800">勤務希望を編集</p>
                         <div className="space-y-3">
                           <div>
                             <label className="block text-xs mb-1 text-gray-700">開始時間</label>
@@ -202,6 +245,46 @@ export function ShiftDialog({
                               onChange={(e) => setEditEndTime(e.target.value)}
                               className="w-full px-3 py-2 border border-indigo-200 rounded-lg bg-white text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                             />
+                          </div>
+                          <div>
+                            <label className="block text-xs mb-1 text-gray-700">シフトタイプ</label>
+                            <div className="flex gap-2">
+                              {Object.entries(shiftTypeConfig).map(([key, val]) => (
+                                <button
+                                  key={key}
+                                  type="button"
+                                  onClick={() => setEditShiftType(key as 'karintou' | 'cafe')}
+                                  className={`flex-1 py-2 rounded-lg text-xs font-bold border-2 transition-all ${
+                                    editShiftType === key ? 'border-transparent text-white' : 'border-gray-200 text-gray-600 bg-white'
+                                  }`}
+                                  style={editShiftType === key ? { backgroundColor: val.color } : {}}
+                                >
+                                  {key === 'karintou' ? '◉' : '◆'} {val.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-xs mb-1 text-gray-700">希望レベル</label>
+                            <div className="flex gap-2">
+                              {[3, 2, 1].map(level => {
+                                const cfg = wishLevelConfig[level];
+                                const isSelected = editWishLevel === level;
+                                return (
+                                  <button
+                                    key={level}
+                                    type="button"
+                                    onClick={() => setEditWishLevel(level)}
+                                    className={`flex-1 py-2 rounded-lg text-xs font-bold border-2 transition-all ${
+                                      isSelected ? `${cfg.bgColor} ${cfg.textColor} ${cfg.borderColor}` : 'bg-white text-gray-400 border-gray-200'
+                                    }`}
+                                  >
+                                    <div className="text-sm leading-none">{cfg.badge}</div>
+                                    <div>{cfg.label}</div>
+                                  </button>
+                                );
+                              })}
+                            </div>
                           </div>
                           <div className="flex gap-2">
                             <button
@@ -274,9 +357,20 @@ export function ShiftDialog({
                           )}
                         </div>
                         <div className="flex items-center justify-between">
-                          <p className="text-sm text-center flex-1 font-medium">
-                            {availability.startTime} - {availability.endTime}
-                          </p>
+                          <div className="flex items-center gap-2 flex-1">
+                            <p className="text-sm font-medium">
+                              {availability.startTime} - {availability.endTime}
+                            </p>
+                            {(() => {
+                              const level = availability.wishLevel ?? 2;
+                              const cfg = wishLevelConfig[level];
+                              return (
+                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold border ${cfg.bgColor} ${cfg.textColor} ${cfg.borderColor}`}>
+                                  {cfg.badge} {cfg.label}
+                                </span>
+                              );
+                            })()}
+                          </div>
                           {canEdit && (
                             <div className="flex gap-1">
                               <button

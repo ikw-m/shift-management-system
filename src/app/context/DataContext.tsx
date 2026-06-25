@@ -71,6 +71,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         endTime: a.end_time,
         status: a.status,
         shiftType: a.shift_type || 'karintou',
+        wishLevel: a.wish_level ?? 2,
         submittedAt: a.submitted_at,
         reviewedAt: a.reviewed_at,
         reviewedBy: a.reviewed_by
@@ -173,6 +174,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         start_time: availability.startTime,
         end_time: availability.endTime,
         shift_type: availability.shiftType || 'karintou',
+        wish_level: availability.wishLevel ?? 2,
         status: 'pending' as const,
         submitted_at: new Date().toISOString(),
       };
@@ -192,6 +194,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           startTime: data.start_time,
           endTime: data.end_time,
           shiftType: data.shift_type || 'karintou',
+          wishLevel: data.wish_level ?? 2,
           status: data.status,
           submittedAt: data.submitted_at,
           reviewedAt: data.reviewed_at,
@@ -211,6 +214,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         start_time: availability.startTime,
         end_time: availability.endTime,
         shift_type: availability.shiftType || 'karintou',
+        wish_level: availability.wishLevel ?? 2,
       };
 
       const { error } = await supabase

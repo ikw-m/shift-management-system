@@ -2,7 +2,7 @@ import { useRef, forwardRef, useImperativeHandle, useState, useEffect } from 're
 import { format, isSameDay, getDaysInMonth } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { Calendar, Check, X, Edit, Trash2, Clock, CheckCheck, XCircle } from 'lucide-react';
-import { Employee, Availability, shiftTypeConfig, ShiftCondition } from '../types';
+import { Employee, Availability, shiftTypeConfig, wishLevelConfig, ShiftCondition } from '../types';
 import { useData } from '../context/DataContext';
 
 interface ShiftCalendarProps {
@@ -16,6 +16,7 @@ interface ShiftCalendarProps {
   onMonthChange: (month: number) => void;
   onHalfChange: (half: 'first' | 'second') => void;
   onCellClick: (employeeId: string, date: Date) => void;
+  onAddClick: (employeeId: string, date: Date) => void;
   onApprove: (availabilityId: string) => void;
   onReject: (availabilityId: string) => void;
   onRemoveAvailability: (availabilityId: string) => void;
@@ -37,6 +38,7 @@ export const ShiftCalendar = forwardRef<ShiftCalendarRef, ShiftCalendarProps>(({
   onMonthChange,
   onHalfChange,
   onCellClick,
+  onAddClick,
   onApprove,
   onReject,
   onRemoveAvailability,
@@ -521,12 +523,21 @@ export const ShiftCalendar = forwardRef<ShiftCalendarRef, ShiftCalendarProps>(({
                               <div className="text-center font-medium text-[10px]">
                                 {shiftTypeSymbol} {availability.startTime} - {availability.endTime}
                               </div>
+                              {(() => {
+                                const level = availability.wishLevel ?? 2;
+                                const cfg = wishLevelConfig[level];
+                                return (
+                                  <div className={`text-center text-[9px] font-bold px-1 py-0.5 rounded mt-0.5 ${cfg.bgColor} ${cfg.textColor}`}>
+                                    {cfg.badge} {cfg.label}
+                                  </div>
+                                );
+                              })()}
                             </div>
                           );
                         })}
                         {(currentUser.isManager || currentUser.id === employee.id) && (
                           <button
-                            onClick={() => onCellClick(employee.id, day)}
+                            onClick={() => onAddClick(employee.id, day)}
                             className="w-full px-1.5 py-1 text-[10px] text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all duration-200 border border-dashed border-indigo-200 hover:border-indigo-400 hover:shadow-sm"
                           >
                             + 追加
