@@ -399,6 +399,14 @@ export function MobileShiftManager({
                             <div className={`px-3 py-2 ${statusConfig[a.status].cls}`}>
                               {isEditing ? (
                                 <div className="space-y-2">
+                                  {/* 編集中：従業員名を表示 */}
+                                  {emp && (
+                                    <div className="flex items-center gap-1.5 px-2 py-1 bg-indigo-50 rounded-lg">
+                                      <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: emp.color }} />
+                                      <span className="text-xs font-semibold text-indigo-700">{emp.name}</span>
+                                      <span className="text-xs text-indigo-400">を編集中</span>
+                                    </div>
+                                  )}
                                   <div className="flex gap-2 items-center">
                                     <input type="time" value={editStartTime} onChange={e => setEditStartTime(e.target.value)} className="flex-1 px-2 py-1.5 border border-indigo-200 rounded-lg text-sm bg-white" />
                                     <span className="text-gray-400 text-xs">〜</span>
@@ -578,6 +586,14 @@ export function MobileShiftManager({
                             <div className={`px-3 py-2 ${statusConfig[a.status].cls}`}>
                               {isEditing ? (
                                 <div className="space-y-2">
+                                  {/* 編集中：従業員名を表示 */}
+                                  {emp && (
+                                    <div className="flex items-center gap-1.5 px-2 py-1 bg-indigo-50 rounded-lg">
+                                      <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: emp.color }} />
+                                      <span className="text-xs font-semibold text-indigo-700">{emp.name}</span>
+                                      <span className="text-xs text-indigo-400">を編集中</span>
+                                    </div>
+                                  )}
                                   <div className="flex gap-2 items-center">
                                     <input type="time" value={editStartTime} onChange={e => setEditStartTime(e.target.value)} className="flex-1 px-2 py-1.5 border border-indigo-200 rounded-lg text-sm bg-white" />
                                     <span className="text-gray-400 text-xs">〜</span>
