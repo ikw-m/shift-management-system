@@ -469,6 +469,16 @@ export const ShiftCalendar = forwardRef<ShiftCalendarRef, ShiftCalendarProps>(({
                                     >
                                       <XCircle className="w-2.5 h-2.5" />
                                     </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        onRemoveAvailability(availability.id);
+                                      }}
+                                      className="p-0.5 hover:bg-rose-200 rounded-md transition-all duration-200 hover:scale-110"
+                                      title="削除"
+                                    >
+                                      <Trash2 className="w-2.5 h-2.5" />
+                                    </button>
                                   </div>
                                 )}
                                 {availability.status === 'pending' && !currentUser.isManager && availability.employeeId === currentUser.id && (
