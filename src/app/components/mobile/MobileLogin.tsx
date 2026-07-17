@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { LogIn, User, Store } from 'lucide-react';
 import { Employee, Department } from '../../types';
 import { supabase } from '../../../lib/supabase';
@@ -19,8 +19,6 @@ export function MobileLogin({ employees, departments, onLogin }: MobileLoginProp
   const [dbStatus, setDbStatus] = useState<'connected' | 'error' | 'checking'>('checking');
   const [showDepartmentList, setShowDepartmentList] = useState(false);
   const [accessError, setAccessError] = useState('');
-  const clickCountRef = useRef(0);
-  const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 店舗リスト画面から戻った時にパスワードをクリア
   useEffect(() => {
@@ -44,20 +42,15 @@ export function MobileLogin({ employees, departments, onLogin }: MobileLoginProp
     checkSupabase();
   }, []);
 
-  const handleTitleClick = () => {
-    clickCountRef.current += 1;
-    if (clickTimerRef.current) clearTimeout(clickTimerRef.current);
-    clickTimerRef.current = setTimeout(() => { clickCountRef.current = 0; }, 1000);
-    if (clickCountRef.current >= 3) {
-      clickCountRef.current = 0;
-      if (clickTimerRef.current) clearTimeout(clickTimerRef.current);
-      if (selectedDepartmentId === '' && selectedEmployeeId === '' && password === 'manager') {
-        setAccessError('');
-        setShowDepartmentList(true);
-      } else {
-        setAccessError('店舗情報のメンテナンス権限がありません！');
-        setTimeout(() => setAccessError(''), 3000);
-      }
+  const handleLoginDoubleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (selectedDepartmentId === '' && selectedEmployeeId === '' && password === 'manager') {
+      setAccessError('');
+      setShowDepartmentList(true);
+    } else {
+      setAccessError('店舗情報のメンテナンス権限がありません！');
+      setTimeout(() => setAccessError(''), 3000);
     }
   };
 
@@ -82,7 +75,7 @@ export function MobileLogin({ employees, departments, onLogin }: MobileLoginProp
     <div className="min-h-screen flex flex-col justify-center px-5 py-8"
       style={{ background: 'linear-gradient(135deg, #f5f7fa 0%, #e8ebf0 100%)' }}>
       {/* ヘッダー */}
-      <div className="flex flex-col items-center mb-8" onClick={handleTitleClick}>
+      <div className="flex flex-col items-center mb-8">
         <div className="p-4 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl shadow-lg mb-3">
           <LogIn className="w-10 h-10 text-white" />
         </div>
@@ -164,6 +157,7 @@ export function MobileLogin({ employees, departments, onLogin }: MobileLoginProp
           )}
 
           <button type="submit" disabled={isLoading}
+            onDoubleClick={handleLoginDoubleClick}
             className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-4 rounded-2xl text-base font-semibold shadow-md active:scale-95 transition-all disabled:opacity-50">
             {isLoading ? 'ログイン中...' : 'ログイン'}
           </button>
