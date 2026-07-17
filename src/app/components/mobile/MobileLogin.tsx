@@ -20,10 +20,12 @@ export function MobileLogin({ employees, departments, onLogin }: MobileLoginProp
   const [showDepartmentList, setShowDepartmentList] = useState(false);
   const [accessError, setAccessError] = useState('');
 
-  // 店舗リスト画面から戻った時にパスワードをクリア
+  // 店舗リスト画面から戻った時にパスワード・エラーをクリア
   useEffect(() => {
     if (!showDepartmentList) {
       setPassword('');
+      setError('');
+      setAccessError('');
     }
   }, [showDepartmentList]);
 
@@ -42,9 +44,7 @@ export function MobileLogin({ employees, departments, onLogin }: MobileLoginProp
     checkSupabase();
   }, []);
 
-  const handleLoginDoubleClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const handleIconClick = () => {
     if (selectedDepartmentId === '' && selectedEmployeeId === '' && password === 'manager') {
       setAccessError('');
       setShowDepartmentList(true);
@@ -76,7 +76,7 @@ export function MobileLogin({ employees, departments, onLogin }: MobileLoginProp
       style={{ background: 'linear-gradient(135deg, #f5f7fa 0%, #e8ebf0 100%)' }}>
       {/* ヘッダー */}
       <div className="flex flex-col items-center mb-8">
-        <div className="p-4 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl shadow-lg mb-3">
+        <div className="p-4 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl shadow-lg mb-3 cursor-pointer active:opacity-80" onClick={handleIconClick}>
           <LogIn className="w-10 h-10 text-white" />
         </div>
         <h1 className="text-2xl bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent font-bold select-none">
@@ -157,7 +157,6 @@ export function MobileLogin({ employees, departments, onLogin }: MobileLoginProp
           )}
 
           <button type="submit" disabled={isLoading}
-            onDoubleClick={handleLoginDoubleClick}
             className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-4 rounded-2xl text-base font-semibold shadow-md active:scale-95 transition-all disabled:opacity-50">
             {isLoading ? 'ログイン中...' : 'ログイン'}
           </button>

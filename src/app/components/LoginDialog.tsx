@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { LogIn, User, Database, Store } from 'lucide-react';
 import { Employee, Department } from '../types';
 import { supabase } from '../../lib/supabase';
@@ -19,8 +19,6 @@ export function LoginDialog({ employees, departments, onLogin }: LoginDialogProp
   const [dbStatus, setDbStatus] = useState<'connected' | 'error' | 'checking'>('checking');
   const [showDepartmentList, setShowDepartmentList] = useState(false);
   const [accessError, setAccessError] = useState('');
-  const clickCountRef = useRef(0);
-  const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 店舗リスト画面から戻った時にパスワード・エラーをクリア
   useEffect(() => {
@@ -46,10 +44,19 @@ export function LoginDialog({ employees, departments, onLogin }: LoginDialogProp
     checkSupabase();
   }, []);
 
-  const doLogin = async () => {
-    if (!selectedDepartmentId) { setError('店舗を選択してください'); return; }
-    if (!selectedEmployeeId) { setError('従業員を選択してください'); return; }
-    if (!password) { setError('パスワードを入力してください'); return; }
+  const handleIconClick = () => {
+    if (selectedDepartmentId === '' && selectedEmployeeId === '' && password === 'manager') {
+      setError('');
+      setAccessError('');
+      setShowDepartmentList(true);
+    } else {
+      setAccessError('店舗情報のメンテナンス権限がありません！');
+      setTimeout(() => setAccessError(''), 3000);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     setIsLoading(true);
     setError('');
     const employee = employees.find(e => e.id === selectedEmployeeId);
@@ -61,39 +68,13 @@ export function LoginDialog({ employees, departments, onLogin }: LoginDialogProp
     finally { setIsLoading(false); }
   };
 
-  const handleButtonClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    clickCountRef.current += 1;
-    if (clickCountRef.current === 1) {
-      clickTimerRef.current = setTimeout(() => {
-        clickCountRef.current = 0;
-        doLogin();
-      }, 300);
-    } else if (clickCountRef.current >= 2) {
-      if (clickTimerRef.current) clearTimeout(clickTimerRef.current);
-      clickCountRef.current = 0;
-      if (selectedDepartmentId === '' && selectedEmployeeId === '' && password === 'manager') {
-        setError('');
-        setAccessError('');
-        setShowDepartmentList(true);
-      } else {
-        setAccessError('店舗情報のメンテナンス権限がありません！');
-        setTimeout(() => setAccessError(''), 3000);
-      }
-    }
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-  };
-
   return (
     <>
       {showDepartmentList && <DepartmentList onClose={() => setShowDepartmentList(false)} />}
       <div className="min-h-screen flex items-center justify-center p-6" style={{ background: 'linear-gradient(135deg, #f5f7fa 0%, #e8ebf0 100%)' }}>
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-white/50 p-8 w-full max-w-md shadow-2xl">
           <div className="flex items-center gap-3 mb-6 justify-center select-none">
-            <div className="p-3 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-xl shadow-lg">
+            <div className="p-3 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-xl shadow-lg cursor-pointer" onClick={handleIconClick}>
               <LogIn className="w-8 h-8 text-white" />
             </div>
             <div className="flex flex-col items-start">
@@ -167,9 +148,8 @@ export function LoginDialog({ employees, departments, onLogin }: LoginDialogProp
               </div>
             )}
 
-            <button type="button" disabled={isLoading}
-              onClick={handleButtonClick}
-              className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 rounded-xl hover:shadow-lg hover:scale-105 transition-all duration-200 shadow-md font-medium disabled:opacity-50 select-none">
+            <button type="submit" disabled={isLoading}
+              className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 rounded-xl hover:shadow-lg hover:scale-105 transition-all duration-200 shadow-md font-medium disabled:opacity-50">
               {isLoading ? 'ログイン中...' : 'ログイン'}
             </button>
           </form>
