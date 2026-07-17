@@ -364,7 +364,7 @@ export function AppContent() {
           <div className="flex items-center justify-between mb-4 h-[44px]">
             <div className="flex items-baseline gap-2">
               <h1 className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">シフト管理システム</h1>
-              <span className="text-xs text-gray-500">Ver. 3.2</span>
+              <span className="text-xs text-gray-500">Ver. 3.3</span>
               {departmentName && (
                 <span className="text-sm font-bold text-indigo-700 ml-2">｜ {departmentName}</span>
               )}

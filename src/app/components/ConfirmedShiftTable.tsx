@@ -2,7 +2,7 @@ import { format, isSameDay, getDaysInMonth, getDay } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { FileCheck, Printer, ClipboardList } from 'lucide-react';
 import { Employee, Availability, shiftTypeConfig, ShiftCondition } from '../types';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useData } from '../context/DataContext';
 
 interface ConfirmedShiftTableProps {
@@ -30,7 +30,7 @@ export function ConfirmedShiftTable({
   onMonthChange,
   onHalfChange,
 }: ConfirmedShiftTableProps) {
-  const { getDailyNote, saveDailyNote, getMonthlyProcedure, saveMonthlyProcedure, getShiftCondition } = useData();
+  const { getDailyNotesForMonth, saveDailyNote, getMonthlyProcedure, saveMonthlyProcedure, getShiftCondition } = useData();
   const [printHalf, setPrintHalf] = useState<'first' | 'second' | null>(null);
   const [noteText, setNoteText] = useState('このシフト確認表には、管理者によって承認された勤務希望のみが表示されています。');
   const [dailyNotes, setDailyNotes] = useState<{ [key: string]: string }>({});
@@ -51,7 +51,7 @@ export function ConfirmedShiftTable({
   useEffect(() => {
     const loadMonthlyProcedure = async () => {
       try {
-        const procedure = await getMonthlyProcedure(year, month);
+        const procedure = await getMonthlyProcedure(year, month, currentUser?.departmentId);
         setNoteText(procedure || 'このシフト確認表には、管理者によって承認された勤務希望のみが表示されています。');
       } catch (error) {
         console.error('月別業務手順の読み込みに失敗しました:', error);
@@ -60,49 +60,49 @@ export function ConfirmedShiftTable({
     loadMonthlyProcedure();
   }, [year, month, getMonthlyProcedure]);
 
-  // 表示する日付範囲の備考を読み込み
+  // 月の備考を一括取得
   useEffect(() => {
-    const loadDailyNotes = async () => {
-      const days = getDisplayDays();
+    getDailyNotesForMonth(year, month, currentUser?.departmentId).then(byDate => {
       const notes: { [key: string]: string } = {};
-      for (const day of days) {
-        try {
-          const dateStr = format(day, 'yyyy-MM-dd');
-          const note = await getDailyNote(dateStr);
-          if (note) {
-            notes[day.toISOString()] = note;
-          }
-        } catch (error) {
-          console.error('日別備考の読み込みに失敗しました:', error);
-        }
-      }
+      Object.entries(byDate).forEach(([dateStr, note]) => {
+        const date = new Date(dateStr + 'T00:00:00');
+        notes[date.toISOString()] = note;
+      });
       setDailyNotes(notes);
-    };
-    loadDailyNotes();
-  }, [year, month, half, getDailyNote]);
+    });
+  }, [year, month, currentUser?.departmentId, getDailyNotesForMonth]);
 
-  const handleNoteChange = async (date: Date, value: string) => {
+  const noteTimers = useRef<{ [key: string]: ReturnType<typeof setTimeout> }>({});
+  const procedureTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleNoteChange = useCallback((date: Date, value: string) => {
     if (!isManager) return;
     const key = date.toISOString();
     const dateStr = format(date, 'yyyy-MM-dd');
     setDailyNotes(prev => ({ ...prev, [key]: value }));
 
-    try {
-      await saveDailyNote(dateStr, value);
-    } catch (error) {
-      console.error('日別備考の保存に失敗しました:', error);
-    }
-  };
+    if (noteTimers.current[key]) clearTimeout(noteTimers.current[key]);
+    noteTimers.current[key] = setTimeout(async () => {
+      try {
+        await saveDailyNote(dateStr, value, currentUser?.departmentId);
+      } catch (error) {
+        console.error('日別備考の保存に失敗しました:', error);
+      }
+    }, 600);
+  }, [isManager, saveDailyNote, currentUser?.departmentId]);
 
-  const handleProcedureChange = async (value: string) => {
+  const handleProcedureChange = useCallback((value: string) => {
     setNoteText(value);
 
-    try {
-      await saveMonthlyProcedure(year, month, value);
-    } catch (error) {
-      console.error('月別業務手順の保存に失敗しました:', error);
-    }
-  };
+    if (procedureTimer.current) clearTimeout(procedureTimer.current);
+    procedureTimer.current = setTimeout(async () => {
+      try {
+        await saveMonthlyProcedure(year, month, value, currentUser?.departmentId);
+      } catch (error) {
+        console.error('月別業務手順の保存に失敗しました:', error);
+      }
+    }, 600);
+  }, [year, month, saveMonthlyProcedure, currentUser?.departmentId]);
 
   // 従業員をdisplayOrderでソート（最大15人まで表示）
   const sortedEmployees = [...employees].sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0)).slice(0, 15);
@@ -971,7 +971,7 @@ export function ConfirmedShiftTable({
                   <div className="print-title">
                     <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>
                       {departmentName && <span style={{ color: '#4f46e5', marginRight: '8px' }}>{departmentName}</span>}
-                      {year}年{month}月{printHalf === 'first' ? '前半' : '後半'}シフト管理表 <span style={{ fontSize: '8pt', color: '#6b7280', fontWeight: 'normal' }}>[Ver. 3.2]</span> {sortedEmployees.length > 12 ? `(${pageIndex + 1}/${Math.ceil(sortedEmployees.length / 12)})` : ''}
+                      {year}年{month}月{printHalf === 'first' ? '前半' : '後半'}シフト管理表 <span style={{ fontSize: '8pt', color: '#6b7280', fontWeight: 'normal' }}>[Ver. 3.3]</span> {sortedEmployees.length > 12 ? `(${pageIndex + 1}/${Math.ceil(sortedEmployees.length / 12)})` : ''}
                     </div>
                     <div style={{ fontSize: '8pt', marginBottom: '2px' }}>
                       <span style={{ fontWeight: 'bold', color: '#6b7280' }}>凡例：</span>

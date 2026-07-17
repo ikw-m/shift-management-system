@@ -23,10 +23,11 @@ interface DataContextType {
   deleteAvailability: (id: string) => Promise<void>;
   approveAvailability: (id: string, reviewerName: string) => Promise<void>;
   rejectAvailability: (id: string, reviewerName: string) => Promise<void>;
-  getDailyNote: (date: string) => Promise<string>;
-  saveDailyNote: (date: string, note: string) => Promise<void>;
-  getMonthlyProcedure: (year: number, month: number) => Promise<string>;
-  saveMonthlyProcedure: (year: number, month: number, procedure: string) => Promise<void>;
+  getDailyNote: (date: string, departmentId?: string) => Promise<string>;
+  getDailyNotesForMonth: (year: number, month: number, departmentId?: string) => Promise<{ [date: string]: string }>;
+  saveDailyNote: (date: string, note: string, departmentId?: string) => Promise<void>;
+  getMonthlyProcedure: (year: number, month: number, departmentId?: string) => Promise<string>;
+  saveMonthlyProcedure: (year: number, month: number, procedure: string, departmentId?: string) => Promise<void>;
   getShiftCondition: (year: number, departmentId?: string) => Promise<ShiftCondition | null>;
   saveShiftCondition: (year: number, condition: ShiftCondition, departmentId?: string) => Promise<void>;
 }
@@ -387,13 +388,28 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const getDailyNote = async (date: string): Promise<string> => {
+  const getDailyNotesForMonth = async (year: number, month: number, departmentId?: string): Promise<{ [date: string]: string }> => {
     try {
-      const { data, error } = await supabase
-        .from('daily_notes')
-        .select('note')
-        .eq('date', date)
-        .single();
+      const pad = (n: number) => String(n).padStart(2, '0');
+      const from = `${year}-${pad(month)}-01`;
+      const to = `${year}-${pad(month)}-31`;
+      let query = supabase.from('daily_notes').select('date, note').gte('date', from).lte('date', to);
+      if (departmentId) query = query.eq('department_id', departmentId);
+      const { data, error } = await query;
+      if (error) throw error;
+      const result: { [date: string]: string } = {};
+      (data || []).forEach(row => { if (row.note) result[row.date] = row.note; });
+      return result;
+    } catch {
+      return {};
+    }
+  };
+
+  const getDailyNote = async (date: string, departmentId?: string): Promise<string> => {
+    try {
+      let query = supabase.from('daily_notes').select('note').eq('date', date);
+      if (departmentId) query = query.eq('department_id', departmentId);
+      const { data, error } = await query.single();
 
       if (error && error.code !== 'PGRST116') throw error;
       return data?.note || '';
@@ -402,26 +418,33 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const saveDailyNote = async (date: string, note: string): Promise<void> => {
+  const saveDailyNote = async (date: string, note: string, departmentId?: string): Promise<void> => {
     try {
-      const { error } = await supabase
-        .from('daily_notes')
-        .upsert({ date, note }, { onConflict: 'date' });
+      let checkQuery = supabase.from('daily_notes').select('date').eq('date', date);
+      if (departmentId) checkQuery = checkQuery.eq('department_id', departmentId);
+      const { data: existing } = await checkQuery.maybeSingle();
 
-      if (error) throw error;
+      if (existing) {
+        let updateQuery = supabase.from('daily_notes').update({ note }).eq('date', date);
+        if (departmentId) updateQuery = updateQuery.eq('department_id', departmentId);
+        const { error } = await updateQuery;
+        if (error) throw error;
+      } else {
+        const record: Record<string, unknown> = { date, note };
+        if (departmentId) record.department_id = departmentId;
+        const { error } = await supabase.from('daily_notes').insert(record);
+        if (error) throw error;
+      }
     } catch (error) {
       throw error;
     }
   };
 
-  const getMonthlyProcedure = async (year: number, month: number): Promise<string> => {
+  const getMonthlyProcedure = async (year: number, month: number, departmentId?: string): Promise<string> => {
     try {
-      const { data, error } = await supabase
-        .from('monthly_procedures')
-        .select('procedure')
-        .eq('year', year)
-        .eq('month', month)
-        .single();
+      let query = supabase.from('monthly_procedures').select('procedure').eq('year', year).eq('month', month);
+      if (departmentId) query = query.eq('department_id', departmentId);
+      const { data, error } = await query.single();
 
       if (error && error.code !== 'PGRST116') throw error;
       return data?.procedure || '';
@@ -430,13 +453,23 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const saveMonthlyProcedure = async (year: number, month: number, procedure: string): Promise<void> => {
+  const saveMonthlyProcedure = async (year: number, month: number, procedure: string, departmentId?: string): Promise<void> => {
     try {
-      const { error } = await supabase
-        .from('monthly_procedures')
-        .upsert({ year, month, procedure }, { onConflict: 'year,month' });
+      let checkQuery = supabase.from('monthly_procedures').select('year').eq('year', year).eq('month', month);
+      if (departmentId) checkQuery = checkQuery.eq('department_id', departmentId);
+      const { data: existing } = await checkQuery.maybeSingle();
 
-      if (error) throw error;
+      if (existing) {
+        let updateQuery = supabase.from('monthly_procedures').update({ procedure }).eq('year', year).eq('month', month);
+        if (departmentId) updateQuery = updateQuery.eq('department_id', departmentId);
+        const { error } = await updateQuery;
+        if (error) throw error;
+      } else {
+        const record: Record<string, unknown> = { year, month, procedure };
+        if (departmentId) record.department_id = departmentId;
+        const { error } = await supabase.from('monthly_procedures').insert(record);
+        if (error) throw error;
+      }
     } catch (error) {
       throw error;
     }
@@ -498,6 +531,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         approveAvailability,
         rejectAvailability,
         getDailyNote,
+        getDailyNotesForMonth,
         saveDailyNote,
         getMonthlyProcedure,
         saveMonthlyProcedure,

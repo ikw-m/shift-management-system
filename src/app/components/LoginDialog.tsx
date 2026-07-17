@@ -3,6 +3,7 @@ import { LogIn, User, Database, Store } from 'lucide-react';
 import { Employee, Department } from '../types';
 import { supabase } from '../../lib/supabase';
 import { DepartmentList } from './DepartmentList';
+import { ShiftPrintScreen } from './ShiftPrintScreen';
 
 interface LoginDialogProps {
   employees: Employee[];
@@ -18,16 +19,17 @@ export function LoginDialog({ employees, departments, onLogin }: LoginDialogProp
   const [isLoading, setIsLoading] = useState(false);
   const [dbStatus, setDbStatus] = useState<'connected' | 'error' | 'checking'>('checking');
   const [showDepartmentList, setShowDepartmentList] = useState(false);
+  const [showShiftPrint, setShowShiftPrint] = useState(false);
   const [accessError, setAccessError] = useState('');
 
-  // 店舗リスト画面から戻った時にパスワード・エラーをクリア
+  // 店舗リスト・印刷画面から戻った時にパスワード・エラーをクリア
   useEffect(() => {
-    if (!showDepartmentList) {
+    if (!showDepartmentList && !showShiftPrint) {
       setPassword('');
       setError('');
       setAccessError('');
     }
-  }, [showDepartmentList]);
+  }, [showDepartmentList, showShiftPrint]);
 
   const sortedDepts = [...departments].sort((a, b) => a.displayOrder - b.displayOrder);
   const filteredEmployees = selectedDepartmentId
@@ -46,9 +48,13 @@ export function LoginDialog({ employees, departments, onLogin }: LoginDialogProp
 
   const handleIconClick = () => {
     if (selectedDepartmentId === '' && selectedEmployeeId === '' && password === 'manager') {
-      setError('');
-      setAccessError('');
+      // 店舗リスト（隠し機能）
+      setError(''); setAccessError('');
       setShowDepartmentList(true);
+    } else if (selectedDepartmentId !== '' && selectedEmployeeId === '' && password === '') {
+      // シフト管理表印刷
+      setError(''); setAccessError('');
+      setShowShiftPrint(true);
     } else {
       setAccessError('店舗情報のメンテナンス権限がありません！');
       setTimeout(() => setAccessError(''), 3000);
@@ -68,10 +74,19 @@ export function LoginDialog({ employees, departments, onLogin }: LoginDialogProp
     finally { setIsLoading(false); }
   };
 
+  const selectedDeptName = departments.find(d => d.id === selectedDepartmentId)?.departmentName ?? '';
+
   return (
     <>
       {showDepartmentList && <DepartmentList onClose={() => setShowDepartmentList(false)} />}
-      <div className="min-h-screen flex items-center justify-center p-6" style={{ background: 'linear-gradient(135deg, #f5f7fa 0%, #e8ebf0 100%)' }}>
+      {showShiftPrint && (
+        <ShiftPrintScreen
+          departmentId={selectedDepartmentId}
+          departmentName={selectedDeptName}
+          onClose={() => setShowShiftPrint(false)}
+        />
+      )}
+      <div className={`min-h-screen flex items-center justify-center p-6${showShiftPrint ? ' no-print' : ''}`} style={{ background: 'linear-gradient(135deg, #f5f7fa 0%, #e8ebf0 100%)' }}>
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-white/50 p-8 w-full max-w-md shadow-2xl">
           <div className="flex items-center gap-3 mb-6 justify-center select-none">
             <div className="p-3 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-xl shadow-lg cursor-pointer" onClick={handleIconClick}>
@@ -79,7 +94,7 @@ export function LoginDialog({ employees, departments, onLogin }: LoginDialogProp
             </div>
             <div className="flex flex-col items-start">
               <h1 className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">シフト管理システム</h1>
-              <span className="text-xs text-gray-500 ml-1">Ver. 3.2</span>
+              <span className="text-xs text-gray-500 ml-1">Ver. 3.3</span>
             </div>
           </div>
 
