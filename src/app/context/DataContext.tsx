@@ -1,10 +1,17 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Employee, Availability, ShiftCondition } from '../types';
+import { Employee, Availability, ShiftCondition, Department } from '../types';
 import { supabase } from '../../lib/supabase';
 
 interface DataContextType {
+  departments: Department[];
   employees: Employee[];
   availabilities: Availability[];
+  addDepartment: (name: string) => Promise<string>;
+  updateDepartment: (id: string, name: string) => Promise<void>;
+  deleteDepartment: (id: string) => Promise<void>;
+  updateDepartmentOrder: (id: string, displayOrder: number) => Promise<void>;
+  reorderDepartments: (ordered: { id: string }[]) => Promise<void>;
+  reorderEmployees: (ordered: { id: string }[]) => Promise<void>;
   loading: boolean;
   reloadData: () => Promise<void>;
   addEmployee: (employee: Omit<Employee, 'id'>) => Promise<void>;
@@ -20,13 +27,14 @@ interface DataContextType {
   saveDailyNote: (date: string, note: string) => Promise<void>;
   getMonthlyProcedure: (year: number, month: number) => Promise<string>;
   saveMonthlyProcedure: (year: number, month: number, procedure: string) => Promise<void>;
-  getShiftCondition: (year: number) => Promise<ShiftCondition | null>;
-  saveShiftCondition: (year: number, condition: ShiftCondition) => Promise<void>;
+  getShiftCondition: (year: number, departmentId?: string) => Promise<ShiftCondition | null>;
+  saveShiftCondition: (year: number, condition: ShiftCondition, departmentId?: string) => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export function DataProvider({ children }: { children: ReactNode }) {
+  const [departments, setDepartments] = useState<Department[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [availabilities, setAvailabilities] = useState<Availability[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,6 +48,18 @@ export function DataProvider({ children }: { children: ReactNode }) {
     try {
       setLoading(true);
 
+      // 店舗データを取得
+      const { data: deptsData, error: deptsError } = await supabase
+        .from('departments')
+        .select('*')
+        .order('display_order');
+      if (deptsError) throw deptsError;
+      setDepartments(deptsData?.map(d => ({
+        id: d.id,
+        departmentName: d.department_name,
+        displayOrder: d.display_order ?? 0,
+      })) || []);
+
       // 従業員データを取得
       const { data: employeesData, error: employeesError } = await supabase
         .from('employees')
@@ -51,7 +71,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       // display_order を displayOrder に変換
       const processedEmployees = employeesData?.map(emp => ({
         ...emp,
-        displayOrder: emp.display_order ?? 0
+        displayOrder: emp.display_order ?? 0,
+        departmentId: emp.department_id ?? undefined,
       })) || [];
 
       setEmployees(processedEmployees);
@@ -84,6 +105,58 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const addDepartment = async (name: string): Promise<string> => {
+    const maxOrder = Math.max(...departments.map(d => d.displayOrder), -1);
+    const { data, error } = await supabase
+      .from('departments')
+      .insert([{ department_name: name, display_order: maxOrder + 1 }])
+      .select().single();
+    if (error) throw error;
+    if (data) setDepartments([...departments, { id: data.id, departmentName: data.department_name, displayOrder: data.display_order }]);
+    return data?.id ?? '';
+  };
+
+  const updateDepartment = async (id: string, name: string) => {
+    const { error } = await supabase.from('departments').update({ department_name: name }).eq('id', id);
+    if (error) throw error;
+    setDepartments(departments.map(d => d.id === id ? { ...d, departmentName: name } : d));
+  };
+
+  const deleteDepartment = async (id: string) => {
+    const { error } = await supabase.from('departments').delete().eq('id', id);
+    if (error) throw error;
+    setDepartments(departments.filter(d => d.id !== id));
+  };
+
+  const updateDepartmentOrder = async (id: string, displayOrder: number) => {
+    const { error } = await supabase.from('departments').update({ display_order: displayOrder }).eq('id', id);
+    if (error) throw error;
+    setDepartments(departments.map(d => d.id === id ? { ...d, displayOrder } : d));
+  };
+
+  const reorderDepartments = async (ordered: { id: string }[]) => {
+    await Promise.all(ordered.map((d, i) =>
+      supabase.from('departments').update({ display_order: i }).eq('id', d.id)
+    ));
+    setDepartments(prev => {
+      const map = new Map(prev.map(d => [d.id, d]));
+      return ordered.map((o, i) => ({ ...map.get(o.id)!, displayOrder: i }));
+    });
+  };
+
+  const reorderEmployees = async (ordered: { id: string }[]) => {
+    await Promise.all(ordered.map((e, i) =>
+      supabase.from('employees').update({ display_order: i }).eq('id', e.id)
+    ));
+    setEmployees(prev => {
+      const map = new Map(prev.map(e => [e.id, e]));
+      return prev.map(e => {
+        const idx = ordered.findIndex(o => o.id === e.id);
+        return idx !== -1 ? { ...map.get(e.id)!, displayOrder: idx } : e;
+      });
+    });
+  };
+
   const addEmployee = async (employee: Omit<Employee, 'id'>) => {
     try {
       const insertData = {
@@ -94,7 +167,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
         role: employee.role,
         password: employee.password,
         color: employee.color,
-        display_order: employee.displayOrder ?? 0
+        display_order: employee.displayOrder ?? 0,
+        department_id: employee.departmentId ?? null,
       };
 
       const { data, error } = await supabase
@@ -105,7 +179,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
       if (error) throw error;
       if (data) {
-        setEmployees([...employees, { ...data, displayOrder: data.display_order }]);
+        setEmployees([...employees, {
+          ...data,
+          displayOrder: data.display_order ?? 0,
+          departmentId: data.department_id ?? undefined,
+        }]);
       }
     } catch (error) {
       throw error;
@@ -122,7 +200,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
         role: employee.role,
         password: employee.password,
         color: employee.color,
-        display_order: employee.displayOrder ?? 0
+        display_order: employee.displayOrder ?? 0,
+        department_id: employee.departmentId ?? null,
       };
 
       const { error } = await supabase
@@ -132,7 +211,18 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
       if (error) throw error;
 
-      // ローカル状態は更新しない - reloadData()で再取得する
+      setEmployees(prev => prev.map(e => e.id === id ? {
+        ...e,
+        name: employee.name,
+        email: employee.email,
+        phone: employee.phone,
+        position: employee.position,
+        role: employee.role,
+        password: employee.password,
+        color: employee.color,
+        displayOrder: employee.displayOrder ?? e.displayOrder,
+        departmentId: employee.departmentId,
+      } : e));
     } catch (error) {
       throw error;
     }
@@ -153,11 +243,19 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const deleteEmployee = async (id: string) => {
     try {
+      // 先にシフトデータ（availabilities）を削除
+      const { error: availError } = await supabase
+        .from('availabilities')
+        .delete()
+        .eq('employee_id', id);
+      if (availError) throw availError;
+
+      // 従業員を削除
       const { error } = await supabase
         .from('employees')
         .delete()
         .eq('id', id);
-      
+
       if (error) throw error;
       setEmployees(employees.filter(emp => emp.id !== id));
       setAvailabilities(availabilities.filter(availability => availability.employeeId !== id));
@@ -344,13 +442,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const getShiftCondition = async (year: number): Promise<ShiftCondition | null> => {
+  const getShiftCondition = async (year: number, departmentId?: string): Promise<ShiftCondition | null> => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('shift_conditions')
         .select('data')
-        .eq('year', year)
-        .single();
+        .eq('year', year);
+      if (departmentId) {
+        query = query.eq('department_id', departmentId);
+      }
+      const { data, error } = await query.single();
 
       if (error && error.code !== 'PGRST116') throw error;
       return data?.data || null;
@@ -359,11 +460,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const saveShiftCondition = async (year: number, condition: ShiftCondition): Promise<void> => {
+  const saveShiftCondition = async (year: number, condition: ShiftCondition, departmentId?: string): Promise<void> => {
     try {
+      const record: Record<string, unknown> = { year, data: condition };
+      if (departmentId) record.department_id = departmentId;
       const { error } = await supabase
         .from('shift_conditions')
-        .upsert({ year, data: condition }, { onConflict: 'year' });
+        .upsert(record, { onConflict: 'year,department_id' });
 
       if (error) throw error;
     } catch (error) {
@@ -374,10 +477,17 @@ export function DataProvider({ children }: { children: ReactNode }) {
   return (
     <DataContext.Provider
       value={{
+        departments,
         employees,
         availabilities,
         loading,
         reloadData: loadData,
+        addDepartment,
+        updateDepartment,
+        deleteDepartment,
+        updateDepartmentOrder,
+        reorderDepartments,
+        reorderEmployees,
         addEmployee,
         updateEmployee,
         updateEmployeeOrder,

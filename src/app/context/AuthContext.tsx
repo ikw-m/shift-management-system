@@ -17,7 +17,14 @@ const STORAGE_KEY_CURRENT_USER = 'shift-management-current-user';
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<Employee | null>(() => {
     const stored = localStorage.getItem(STORAGE_KEY_CURRENT_USER);
-    return stored ? JSON.parse(stored) : null;
+    if (!stored) return null;
+    const parsed = JSON.parse(stored);
+    // localStorage内の古いデータ（snake_case）にも対応
+    return {
+      ...parsed,
+      departmentId: parsed.departmentId ?? parsed.department_id ?? undefined,
+      displayOrder: parsed.displayOrder ?? parsed.display_order ?? 0,
+    };
   });
   const [loading, setLoading] = useState(false);
 
@@ -44,10 +51,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return false;
       }
       
-      setCurrentUser(data);
+      // Supabaseのsnake_caseをcamelCaseに変換して保存
+      setCurrentUser({
+        ...data,
+        departmentId: data.department_id ?? undefined,
+        displayOrder: data.display_order ?? 0,
+      });
       return true;
     } catch (error) {
-      console.error('ログインに失敗しました:', error);
       return false;
     } finally {
       setLoading(false);

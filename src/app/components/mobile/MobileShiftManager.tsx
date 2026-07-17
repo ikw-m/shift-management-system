@@ -53,7 +53,7 @@ export function MobileShiftManager({
   const isManager = currentUser.role === 'manager' || currentUser.isManager === true;
 
   useEffect(() => {
-    getShiftCondition(year).then(setShiftCondition);
+    getShiftCondition(year, currentUser.departmentId).then(setShiftCondition);
   }, [year, getShiftCondition]);
 
   // 展開時：該当日カードをスクロールコンテナの先頭に表示
@@ -387,7 +387,8 @@ export function MobileShiftManager({
                       {myShifts.map(a => {
                         const emp = getEmployee(a.employeeId);
                         const canEdit = isManager || (a.status === 'pending' && a.employeeId === currentUser.id);
-                        const canDelete = canEdit;
+                        const canDelete = a.employeeId === currentUser.id &&
+                          (isManager || a.status !== 'approved');
                         const isEditing = editingId === a.id;
                         return (
                           <div key={a.id} className="rounded-xl border overflow-hidden">
@@ -574,7 +575,8 @@ export function MobileShiftManager({
                       {shifts.filter(a => a.employeeId !== currentUser.id).map(a => {
                         const emp = getEmployee(a.employeeId);
                         const canEdit = isManager;
-                        const canDelete = isManager;
+                        const canDelete = a.employeeId === currentUser.id &&
+                          (isManager || a.status !== 'approved');
                         const isEditing = editingId === a.id;
                         return (
                           <div key={a.id} className="rounded-xl border overflow-hidden">

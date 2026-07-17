@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { X, Check, XCircle, Edit, Save, Clock, CheckCheck, CheckCircle, Trash2 } from 'lucide-react';
@@ -8,6 +8,7 @@ interface ShiftDialogProps {
   isOpen: boolean;
   onClose: () => void;
   mode: 'add' | 'manage';
+  autoEditId?: string;
   employee: Employee | null;
   date: Date | null;
   availabilities: Availability[];
@@ -23,6 +24,7 @@ export function ShiftDialog({
   isOpen,
   onClose,
   mode,
+  autoEditId,
   employee,
   date,
   availabilities,
@@ -42,6 +44,21 @@ export function ShiftDialog({
   const [editEndTime, setEditEndTime] = useState('');
   const [editShiftType, setEditShiftType] = useState<'karintou' | 'cafe'>('karintou');
   const [editWishLevel, setEditWishLevel] = useState(2);
+
+  // autoEditIdが指定されている場合、ダイアログを開いた直後に編集モードを自動開始
+  useEffect(() => {
+    if (isOpen && autoEditId && availabilities.length > 0) {
+      const av = availabilities.find(a => a.id === autoEditId);
+      if (av) {
+        setEditingId(av.id);
+        setEditStartTime(av.startTime);
+        setEditEndTime(av.endTime);
+        setEditShiftType(av.shiftType);
+        setEditWishLevel(av.wishLevel ?? 2);
+      }
+    }
+    if (!isOpen) setEditingId(null);
+  }, [isOpen, autoEditId]);
 
   if (!isOpen || !employee || !date) return null;
 
@@ -71,12 +88,14 @@ export function ShiftDialog({
   const handleSaveEdit = (availabilityId: string) => {
     onEditAvailability(availabilityId, editStartTime, editEndTime, editShiftType, editWishLevel);
     setEditingId(null);
+    if (autoEditId) onClose();
   };
 
   const handleCancelEdit = () => {
     setEditingId(null);
     setEditStartTime('');
     setEditEndTime('');
+    if (autoEditId) onClose();
   };
 
   const currentAvailabilities = availabilities.filter(
@@ -215,9 +234,11 @@ export function ShiftDialog({
             )}
             <div className="space-y-3">
               {currentAvailabilities.map((availability) => {
-                // マネージャーは全てのシフトを編集・削除可能、スタッフは承認待ちの自分のシフトのみ
+                // 編集：マネージャーは全員分・スタッフは自分の承認待ちのみ
                 const canEdit = currentUser.isManager || (availability.status === 'pending' && availability.employeeId === currentUser.id);
-                const canDelete = currentUser.isManager || (availability.status === 'pending' && availability.employeeId === currentUser.id);
+                // 削除：登録者本人のみ・スタッフは承認済み以外のみ削除可能
+                const canDelete = availability.employeeId === currentUser.id &&
+                  (currentUser.isManager || availability.status !== 'approved');
 
                 return (
                   <div

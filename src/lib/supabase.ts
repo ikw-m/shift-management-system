@@ -9,6 +9,16 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 export interface Database {
   public: {
     Tables: {
+      departments: {
+        Row: {
+          id: string;
+          department_name: string;
+          display_order: number;
+          created_at: string;
+        };
+        Insert: Omit<Database['public']['Tables']['departments']['Row'], 'id' | 'created_at'>;
+        Update: Partial<Database['public']['Tables']['departments']['Insert']>;
+      };
       employees: {
         Row: {
           id: string;
@@ -19,6 +29,7 @@ export interface Database {
           role: 'manager' | 'staff';
           password: string;
           color: string;
+          department_id: string | null;
           created_at: string;
         };
         Insert: Omit<Database['public']['Tables']['employees']['Row'], 'id' | 'created_at'>;

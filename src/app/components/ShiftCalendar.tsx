@@ -17,6 +17,7 @@ interface ShiftCalendarProps {
   onHalfChange: (half: 'first' | 'second') => void;
   onCellClick: (employeeId: string, date: Date) => void;
   onAddClick: (employeeId: string, date: Date) => void;
+  onEditClick: (employeeId: string, date: Date, availabilityId: string) => void;
   onApprove: (availabilityId: string) => void;
   onReject: (availabilityId: string) => void;
   onRemoveAvailability: (availabilityId: string) => void;
@@ -39,6 +40,7 @@ export const ShiftCalendar = forwardRef<ShiftCalendarRef, ShiftCalendarProps>(({
   onHalfChange,
   onCellClick,
   onAddClick,
+  onEditClick,
   onApprove,
   onReject,
   onRemoveAvailability,
@@ -50,7 +52,7 @@ export const ShiftCalendar = forwardRef<ShiftCalendarRef, ShiftCalendarProps>(({
   // シフト条件設定を読み込み
   useEffect(() => {
     const loadShiftCondition = async () => {
-      const condition = await getShiftCondition(year);
+      const condition = await getShiftCondition(year, currentUser.departmentId);
       setShiftCondition(condition);
     };
     loadShiftCondition();
@@ -440,108 +442,70 @@ export const ShiftCalendar = forwardRef<ShiftCalendarRef, ShiftCalendarProps>(({
                                 borderColor: statusStyle.borderColor,
                               }}
                             >
-                              <div className="flex items-center justify-between mb-0.5">
-                                <div className="flex items-center gap-0.5">
-                                  <StatusIcon className="w-2.5 h-2.5" style={{ color: statusStyle.color }} />
-                                  <span className="font-semibold text-[10px]" style={{ fontWeight: statusStyle.fontWeight }}>
-                                    {statusLabels[availability.status].text}
-                                  </span>
-                                </div>
+                              {/* 1行目：ステータス・時間・希望レベルを横並び */}
+                              <div className="flex items-center gap-0.5 flex-wrap mb-0.5">
+                                <StatusIcon className="w-2.5 h-2.5 flex-shrink-0" style={{ color: statusStyle.color }} />
+                                <span className="font-semibold text-[10px] whitespace-nowrap" style={{ fontWeight: statusStyle.fontWeight }}>
+                                  {statusLabels[availability.status].text}
+                                </span>
+                                <span className="text-[10px] font-medium whitespace-nowrap">
+                                  {shiftTypeSymbol} {availability.startTime}-{availability.endTime}
+                                </span>
+                                {(() => {
+                                  const level = availability.wishLevel ?? 2;
+                                  const cfg = wishLevelConfig[level];
+                                  return (
+                                    <span className={`text-[9px] font-bold px-1 rounded ${cfg.bgColor} ${cfg.textColor}`}>
+                                      {cfg.badge}
+                                    </span>
+                                  );
+                                })()}
+                              </div>
+                              {/* 2行目：アクションボタン */}
+                              <div className="flex gap-0.5 justify-end">
+                                {/* 承認・却下：マネージャーのみ・承認待ち */}
                                 {availability.status === 'pending' && currentUser.isManager && (
-                                  <div className="flex gap-0.5">
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        onApprove(availability.id);
-                                      }}
-                                      className="p-0.5 hover:bg-emerald-200 rounded-md transition-all duration-200 hover:scale-110"
-                                      title="承認"
-                                    >
+                                  <>
+                                    <button onClick={(e) => { e.stopPropagation(); onApprove(availability.id); }}
+                                      className="p-0.5 hover:bg-emerald-200 rounded-md transition-all duration-200 hover:scale-110" title="承認">
                                       <Check className="w-2.5 h-2.5" />
                                     </button>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        onReject(availability.id);
-                                      }}
-                                      className="p-0.5 hover:bg-rose-200 rounded-md transition-all duration-200 hover:scale-110"
-                                      title="却下"
-                                    >
+                                    <button onClick={(e) => { e.stopPropagation(); onReject(availability.id); }}
+                                      className="p-0.5 hover:bg-rose-200 rounded-md transition-all duration-200 hover:scale-110" title="却下">
                                       <XCircle className="w-2.5 h-2.5" />
                                     </button>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        onRemoveAvailability(availability.id);
-                                      }}
-                                      className="p-0.5 hover:bg-rose-200 rounded-md transition-all duration-200 hover:scale-110"
-                                      title="削除"
-                                    >
-                                      <Trash2 className="w-2.5 h-2.5" />
-                                    </button>
-                                  </div>
+                                  </>
                                 )}
-                                {availability.status === 'pending' && !currentUser.isManager && availability.employeeId === currentUser.id && (
-                                  <div className="flex gap-0.5">
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        onCellClick(availability.employeeId, availability.date);
-                                      }}
-                                      className="p-0.5 hover:bg-blue-200 rounded-md transition-all duration-200 hover:scale-110"
-                                      title="編集"
-                                    >
-                                      <Edit className="w-2.5 h-2.5" />
-                                    </button>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        onRemoveAvailability(availability.id);
-                                      }}
-                                      className="p-0.5 hover:bg-rose-200 rounded-md transition-all duration-200 hover:scale-110"
-                                      title="削除"
-                                    >
-                                      <Trash2 className="w-2.5 h-2.5" />
-                                    </button>
-                                  </div>
-                                )}
+                                {/* 却下に変更：マネージャー・承認済み */}
                                 {availability.status === 'approved' && currentUser.isManager && (
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      onReject(availability.id);
-                                    }}
-                                    className="p-0.5 hover:bg-rose-200 rounded-md transition-all duration-200 hover:scale-110"
-                                    title="却下に変更"
-                                  >
+                                  <button onClick={(e) => { e.stopPropagation(); onReject(availability.id); }}
+                                    className="p-0.5 hover:bg-rose-200 rounded-md transition-all duration-200 hover:scale-110" title="却下に変更">
                                     <XCircle className="w-2.5 h-2.5" />
                                   </button>
                                 )}
+                                {/* 承認済みに変更：マネージャー・却下済み */}
                                 {availability.status === 'rejected' && currentUser.isManager && (
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      onApprove(availability.id);
-                                    }}
-                                    className="p-0.5 hover:bg-emerald-200 rounded-md transition-all duration-200 hover:scale-110"
-                                    title="承認済みに変更"
-                                  >
+                                  <button onClick={(e) => { e.stopPropagation(); onApprove(availability.id); }}
+                                    className="p-0.5 hover:bg-emerald-200 rounded-md transition-all duration-200 hover:scale-110" title="承認済みに変更">
                                     <Check className="w-2.5 h-2.5" />
                                   </button>
                                 )}
+                                {/* 編集：マネージャーは全員分・スタッフは自分の承認待ちのみ */}
+                                {(currentUser.isManager || (availability.employeeId === currentUser.id && availability.status === 'pending')) && (
+                                  <button onClick={(e) => { e.stopPropagation(); onEditClick(availability.employeeId, availability.date, availability.id); }}
+                                    className="p-0.5 hover:bg-blue-200 rounded-md transition-all duration-200 hover:scale-110" title="編集">
+                                    <Edit className="w-2.5 h-2.5" />
+                                  </button>
+                                )}
+                                {/* 削除：登録者本人のみ・スタッフは承認済み以外のみ */}
+                                {availability.employeeId === currentUser.id &&
+                                  (currentUser.isManager || availability.status !== 'approved') && (
+                                  <button onClick={(e) => { e.stopPropagation(); onRemoveAvailability(availability.id); }}
+                                    className="p-0.5 hover:bg-rose-200 rounded-md transition-all duration-200 hover:scale-110" title="削除">
+                                    <Trash2 className="w-2.5 h-2.5" />
+                                  </button>
+                                )}
                               </div>
-                              <div className="text-center font-medium text-[10px]">
-                                {shiftTypeSymbol} {availability.startTime} - {availability.endTime}
-                              </div>
-                              {(() => {
-                                const level = availability.wishLevel ?? 2;
-                                const cfg = wishLevelConfig[level];
-                                return (
-                                  <div className={`text-center text-[9px] font-bold px-1 py-0.5 rounded mt-0.5 ${cfg.bgColor} ${cfg.textColor}`}>
-                                    {cfg.badge} {cfg.label}
-                                  </div>
-                                );
-                              })()}
                             </div>
                           );
                         })}

@@ -1,3 +1,4 @@
+import { useRef, forwardRef, useImperativeHandle } from 'react';
 import { User, Plus, Trash2, Edit, ChevronUp, ChevronDown } from 'lucide-react';
 import { Employee } from '../types';
 
@@ -10,7 +11,31 @@ interface EmployeeListProps {
   onMoveEmployee: (id: string, direction: 'up' | 'down') => void;
 }
 
-export function EmployeeList({ employees, currentUser, onAddEmployee, onEditEmployee, onRemoveEmployee, onMoveEmployee }: EmployeeListProps) {
+export interface EmployeeListRef {
+  getScrollTop: () => number;
+  setScrollTop: (position: number) => void;
+}
+
+export const EmployeeList = forwardRef<EmployeeListRef, EmployeeListProps>(({
+  employees,
+  currentUser,
+  onAddEmployee,
+  onEditEmployee,
+  onRemoveEmployee,
+  onMoveEmployee,
+}, ref) => {
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // 親コンポーネントからスクロール位置にアクセスできるようにする
+  useImperativeHandle(ref, () => ({
+    getScrollTop: () => scrollContainerRef.current?.scrollTop || 0,
+    setScrollTop: (position: number) => {
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollTop = position;
+      }
+    }
+  }));
+
   // 従業員をdisplayOrderでソート
   const sortedEmployees = [...employees].sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
   return (
@@ -42,7 +67,11 @@ export function EmployeeList({ employees, currentUser, onAddEmployee, onEditEmpl
       </div>
       
       {/* スクロール可能な明細エリア */}
-      <div className="p-6 pt-4 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 280px)' }}>
+      <div
+        ref={scrollContainerRef}
+        className="p-6 pt-4 overflow-y-auto"
+        style={{ maxHeight: 'calc(100vh - 280px)' }}
+      >
         <div className="space-y-3">
           {sortedEmployees.length === 0 ? (
             <p className="text-gray-500 text-center py-8">従業員が登録されていません</p>
@@ -97,14 +126,13 @@ export function EmployeeList({ employees, currentUser, onAddEmployee, onEditEmpl
                     >
                       <Edit className="w-4 h-4" />
                     </button>
-                    {employee.id !== currentUser.id && (
-                      <button
-                        onClick={() => onRemoveEmployee(employee.id)}
-                        className="p-2 text-rose-600 hover:bg-rose-100 rounded-lg transition-all duration-200 hover:scale-110"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
+                    <button
+                      onClick={() => onRemoveEmployee(employee.id)}
+                      className="p-2 text-rose-600 hover:bg-rose-100 rounded-lg transition-all duration-200 hover:scale-110"
+                      title="削除"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 )}
               </div>
@@ -114,4 +142,6 @@ export function EmployeeList({ employees, currentUser, onAddEmployee, onEditEmpl
       </div>
     </div>
   );
-}
+});
+
+EmployeeList.displayName = 'EmployeeList';

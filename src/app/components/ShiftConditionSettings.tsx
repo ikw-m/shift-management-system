@@ -168,7 +168,11 @@ const getAutumnalEquinoxDay = (year: number): number => {
   return 23; // デフォルト
 };
 
-export function ShiftConditionSettings() {
+interface ShiftConditionSettingsProps {
+  departmentId?: string;
+}
+
+export function ShiftConditionSettings({ departmentId }: ShiftConditionSettingsProps) {
   const { getShiftCondition, saveShiftCondition } = useData();
   const [inputYear, setInputYear] = useState('');
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
@@ -184,7 +188,7 @@ export function ShiftConditionSettings() {
     }
 
     setSelectedYear(year);
-    const existing = await getShiftCondition(year);
+    const existing = await getShiftCondition(year, departmentId);
 
     if (existing) {
       // 更新モード
@@ -217,7 +221,7 @@ export function ShiftConditionSettings() {
     };
 
     try {
-      await saveShiftCondition(selectedYear, condition);
+      await saveShiftCondition(selectedYear, condition, departmentId);
       alert('登録しました');
       handleCancel();
     } catch (error) {
@@ -240,7 +244,7 @@ export function ShiftConditionSettings() {
     };
 
     try {
-      await saveShiftCondition(selectedYear, condition);
+      await saveShiftCondition(selectedYear, condition, departmentId);
       alert('更新しました');
       handleCancel();
     } catch (error) {
@@ -257,7 +261,7 @@ export function ShiftConditionSettings() {
 
     try {
       // 空のデータで上書きして削除と同等の処理をする
-      await saveShiftCondition(selectedYear, { year: selectedYear, rows: [] });
+      await saveShiftCondition(selectedYear, { year: selectedYear, rows: [] }, departmentId);
       alert('削除しました');
       handleCancel();
     } catch (error) {

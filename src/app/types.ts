@@ -1,3 +1,9 @@
+export interface Department {
+  id: string;
+  departmentName: string;
+  displayOrder: number;
+}
+
 export interface Employee {
   id: string;
   name: string;
@@ -7,6 +13,7 @@ export interface Employee {
   role: 'manager' | 'staff';
   password: string;
   color: string;
+  departmentId?: string;
   created_at?: string;
   // 互換性のため
   isManager?: boolean;

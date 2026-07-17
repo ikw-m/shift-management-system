@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, Eye, EyeOff } from 'lucide-react';
 import { Employee } from '../types';
 
 interface EditEmployeeDialogProps {
@@ -16,6 +16,7 @@ export function EditEmployeeDialog({ isOpen, onClose, employee, employees, onEdi
   const [name, setName] = useState('');
   const [role, setRole] = useState('スタッフ');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -24,7 +25,8 @@ export function EditEmployeeDialog({ isOpen, onClose, employee, employees, onEdi
       // roleを日本語に変換（Supabaseから来る場合は'manager'/'staff'）
       const displayRole = employee.role === 'manager' || employee.isManager ? 'マネージャー' : 'スタッフ';
       setRole(displayRole);
-      setPassword(employee.password);
+      setPassword('');
+      setShowPassword(false);
       setError('');
     }
   }, [employee]);
@@ -35,7 +37,7 @@ export function EditEmployeeDialog({ isOpen, onClose, employee, employees, onEdi
     e.preventDefault();
     setError('');
 
-    if (!name.trim() || !role.trim() || !password.trim()) {
+    if (!name.trim() || !role.trim()) {
       return;
     }
 
@@ -107,14 +109,27 @@ export function EditEmployeeDialog({ isOpen, onClose, employee, employees, onEdi
             <label htmlFor="edit-password" className="block mb-2 text-gray-700">
               パスワード
             </label>
-            <input
-              id="edit-password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="パスワードを入力"
-              className="w-full px-4 py-2.5 bg-white rounded-xl border border-indigo-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all shadow-sm"
-            />
+            <div className="relative">
+              <input
+                id="edit-password"
+                type="text"
+                style={{ WebkitTextSecurity: showPassword ? 'none' : 'disc' } as React.CSSProperties}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="変更する場合は入力"
+                className="w-full px-4 py-2.5 pr-10 bg-white rounded-xl border border-indigo-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all shadow-sm"
+              />
+              {password.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(v => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-indigo-600 transition-colors"
+                  title={showPassword ? 'パスワードを隠す' : 'パスワードを表示'}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              )}
+            </div>
           </div>
 
           {error && (

@@ -15,6 +15,7 @@ import { useIsMobile } from '../hooks/useIsMobile';
 import { Employee, Availability } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
+import { MobileEmployeeList } from './mobile/MobileEmployeeList';
 
 const employeeColors = [
   '#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e',
@@ -26,6 +27,7 @@ export function AppContent() {
   const { currentUser, logout, login } = useAuth();
   const isMobile = useIsMobile();
   const {
+    departments,
     employees,
     availabilities,
     loading,
@@ -39,6 +41,7 @@ export function AppContent() {
     deleteAvailability,
     approveAvailability,
     rejectAvailability,
+    reorderEmployees,
   } = useData();
 
   const employeeListRef = useRef<EmployeeListRef>(null);
@@ -52,6 +55,7 @@ export function AppContent() {
   const [confirmedHalf, setConfirmedHalf] = useState<'first' | 'second'>('first');
   const [shiftDialogOpen, setShiftDialogOpen] = useState(false);
   const [shiftDialogMode, setShiftDialogMode] = useState<'add' | 'manage'>('add');
+  const [autoEditId, setAutoEditId] = useState<string | undefined>(undefined);
   const [addEmployeeDialogOpen, setAddEmployeeDialogOpen] = useState(false);
   const [editEmployeeDialogOpen, setEditEmployeeDialogOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
@@ -73,6 +77,18 @@ export function AppContent() {
       setSelectedEmployee(employee);
       setSelectedDate(date);
       setShiftDialogMode('manage');
+      setShiftDialogOpen(true);
+    }
+  };
+
+  const handleEditShift = (employeeId: string, date: Date, availabilityId: string) => {
+    if (!currentUser) return;
+    const employee = employees.find(e => e.id === employeeId);
+    if (employee) {
+      setSelectedEmployee(employee);
+      setSelectedDate(date);
+      setShiftDialogMode('manage');
+      setAutoEditId(availabilityId);
       setShiftDialogOpen(true);
     }
   };
@@ -173,13 +189,14 @@ export function AppContent() {
       const maxOrder = Math.max(...employees.map((e) => e.displayOrder ?? 0), -1);
       await addEmployee({
         name,
-        email: `${name.toLowerCase().replace(/\s/g, '')}@example.com`,
+        email: `${name.toLowerCase().replace(/\s/g, '')}_${Date.now()}@example.com`,
         phone: '000-0000-0000',
         position: role,
         role: role === 'マネージャー' ? 'manager' : 'staff',
         password,
         color: employeeColors[employees.length % employeeColors.length],
         displayOrder: maxOrder + 1,
+        departmentId: currentUser?.departmentId,
       });
       setAddEmployeeDialogOpen(false);
     } catch (error) {
@@ -198,11 +215,11 @@ export function AppContent() {
         phone: employee.phone,
         position: role,
         role: role === 'マネージャー' ? 'manager' : 'staff',
-        password,
+        password: password || employee.password,
         color: employee.color,
         displayOrder: employee.displayOrder,
+        departmentId: employee.departmentId,
       });
-      await reloadData();
       setEditEmployeeDialogOpen(false);
     } catch (error) {
       alert('従業員の更新に失敗しました');
@@ -223,20 +240,25 @@ export function AppContent() {
     const employeeToRemove = employees.find((e) => e.id === id);
     if (!employeeToRemove) return;
 
-    const confirmMessage = `${employeeToRemove.name} を削除してもよろしいですか？\nこの従業員に関連するすべてのシフトデータも削除されます。`;
-    if (!window.confirm(confirmMessage)) {
+    // 自分自身は削除できない
+    if (employeeToRemove.id === currentUser?.id) {
+      alert('自分自身は削除できません。');
       return;
     }
 
-    // 最後のマネージャーは削除できない
+    // 自店舗の最後のマネージャーは削除できない
     const isManager = employeeToRemove.role === 'manager' || employeeToRemove.isManager;
     if (isManager) {
-      const otherManagers = employees.filter((e) => e.id !== id && (e.role === 'manager' || e.isManager));
+      const sameDeptEmployees = employees.filter(e => e.departmentId === employeeToRemove.departmentId);
+      const otherManagers = sameDeptEmployees.filter(e => e.id !== id && (e.role === 'manager' || e.isManager));
       if (otherManagers.length === 0) {
         alert('システムには最低1人のマネージャーが必要です。\n他のマネージャーを追加してから削除してください。');
         return;
       }
     }
+
+    const confirmMessage = `${employeeToRemove.name} を削除してもよろしいですか？\nこの従業員に関連するすべてのシフトデータも削除されます。`;
+    if (!window.confirm(confirmMessage)) return;
 
     try {
       await deleteEmployee(id);
@@ -246,29 +268,24 @@ export function AppContent() {
   };
 
   const handleMoveEmployee = async (id: string, direction: 'up' | 'down') => {
-    // 現在の順序で並べた配列を作成
-    const sorted = [...employees].sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
-    const currentIndex = sorted.findIndex((e) => e.id === id);
+    // 表示中の店舗の従業員のみを対象にソート（表示順と一致させる）
+    const deptEmployees = currentUser?.departmentId
+      ? [...employees].filter(e => e.departmentId === currentUser.departmentId)
+      : [...employees];
+    const sorted = deptEmployees.sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
 
+    const currentIndex = sorted.findIndex((e) => e.id === id);
     if (currentIndex === -1) return;
     if (direction === 'up' && currentIndex === 0) return;
     if (direction === 'down' && currentIndex === sorted.length - 1) return;
 
-    // 配列内で要素を入れ替える
     const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
     const reordered = [...sorted];
     [reordered[currentIndex], reordered[newIndex]] = [reordered[newIndex], reordered[currentIndex]];
 
     try {
       const scrollTop = employeeListRef.current?.getScrollTop() || 0;
-
-      // 全員に連番（0,1,2...）を振り直してDBに保存することで重複・歯抜けを解消
-      await Promise.all(
-        reordered.map((emp, index) => updateEmployeeOrder(emp.id, index))
-      );
-
-      await reloadData();
-
+      await reorderEmployees(reordered);
       setTimeout(() => {
         employeeListRef.current?.setScrollTop(scrollTop);
       }, 50);
@@ -290,22 +307,32 @@ export function AppContent() {
 
   if (!currentUser) {
     if (isMobile) {
-      return <MobileLogin employees={employees} onLogin={login} />;
+      return <MobileLogin employees={employees} departments={departments} onLogin={login} />;
     }
-    return <LoginDialog employees={employees} onLogin={login} />;
+    return <LoginDialog employees={employees} departments={departments} onLogin={login} />;
   }
 
-  // Convert Availability dates to Date objects if they're strings
-  const processedAvailabilities = availabilities.map(a => ({
-    ...a,
-    date: typeof a.date === 'string' ? new Date(a.date) : a.date,
-  }));
+  // 店舗名を取得
+  const currentDepartment = departments.find(d => d.id === currentUser.departmentId);
+  const departmentName = currentDepartment?.departmentName ?? '';
 
-  // Add isManager property for compatibility
-  const processedEmployees = employees.map(e => ({
+  // 同じ店舗の従業員に絞り込み（先に定義）
+  const allProcessedEmployees = employees.map(e => ({
     ...e,
     isManager: e.role === 'manager' || e.isManager === true,
   }));
+  const processedEmployees = currentUser.departmentId
+    ? allProcessedEmployees.filter(e => e.departmentId === currentUser.departmentId)
+    : allProcessedEmployees;
+
+  // 自店舗の従業員のシフトデータのみに絞り込む
+  const deptEmployeeIds = new Set(processedEmployees.map(e => e.id));
+  const processedAvailabilities = availabilities
+    .filter(a => deptEmployeeIds.has(a.employeeId))
+    .map(a => ({
+      ...a,
+      date: typeof a.date === 'string' ? new Date(a.date) : a.date,
+    }));
 
   const currentUserWithManager = {
     ...currentUser,
@@ -319,6 +346,7 @@ export function AppContent() {
         currentUser={currentUserWithManager}
         employees={processedEmployees}
         availabilities={processedAvailabilities}
+        departmentName={departmentName}
         onLogout={logout}
         onAddAvailability={handleAddAvailability}
         onEditAvailability={handleEditAvailability}
@@ -334,9 +362,12 @@ export function AppContent() {
       <div className="max-w-7xl mx-auto mb-6">
         <header className="no-print">
           <div className="flex items-center justify-between mb-4 h-[44px]">
-            <div className="w-[320px] flex items-baseline gap-2">
+            <div className="flex items-baseline gap-2">
               <h1 className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">シフト管理システム</h1>
-              <span className="text-xs text-gray-500">Ver. 3.1</span>
+              <span className="text-xs text-gray-500">Ver. 3.2</span>
+              {departmentName && (
+                <span className="text-sm font-bold text-indigo-700 ml-2">｜ {departmentName}</span>
+              )}
             </div>
 
             <div className="flex items-center gap-2">
@@ -439,6 +470,7 @@ export function AppContent() {
             onHalfChange={setSelectedHalf}
             onCellClick={handleCellClick}
             onAddClick={handleAddClick}
+            onEditClick={handleEditShift}
             onApprove={handleApproveAvailability}
             onReject={handleRejectAvailability}
             onRemoveAvailability={handleRemoveAvailability}
@@ -451,12 +483,13 @@ export function AppContent() {
             employees={processedEmployees}
             availabilities={processedAvailabilities.filter((a) => a.status === 'approved')}
             currentUser={currentUser}
+            departmentName={departmentName}
             onYearChange={setConfirmedYear}
             onMonthChange={setConfirmedMonth}
             onHalfChange={setConfirmedHalf}
           />
         ) : viewMode === 'shiftCondition' ? (
-          <ShiftConditionSettings />
+          <ShiftConditionSettings departmentId={currentUser?.departmentId} />
         ) : (
           <EmployeeList
             ref={employeeListRef}
@@ -472,8 +505,9 @@ export function AppContent() {
 
       <ShiftDialog
         isOpen={shiftDialogOpen}
-        onClose={() => setShiftDialogOpen(false)}
+        onClose={() => { setShiftDialogOpen(false); setAutoEditId(undefined); }}
         mode={shiftDialogMode}
+        autoEditId={autoEditId}
         employee={selectedEmployee}
         date={selectedDate}
         availabilities={processedAvailabilities}
