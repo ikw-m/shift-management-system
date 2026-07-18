@@ -49,7 +49,7 @@ export function MobileManagerNav({ currentUser, departmentName, onNavigate, onLo
             <CalendarDays className="w-6 h-6 text-white" />
           </div>
           <div className="text-left">
-            <p className="font-bold text-gray-800">シフト管理</p>
+            <p className="font-bold text-gray-800">シフト管理入力</p>
             <p className="text-xs text-gray-500 mt-0.5">シフト入力・承認・確認</p>
           </div>
         </button>
