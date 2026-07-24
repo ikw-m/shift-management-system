@@ -359,7 +359,7 @@ export function AppContent() {
 
   return (
     <div className="min-h-screen p-4" style={{ background: 'linear-gradient(135deg, #f5f7fa 0%, #e8ebf0 100%)' }}>
-      <div className="max-w-7xl mx-auto mb-6">
+      <div className={(viewMode === 'calendar' || viewMode === 'confirmed') ? 'mb-6' : 'max-w-7xl mx-auto mb-6'}>
         <header className="no-print">
           <div className="flex items-center justify-between mb-4 h-[44px]">
             <div className="flex items-baseline gap-2">
@@ -455,7 +455,7 @@ export function AppContent() {
         </header>
       </div>
 
-      <div className={viewMode === 'employees' ? 'max-w-2xl mx-auto' : viewMode === 'shiftCondition' ? 'max-w-7xl mx-auto' : 'max-w-7xl mx-auto'}>
+      <div className={viewMode === 'employees' ? 'max-w-2xl mx-auto' : (viewMode === 'calendar' || viewMode === 'confirmed') ? '' : 'max-w-7xl mx-auto'}>
         {viewMode === 'calendar' ? (
           <ShiftCalendar
             ref={shiftCalendarRef}
