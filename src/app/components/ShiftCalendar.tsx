@@ -325,7 +325,7 @@ export const ShiftCalendar = forwardRef<ShiftCalendarRef, ShiftCalendarProps>(({
       </div>
 
       {/* テーブル部分（ヘッダー固定、ボディスクロール） */}
-      <div ref={scrollContainerRef} className="overflow-auto max-h-[calc(100vh-320px)]">
+      <div ref={scrollContainerRef} className="overflow-auto max-h-[calc(100vh-240px)]">
         <table className="w-full border-collapse table-fixed">
           <colgroup>
             <col style={{ width: '100px' }} />

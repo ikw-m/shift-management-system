@@ -867,7 +867,7 @@ export function ConfirmedShiftTable({
         </div>
 
         {/* 画面表示用テーブル（横に従業員、縦に日付） */}
-        <div className="overflow-auto max-h-[calc(100vh-320px)] screen-only">
+        <div className="overflow-auto max-h-[calc(100vh-275px)] screen-only">
           <table className="w-full border-collapse">
             <thead>
               <tr>
@@ -904,7 +904,7 @@ export function ConfirmedShiftTable({
 
                 return (
                   <tr key={day.toISOString()} className="hover:bg-emerald-50/30 transition-colors">
-                    <td className={`p-1.5 border border-emerald-100 ${isSpecialDay ? 'bg-red-100' : 'bg-white'} w-28 sticky left-0 z-10 relative confirmed-shift-fixed-column confirmed-shift-fixed-column-left confirmed-shift-fixed-column-right`}>
+                    <td className={`p-1 border border-emerald-100 ${isSpecialDay ? 'bg-red-100' : 'bg-white'} w-28 sticky left-0 z-10 relative confirmed-shift-fixed-column confirmed-shift-fixed-column-left confirmed-shift-fixed-column-right`}>
                       <div className="text-center">
                         <div className={`font-semibold text-xs leading-tight ${isSpecialDay ? 'text-red-600' : 'text-gray-800'}`}>
                           {day.getDate()}日({format(day, 'E', { locale: ja })})
@@ -919,13 +919,13 @@ export function ConfirmedShiftTable({
                       return (
                         <td
                           key={`${employee.id}-${day.toISOString()}`}
-                          className={`p-1.5 border border-emerald-100 align-top ${isSpecialDay ? 'bg-red-50/30' : 'bg-white/40'}`}
+                          className={`p-1 border border-emerald-100 align-top ${isSpecialDay ? 'bg-red-50/30' : 'bg-white/40'}`}
                         >
-                          <div className="space-y-1.5">
+                          <div className="space-y-1">
                             {confirmedShifts.map((shift) => (
                               <div
                                 key={shift.id}
-                                className="px-1.5 py-1.5 rounded-lg text-center shadow-sm hover:shadow-md transition-all duration-200"
+                                className="px-1.5 py-0.5 rounded-lg text-center shadow-sm hover:shadow-md transition-all duration-200"
                                 style={{
                                   backgroundColor: shiftTypeConfig[shift.shiftType].color,
                                   color: 'white',
@@ -941,12 +941,12 @@ export function ConfirmedShiftTable({
                         </td>
                       );
                     })}
-                    <td className={`p-1.5 border border-emerald-100 ${isSpecialDay ? 'bg-red-50' : 'bg-white'} sticky right-0 z-10 relative confirmed-shift-notes-column confirmed-shift-notes-column-left confirmed-shift-notes-column-right`}>
+                    <td className={`p-1 border border-emerald-100 ${isSpecialDay ? 'bg-red-50' : 'bg-white'} sticky right-0 z-10 relative confirmed-shift-notes-column confirmed-shift-notes-column-left confirmed-shift-notes-column-right`}>
                       <textarea
                         value={dailyNotes[day.toISOString()] || ''}
                         onChange={(e) => handleNoteChange(day, e.target.value)}
                         disabled={!isManager}
-                        className={`w-full px-1.5 py-1 text-xs bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-emerald-400 rounded resize-none min-h-[60px] ${!isManager ? 'cursor-not-allowed opacity-60' : ''}`}
+                        className={`w-full px-1.5 py-1 text-xs bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-emerald-400 rounded resize-none min-h-[45px] ${!isManager ? 'cursor-not-allowed opacity-60' : ''}`}
                         placeholder={isManager ? '' : ''}
                       />
                     </td>

@@ -358,8 +358,8 @@ export function AppContent() {
   }
 
   return (
-    <div className="min-h-screen p-4" style={{ background: 'linear-gradient(135deg, #f5f7fa 0%, #e8ebf0 100%)' }}>
-      <div className={(viewMode === 'calendar' || viewMode === 'confirmed') ? 'mb-6' : 'max-w-7xl mx-auto mb-6'}>
+    <div className={`${(viewMode === 'calendar' || viewMode === 'confirmed') ? 'h-screen overflow-hidden' : 'min-h-screen'} p-4`} style={{ background: 'linear-gradient(135deg, #f5f7fa 0%, #e8ebf0 100%)' }}>
+      <div className={(viewMode === 'calendar' || viewMode === 'confirmed') ? 'mb-2' : 'max-w-7xl mx-auto mb-6'}>
         <header className="no-print">
           <div className="flex items-center justify-between mb-4 h-[44px]">
             <div className="flex items-baseline gap-2">
@@ -449,9 +449,6 @@ export function AppContent() {
             </div>
           </div>
 
-          <p className="text-muted-foreground text-sm ml-1 h-5 leading-5">
-            従業員の勤務希望を管理・承認できます
-          </p>
         </header>
       </div>
 
