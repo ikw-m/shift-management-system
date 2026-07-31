@@ -494,16 +494,20 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
 
   const saveShiftCondition = async (year: number, condition: ShiftCondition, departmentId?: string): Promise<void> => {
-    try {
+    let checkQuery = supabase.from('shift_conditions').select('year').eq('year', year);
+    if (departmentId) checkQuery = checkQuery.eq('department_id', departmentId);
+    const { data: existing } = await checkQuery.maybeSingle();
+
+    if (existing) {
+      let updateQuery = supabase.from('shift_conditions').update({ data: condition }).eq('year', year);
+      if (departmentId) updateQuery = updateQuery.eq('department_id', departmentId);
+      const { error } = await updateQuery;
+      if (error) throw error;
+    } else {
       const record: Record<string, unknown> = { year, data: condition };
       if (departmentId) record.department_id = departmentId;
-      const { error } = await supabase
-        .from('shift_conditions')
-        .upsert(record, { onConflict: 'year,department_id' });
-
+      const { error } = await supabase.from('shift_conditions').insert(record);
       if (error) throw error;
-    } catch (error) {
-      throw error;
     }
   };
 
