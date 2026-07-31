@@ -225,7 +225,7 @@ export function ShiftConditionSettings({ departmentId }: ShiftConditionSettingsP
       alert('登録しました');
       handleCancel();
     } catch (error) {
-      alert(`登録に失敗しました\n${error instanceof Error ? error.message : String(error)}`);
+      alert('登録に失敗しました');
     }
   };
 
@@ -248,7 +248,7 @@ export function ShiftConditionSettings({ departmentId }: ShiftConditionSettingsP
       alert('更新しました');
       handleCancel();
     } catch (error) {
-      alert(`更新に失敗しました\n${error instanceof Error ? error.message : String(error)}`);
+      alert('更新に失敗しました');
     }
   };
 

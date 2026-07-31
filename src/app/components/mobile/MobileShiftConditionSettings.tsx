@@ -108,8 +108,8 @@ export function MobileShiftConditionSettings({ currentUser, departmentName, onBa
       await saveShiftCondition(selectedYear, condition, departmentId);
       alert(mode === 'register' ? '登録しました' : '更新しました');
       handleCancel();
-    } catch (error) {
-      alert(`保存に失敗しました\n${error instanceof Error ? error.message : String(error)}`);
+    } catch {
+      alert('保存に失敗しました');
     }
   };
 

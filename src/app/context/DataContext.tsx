@@ -494,32 +494,18 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
 
   const saveShiftCondition = async (year: number, condition: ShiftCondition, departmentId?: string): Promise<void> => {
-    let checkQuery = supabase.from('shift_conditions').select('year').eq('year', year);
+    let checkQuery = supabase.from('shift_conditions').select('id').eq('year', year);
     if (departmentId) checkQuery = checkQuery.eq('department_id', departmentId);
-    const { data: existing, error: checkError } = await checkQuery.maybeSingle();
-
-    if (checkError) {
-      console.error('[saveShiftCondition] check error:', checkError);
-      throw new Error(`確認エラー: ${checkError.message} (${checkError.code})`);
-    }
+    const { data: existing } = await checkQuery.maybeSingle();
 
     if (existing) {
-      let updateQuery = supabase.from('shift_conditions').update({ data: condition }).eq('year', year);
-      if (departmentId) updateQuery = updateQuery.eq('department_id', departmentId);
-      const { error } = await updateQuery;
-      if (error) {
-        console.error('[saveShiftCondition] update error:', error);
-        throw new Error(`更新エラー: ${error.message} (${error.code})`);
-      }
+      const { error } = await supabase.from('shift_conditions').update({ data: condition }).eq('id', existing.id);
+      if (error) throw error;
     } else {
       const record: Record<string, unknown> = { year, data: condition };
       if (departmentId) record.department_id = departmentId;
-      console.log('[saveShiftCondition] inserting:', record);
       const { error } = await supabase.from('shift_conditions').insert(record);
-      if (error) {
-        console.error('[saveShiftCondition] insert error:', error);
-        throw new Error(`挿入エラー: ${error.message} (${error.code})`);
-      }
+      if (error) throw error;
     }
   };
 
