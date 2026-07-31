@@ -15,6 +15,12 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const STORAGE_KEY_CURRENT_USER = 'shift-management-current-user';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  // 旧バージョンのlocalStorageキー（アンダースコア形式）を起動時に自動削除
+  useEffect(() => {
+    const oldKeys = Object.keys(localStorage).filter(key => key.startsWith('shift_management_'));
+    oldKeys.forEach(key => localStorage.removeItem(key));
+  }, []);
+
   const [currentUser, setCurrentUser] = useState<Employee | null>(() => {
     const stored = localStorage.getItem(STORAGE_KEY_CURRENT_USER);
     if (!stored) return null;
