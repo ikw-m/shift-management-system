@@ -184,15 +184,15 @@ export function AppContent() {
     }
   };
 
-  const handleAddEmployee = async (name: string, role: string, password: string) => {
+  const handleAddEmployee = async (name: string, position: string, isManager: boolean, password: string) => {
     try {
       const maxOrder = Math.max(...employees.map((e) => e.displayOrder ?? 0), -1);
       await addEmployee({
         name,
         email: `${name.toLowerCase().replace(/\s/g, '')}_${Date.now()}@example.com`,
         phone: '000-0000-0000',
-        position: role,
-        role: role === 'マネージャー' ? 'manager' : 'staff',
+        position,
+        role: isManager ? 'manager' : 'staff',
         password,
         color: employeeColors[employees.length % employeeColors.length],
         displayOrder: maxOrder + 1,
@@ -204,7 +204,7 @@ export function AppContent() {
     }
   };
 
-  const handleEditEmployee = async (id: string, name: string, role: string, password: string) => {
+  const handleEditEmployee = async (id: string, name: string, position: string, isManager: boolean, password: string) => {
     const employee = employees.find(e => e.id === id);
     if (!employee) return;
 
@@ -213,8 +213,8 @@ export function AppContent() {
         name,
         email: employee.email,
         phone: employee.phone,
-        position: role,
-        role: role === 'マネージャー' ? 'manager' : 'staff',
+        position,
+        role: isManager ? 'manager' : 'staff',
         password: password || employee.password,
         color: employee.color,
         displayOrder: employee.displayOrder,

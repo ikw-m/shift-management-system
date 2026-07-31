@@ -20,12 +20,14 @@ export function MobileEmployeeList({ currentUser, departmentName, onBack, onLogo
   const { employees, addEmployee, updateEmployee, deleteEmployee, reloadData, reorderEmployees } = useData();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
-  const [editRole, setEditRole] = useState('');
+  const [editPosition, setEditPosition] = useState('');
+  const [editIsManager, setEditIsManager] = useState(false);
   const [editPassword, setEditPassword] = useState('');
   const [showEditPassword, setShowEditPassword] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
   const [newName, setNewName] = useState('');
-  const [newRole, setNewRole] = useState('スタッフ');
+  const [newPosition, setNewPosition] = useState('');
+  const [newIsManager, setNewIsManager] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [showNewPassword, setShowNewPassword] = useState(false);
 
@@ -42,14 +44,14 @@ export function MobileEmployeeList({ currentUser, departmentName, onBack, onLogo
         name: newName.trim(),
         email: `${newName.trim().toLowerCase().replace(/\s/g, '')}_${Date.now()}@example.com`,
         phone: '000-0000-0000',
-        position: newRole,
-        role: newRole === 'マネージャー' ? 'manager' : 'staff',
+        position: newPosition.trim(),
+        role: newIsManager ? 'manager' : 'staff',
         password: newPassword,
         color: employeeColors[deptEmployees.length % employeeColors.length],
         displayOrder: maxOrder + 1,
         departmentId: currentUser.departmentId,
       });
-      setNewName(''); setNewRole('スタッフ'); setNewPassword('');
+      setNewName(''); setNewPosition(''); setNewIsManager(false); setNewPassword('');
       setIsAdding(false);
     } catch { alert('追加に失敗しました'); }
   };
@@ -60,7 +62,7 @@ export function MobileEmployeeList({ currentUser, departmentName, onBack, onLogo
 
     // マネージャーからスタッフに変更する場合、他にマネージャーがいるか確認
     const isCurrentlyManager = emp.role === 'manager' || emp.isManager;
-    if (isCurrentlyManager && editRole === 'スタッフ') {
+    if (isCurrentlyManager && !editIsManager) {
       const otherManagers = deptEmployees.filter(
         e => e.id !== id && (e.role === 'manager' || e.isManager)
       );
@@ -75,8 +77,8 @@ export function MobileEmployeeList({ currentUser, departmentName, onBack, onLogo
         name: editName.trim(),
         email: emp.email,
         phone: emp.phone,
-        position: editRole,
-        role: editRole === 'マネージャー' ? 'manager' : 'staff',
+        position: editPosition.trim(),
+        role: editIsManager ? 'manager' : 'staff',
         password: editPassword || emp.password,
         color: emp.color,
         displayOrder: emp.displayOrder,
@@ -157,10 +159,12 @@ export function MobileEmployeeList({ currentUser, departmentName, onBack, onLogo
                 </div>
                 <input value={editName} onChange={e => setEditName(e.target.value)}
                   placeholder="氏名" className="w-full px-3 py-2.5 border border-indigo-200 rounded-xl text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                <select value={editRole} onChange={e => setEditRole(e.target.value)}
+                <input value={editPosition} onChange={e => setEditPosition(e.target.value)}
+                  placeholder="肩書き（例：チーフ、アルバイト）" className="w-full px-3 py-2.5 border border-indigo-200 rounded-xl text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                <select value={editIsManager ? 'manager' : 'staff'} onChange={e => setEditIsManager(e.target.value === 'manager')}
                   className="w-full px-3 py-2.5 border border-indigo-200 rounded-xl text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                  <option value="スタッフ">スタッフ</option>
-                  <option value="マネージャー">マネージャー</option>
+                  <option value="staff">管理者権限：なし（スタッフ）</option>
+                  <option value="manager">管理者権限：あり（管理者）</option>
                 </select>
                 <div className="relative">
                   <input value={editPassword} onChange={e => setEditPassword(e.target.value)}
@@ -204,7 +208,7 @@ export function MobileEmployeeList({ currentUser, departmentName, onBack, onLogo
                   <p className="font-semibold text-gray-800 text-sm">{emp.name}</p>
                   <p className="text-xs text-gray-500">{emp.position || emp.role}</p>
                 </div>
-                <button onClick={() => { setEditingId(emp.id); setEditName(emp.name); setEditRole(emp.position || (emp.role === 'manager' ? 'マネージャー' : 'スタッフ')); setEditPassword(''); }}
+                <button onClick={() => { setEditingId(emp.id); setEditName(emp.name); setEditPosition(emp.position || ''); setEditIsManager(emp.role === 'manager' || !!emp.isManager); setEditPassword(''); }}
                   className="p-2 text-indigo-600 bg-indigo-50 rounded-xl active:scale-95">
                   <Edit className="w-4 h-4" />
                 </button>
@@ -225,10 +229,12 @@ export function MobileEmployeeList({ currentUser, departmentName, onBack, onLogo
           <div className="space-y-2">
             <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="氏名"
               className="w-full px-4 py-3 border border-indigo-200 rounded-2xl text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500" autoFocus />
-            <select value={newRole} onChange={e => setNewRole(e.target.value)}
+            <input value={newPosition} onChange={e => setNewPosition(e.target.value)} placeholder="肩書き（例：チーフ、アルバイト）"
+              className="w-full px-4 py-3 border border-indigo-200 rounded-2xl text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            <select value={newIsManager ? 'manager' : 'staff'} onChange={e => setNewIsManager(e.target.value === 'manager')}
               className="w-full px-4 py-3 border border-indigo-200 rounded-2xl text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-              <option value="スタッフ">スタッフ</option>
-              <option value="マネージャー">マネージャー</option>
+              <option value="staff">管理者権限：なし（スタッフ）</option>
+              <option value="manager">管理者権限：あり（管理者）</option>
             </select>
             <div className="relative">
               <input value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="パスワード"
