@@ -44,10 +44,25 @@ export function MobileLogin({ employees, departments, onLogin }: MobileLoginProp
     checkSupabase();
   }, []);
 
-  const handleIconClick = () => {
-    if (selectedDepartmentId === '' && selectedEmployeeId === '' && password === 'manager') {
-      setAccessError('');
-      setShowDepartmentList(true);
+  const handleIconClick = async () => {
+    if (selectedDepartmentId === '' && selectedEmployeeId === '') {
+      try {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: 'sysadmin@shift-management.internal',
+          password: password
+        });
+        if (data.user && !error) {
+          await supabase.auth.signOut();
+          setAccessError('');
+          setShowDepartmentList(true);
+        } else {
+          setAccessError('店舗情報のメンテナンス権限がありません！');
+          setTimeout(() => setAccessError(''), 3000);
+        }
+      } catch {
+        setAccessError('店舗情報のメンテナンス権限がありません！');
+        setTimeout(() => setAccessError(''), 3000);
+      }
     } else {
       setAccessError('店舗情報のメンテナンス権限がありません！');
       setTimeout(() => setAccessError(''), 3000);

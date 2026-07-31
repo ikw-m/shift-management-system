@@ -46,15 +46,30 @@ export function LoginDialog({ employees, departments, onLogin }: LoginDialogProp
     checkSupabase();
   }, []);
 
-  const handleIconClick = () => {
-    if (selectedDepartmentId === '' && selectedEmployeeId === '' && password === 'manager') {
-      // 店舗リスト（隠し機能）
-      setError(''); setAccessError('');
-      setShowDepartmentList(true);
-    } else if (selectedDepartmentId !== '' && selectedEmployeeId === '' && password === '') {
+  const handleIconClick = async () => {
+    if (selectedDepartmentId !== '' && selectedEmployeeId === '' && password === '') {
       // シフト管理表印刷
       setError(''); setAccessError('');
       setShowShiftPrint(true);
+    } else if (selectedDepartmentId === '' && selectedEmployeeId === '') {
+      // システム管理者認証（Supabase Auth）
+      try {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: 'sysadmin@shift-management.internal',
+          password: password
+        });
+        if (data.user && !error) {
+          await supabase.auth.signOut();
+          setError(''); setAccessError('');
+          setShowDepartmentList(true);
+        } else {
+          setAccessError('店舗情報のメンテナンス権限がありません！');
+          setTimeout(() => setAccessError(''), 3000);
+        }
+      } catch {
+        setAccessError('店舗情報のメンテナンス権限がありません！');
+        setTimeout(() => setAccessError(''), 3000);
+      }
     } else {
       setAccessError('店舗情報のメンテナンス権限がありません！');
       setTimeout(() => setAccessError(''), 3000);
