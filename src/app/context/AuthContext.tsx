@@ -30,7 +30,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (currentUser) {
-      localStorage.setItem(STORAGE_KEY_CURRENT_USER, JSON.stringify(currentUser));
+      const { password: _pw, ...userWithoutPassword } = currentUser;
+      localStorage.setItem(STORAGE_KEY_CURRENT_USER, JSON.stringify(userWithoutPassword));
     } else {
       localStorage.removeItem(STORAGE_KEY_CURRENT_USER);
     }
