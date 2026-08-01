@@ -273,11 +273,14 @@ export const ShiftCalendar = forwardRef<ShiftCalendarRef, ShiftCalendarProps>(({
               <span className="text-[10px] font-medium" style={{ color: shiftTypeConfig.cafe.color }}>◆ {shiftTypeConfig.cafe.label}</span>
             </div>
             <div className="h-4 w-px bg-gray-300 my-auto"></div>
+            <div className="flex items-center gap-1 px-2 py-1 rounded-lg border border-blue-300 bg-blue-50">
+              <span className="text-[10px] font-medium text-blue-500">土曜（青）</span>
+            </div>
             <div className="flex items-center gap-1 px-2 py-1 rounded-lg border border-red-300 bg-red-100">
               <span className="text-[10px] font-medium text-red-700">休日（赤）</span>
             </div>
-            <div className="flex items-center gap-1 px-2 py-1 rounded-lg border border-green-300 bg-green-100">
-              <span className="text-[10px] font-medium text-green-700">セール日（緑）</span>
+            <div className="flex items-center gap-1 px-2 py-1 rounded-lg border border-yellow-400 bg-[#FFFF66]">
+              <span className="text-[10px] font-medium text-gray-700">セール日（黄）</span>
             </div>
             <div className="h-4 w-px bg-gray-300 my-auto"></div>
             <div className="flex items-center gap-1 bg-gradient-to-r from-gray-50 to-gray-100 px-2 py-1 rounded-lg border border-gray-300">
@@ -341,11 +344,11 @@ export const ShiftCalendar = forwardRef<ShiftCalendarRef, ShiftCalendarProps>(({
                 const isSaturdayDay = isSaturday(day);
                 const isHolidayDay = isHoliday(day);
                 const isSaleDayFlag = isSaleDay(day);
-                const isSpecialDay = isSundayDay || isSaturdayDay || isHolidayDay;
+                const isSpecialDay = isSundayDay || isHolidayDay;
                 const requiredStaff = getRequiredStaffCount(day);
-                const headerBg = isSpecialDay ? 'bg-red-100' : isSaleDayFlag ? 'bg-green-100' : 'bg-indigo-100';
-                const headerText = isSpecialDay ? 'text-red-600' : isSaleDayFlag ? 'text-green-700' : 'text-gray-800';
-                const subText = isSpecialDay ? 'text-red-500' : isSaleDayFlag ? 'text-green-600' : 'text-indigo-600';
+                const headerBg = isSaleDayFlag ? 'bg-[#FFFF66]' : isSpecialDay ? 'bg-red-100' : isSaturdayDay ? 'bg-blue-50' : 'bg-indigo-100';
+                const headerText = isSpecialDay ? 'text-red-600' : isSaturdayDay ? 'text-blue-500' : 'text-gray-800';
+                const subText = isSpecialDay ? 'text-red-500' : isSaturdayDay ? 'text-blue-400' : 'text-indigo-600';
                 return (
                   <th
                     key={day.toISOString()}
@@ -381,8 +384,8 @@ export const ShiftCalendar = forwardRef<ShiftCalendarRef, ShiftCalendarProps>(({
                   const isSaturdayDay = isSaturday(day);
                   const isHolidayDay = isHoliday(day);
                   const isSaleDayFlag = isSaleDay(day);
-                  const isSpecialDay = isSundayDay || isSaturdayDay || isHolidayDay;
-                  const cellBg = isSpecialDay ? 'bg-red-50/30' : isSaleDayFlag ? 'bg-green-50/40' : 'bg-white/40';
+                  const isSpecialDay = isSundayDay || isHolidayDay;
+                  const cellBg = isSpecialDay ? 'bg-red-50/30' : isSaturdayDay ? 'bg-blue-50/20' : 'bg-white/40';
                   const dayAvailabilities = getAvailabilitiesForEmployeeAndDate(employee.id, day);
                   return (
                     <td
