@@ -101,7 +101,7 @@ export function LoginDialog({ employees, departments, onLogin }: LoginDialogProp
           onClose={() => setShowShiftPrint(false)}
         />
       )}
-      <div className={`min-h-screen flex items-center justify-center p-6${showShiftPrint ? ' no-print' : ''}`} style={{ background: 'linear-gradient(135deg, #f5f7fa 0%, #e8ebf0 100%)' }}>
+      <div className="min-h-screen flex items-center justify-center p-6" style={{ background: 'linear-gradient(135deg, #f5f7fa 0%, #e8ebf0 100%)' }}>
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-white/50 p-8 w-full max-w-md shadow-2xl">
           <div className="flex items-center gap-3 mb-6 justify-center select-none">
             <div className="p-3 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-xl shadow-lg cursor-pointer" onClick={handleIconClick}>
@@ -109,7 +109,7 @@ export function LoginDialog({ employees, departments, onLogin }: LoginDialogProp
             </div>
             <div className="flex flex-col items-start">
               <h1 className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">シフト管理システム</h1>
-              <span className="text-xs text-gray-500 ml-1">Ver. 3.3</span>
+              <span className="text-xs text-gray-500 ml-1">Ver. 4.1</span>
             </div>
           </div>
 

@@ -230,11 +230,21 @@ function addHalfSheet(
     const gc = (localCol: number) => off + localCol;
 
     // ── Row 1: Title ───────────────────────────────────────────────
-    const titleText = `${p.departmentName}　${p.year}年${p.month}月${halfLabel}　シフト管理表　[Ver. 4.0]`;
+    const titleText = `${p.departmentName}　${p.year}年${p.month}月${halfLabel}　シフト管理表　[Ver. 4.1]`;
+    const verIdx1   = titleText.indexOf('[Ver.');
+    const mainPart1 = verIdx1 >= 0 ? titleText.slice(0, verIdx1) : titleText;
+    const verPart1  = verIdx1 >= 0 ? titleText.slice(verIdx1) : '';
     for (let c = 1; c <= PAGE_COLS; c++) {
       const cell = sheet.getCell(1, gc(c));
-      if (c === 1) cell.value = titleText;
-      cell.font      = { bold: true, size: 13, color: { argb: C.titleFont } };
+      if (c === 1) {
+        cell.value = verPart1
+          ? { richText: [
+                { text: mainPart1, font: { name: 'HG丸ｺﾞｼｯｸM-PRO', bold: true, size: 14, color: { argb: C.titleFont } } },
+                { text: verPart1,  font: { name: 'HG丸ｺﾞｼｯｸM-PRO', bold: true, size: 9,  color: { argb: C.titleFont } } },
+              ] }
+          : titleText;
+      }
+      cell.font      = { name: 'HG丸ｺﾞｼｯｸM-PRO', bold: true, size: 14, color: { argb: C.titleFont } };
       cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: C.titleBg } };
       cell.alignment = alignCenter;
       stdBorder(cell);
@@ -246,11 +256,11 @@ function addHalfSheet(
       if (c === 1) {
         cell.value = {
           richText: [
-            { text: '凡例：',       font: { size: 9, color: { argb: C.legendFont  } } },
-            { text: '◎',           font: { size: 9, color: { argb: C.karintouBg  } } },
-            { text: ' かりんとう　', font: { size: 9, color: { argb: C.legendFont  } } },
-            { text: '◆',           font: { size: 9, color: { argb: C.cafeBg      } } },
-            { text: ' カフェ　× シフトなし', font: { size: 9, color: { argb: C.legendFont } } },
+            { text: '凡例：',       font: { name: 'HG丸ｺﾞｼｯｸM-PRO', size: 9, color: { argb: C.legendFont  } } },
+            { text: '◎',           font: { name: 'HG丸ｺﾞｼｯｸM-PRO', size: 9, color: { argb: C.karintouBg  } } },
+            { text: ' かりんとう　', font: { name: 'HG丸ｺﾞｼｯｸM-PRO', size: 9, color: { argb: C.legendFont  } } },
+            { text: '◆',           font: { name: 'HG丸ｺﾞｼｯｸM-PRO', size: 9, color: { argb: C.cafeBg      } } },
+            { text: ' カフェ　× シフトなし', font: { name: 'HG丸ｺﾞｼｯｸM-PRO', size: 9, color: { argb: C.legendFont } } },
           ],
         };
       }
@@ -259,7 +269,7 @@ function addHalfSheet(
     {
       const dc = sheet.getCell(2, gc(PAGE_COLS));
       dc.value     = `出力日：${outputDate}`;
-      dc.font      = { size: 9, color: { argb: C.legendFont } };
+      dc.font      = { name: 'HG丸ｺﾞｼｯｸM-PRO', size: 9, color: { argb: C.legendFont } };
       dc.alignment = { horizontal: 'right', vertical: 'middle' };
     }
 
@@ -278,7 +288,7 @@ function addHalfSheet(
       const wc  = sheet.getCell(3, gc(3 + e * 2));
       nc.value = emp ? emp.name : ' ';
       for (const cell of [nc, wc]) {
-        cell.font      = { bold: true, size: 10, color: { argb: C.headerFont } };
+        cell.font      = { name: 'HG丸ｺﾞｼｯｸM-PRO', bold: true, size: 12, color: { argb: C.headerFont } };
         cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: C.headerBg } };
         cell.alignment = alignCenter;
         stdBorder(cell);
@@ -385,7 +395,7 @@ function addHalfSheet(
     for (let c = 1; c <= PAGE_COLS; c++) {
       const cell = sheet.getCell(procTitleRow, gc(c));
       if (c === 1) cell.value = '📋 業務手順';
-      cell.font      = { name: 'MS Pゴシック', bold: true, size: 10, color: { argb: C.procTitleFont } };
+      cell.font      = { name: 'HG丸ｺﾞｼｯｸM-PRO', bold: true, size: 12, color: { argb: C.procTitleFont } };
       cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: C.procTitleBg } };
       cell.alignment = { horizontal: 'left', vertical: 'middle' };
       cell.border    = {
@@ -402,7 +412,7 @@ function addHalfSheet(
       for (let c = 1; c <= PAGE_COLS; c++) {
         const cell = sheet.getCell(rowNum, gc(c));
         if (c === 1) cell.value = procLines[i] ?? '';
-        cell.font      = { name: 'MS Pゴシック', size: 9 };
+        cell.font      = { name: 'HG丸ｺﾞｼｯｸM-PRO', size: 12 };
         cell.fill      = { type: 'pattern', pattern: 'none' };
         cell.alignment = { horizontal: 'left', vertical: 'middle' };
         cell.border    = {
@@ -509,11 +519,21 @@ function addFullSheet(workbook: ExcelJS.Workbook, p: ShiftExcelParams) {
     const gc = (localCol: number) => off + localCol;
 
     // ── Row 1: Title ────────────────────────────────────────────────
-    const titleText = `${p.departmentName}　${p.year}年${p.month}月　シフト管理表　[Ver. 4.0]`;
+    const titleText = `${p.departmentName}　${p.year}年${p.month}月　シフト管理表　[Ver. 4.1]`;
+    const verIdx2   = titleText.indexOf('[Ver.');
+    const mainPart2 = verIdx2 >= 0 ? titleText.slice(0, verIdx2) : titleText;
+    const verPart2  = verIdx2 >= 0 ? titleText.slice(verIdx2) : '';
     for (let c = 1; c <= PAGE_COLS; c++) {
       const cell = sheet.getCell(1, gc(c));
-      if (c === 1) cell.value = titleText;
-      cell.font      = { bold: true, size: 13, color: { argb: C.titleFont } };
+      if (c === 1) {
+        cell.value = verPart2
+          ? { richText: [
+                { text: mainPart2, font: { name: 'HG丸ｺﾞｼｯｸM-PRO', bold: true, size: 14, color: { argb: C.titleFont } } },
+                { text: verPart2,  font: { name: 'HG丸ｺﾞｼｯｸM-PRO', bold: true, size: 9,  color: { argb: C.titleFont } } },
+              ] }
+          : titleText;
+      }
+      cell.font      = { name: 'HG丸ｺﾞｼｯｸM-PRO', bold: true, size: 14, color: { argb: C.titleFont } };
       cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: C.titleBg } };
       cell.alignment = alignCenter;
       stdBorder(cell);
@@ -525,11 +545,11 @@ function addFullSheet(workbook: ExcelJS.Workbook, p: ShiftExcelParams) {
       if (c === 1) {
         cell.value = {
           richText: [
-            { text: '凡例：',               font: { size: 9, color: { argb: C.legendFont } } },
-            { text: '◎',                   font: { size: 9, color: { argb: C.karintouBg } } },
-            { text: ' かりんとう　',          font: { size: 9, color: { argb: C.legendFont } } },
-            { text: '◆',                   font: { size: 9, color: { argb: C.cafeBg     } } },
-            { text: ' カフェ　× シフトなし',   font: { size: 9, color: { argb: C.legendFont } } },
+            { text: '凡例：',               font: { name: 'HG丸ｺﾞｼｯｸM-PRO', size: 9, color: { argb: C.legendFont } } },
+            { text: '◎',                   font: { name: 'HG丸ｺﾞｼｯｸM-PRO', size: 9, color: { argb: C.karintouBg } } },
+            { text: ' かりんとう　',          font: { name: 'HG丸ｺﾞｼｯｸM-PRO', size: 9, color: { argb: C.legendFont } } },
+            { text: '◆',                   font: { name: 'HG丸ｺﾞｼｯｸM-PRO', size: 9, color: { argb: C.cafeBg     } } },
+            { text: ' カフェ　× シフトなし',   font: { name: 'HG丸ｺﾞｼｯｸM-PRO', size: 9, color: { argb: C.legendFont } } },
           ],
         };
       }
@@ -538,7 +558,7 @@ function addFullSheet(workbook: ExcelJS.Workbook, p: ShiftExcelParams) {
     {
       const dc = sheet.getCell(2, gc(PAGE_COLS));
       dc.value     = `出力日：${outputDate}`;
-      dc.font      = { size: 9, color: { argb: C.legendFont } };
+      dc.font      = { name: 'HG丸ｺﾞｼｯｸM-PRO', size: 9, color: { argb: C.legendFont } };
       dc.alignment = { horizontal: 'right', vertical: 'middle' };
     }
 
@@ -557,7 +577,7 @@ function addFullSheet(workbook: ExcelJS.Workbook, p: ShiftExcelParams) {
       const wc  = sheet.getCell(3, gc(3 + e * 2));
       nc.value = emp ? emp.name : ' ';
       for (const cell of [nc, wc]) {
-        cell.font      = { bold: true, size: 10, color: { argb: C.headerFont } };
+        cell.font      = { name: 'HG丸ｺﾞｼｯｸM-PRO', bold: true, size: 12, color: { argb: C.headerFont } };
         cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: C.headerBg } };
         cell.alignment = alignCenter;
         stdBorder(cell);
@@ -651,7 +671,7 @@ function addFullSheet(workbook: ExcelJS.Workbook, p: ShiftExcelParams) {
     for (let c = 1; c <= PAGE_COLS; c++) {
       const cell = sheet.getCell(procTitleRow, gc(c));
       if (c === 1) cell.value = '📋 業務手順';
-      cell.font      = { name: 'MS Pゴシック', bold: true, size: 10, color: { argb: C.procTitleFont } };
+      cell.font      = { name: 'HG丸ｺﾞｼｯｸM-PRO', bold: true, size: 12, color: { argb: C.procTitleFont } };
       cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: C.procTitleBg } };
       cell.alignment = { horizontal: 'left', vertical: 'middle' };
       cell.border    = {
@@ -668,7 +688,7 @@ function addFullSheet(workbook: ExcelJS.Workbook, p: ShiftExcelParams) {
       for (let c = 1; c <= PAGE_COLS; c++) {
         const cell = sheet.getCell(rowNum, gc(c));
         if (c === 1) cell.value = procLines[i] ?? '';
-        cell.font      = { name: 'MS Pゴシック', size: 9 };
+        cell.font      = { name: 'HG丸ｺﾞｼｯｸM-PRO', size: 12 };
         cell.fill      = { type: 'pattern', pattern: 'none' };
         cell.alignment = { horizontal: 'left', vertical: 'middle' };
         cell.border    = {
@@ -696,14 +716,387 @@ function addFullSheet(workbook: ExcelJS.Workbook, p: ShiftExcelParams) {
   }
 }
 
+function addCalendarSheet(workbook: ExcelJS.Workbook, p: ShiftExcelParams) {
+  const sheet = workbook.addWorksheet('直営店別シフト表');
+
+  // ── Column definitions ─────────────────────────────────────────────────
+  // A(1)=曜日/日付ラベル (B列削除済み)
+  // Sun=B-C(2-3), Mon=D-E(4-5), Tue=F-G(6-7), Wed=H-I(8-9),
+  // Thu=J-K(10-11), Fri=L-M(12-13), Sat=N-O(14-15)
+  // Helpers (outside print): P-R(16-18), S(19)=氏名リスト, T(20), U(21)=WEEKDAY
+  const COL_A   = 1;
+  const DAY_L   = [2, 4, 6, 8, 10, 12, 14]; // B,D,F,H,J,L,N (left sub-col of each day)
+  const COL_F   = 3;   // C1 → month input (②で-3シフト)
+  const COL_J   = 7;   // G1 → DATE companion (DATE式はF1=col6、②で-3シフト)
+  const COL_T   = 19;  // 氏名リスト (S)
+  const COL_V   = 21;  // WEEKDAY helper (U)
+  const END_COL = 15;  // O = last printed column
+
+  const NAME_ROWS = 6;
+  const NUM_WEEKS = 6;
+  const DOW_JP    = ['日', '月', '火', '水', '木', '金', '土'];
+
+  // このシートの罫線は黒
+  const mkBk = (style: 'thin' | 'medium'): ExcelJS.Border =>
+    ({ style, color: { argb: 'FF000000' } } as ExcelJS.Border);
+  const bkThin: ExcelJS.Border = mkBk('thin');
+  const bkMed:  ExcelJS.Border = mkBk('medium');
+  const bkHair: ExcelJS.Border = { style: 'hair', color: { argb: 'FF000000' } };
+
+  const stdBk = (cell: ExcelJS.Cell) => {
+    cell.border = { top: bkThin, left: bkThin, bottom: bkThin, right: bkThin };
+  };
+  const applyOuterBk = (sr: number, er: number, sc: number, ec: number) => {
+    for (let c = sc; c <= ec; c++) {
+      const t = sheet.getCell(sr, c); t.border = { ...t.border, top: bkMed };
+      const b = sheet.getCell(er, c); b.border = { ...b.border, bottom: bkMed };
+    }
+    for (let r = sr; r <= er; r++) {
+      const l  = sheet.getCell(r, sc); l.border  = { ...l.border,  left:  bkMed };
+      const rr = sheet.getCell(r, ec); rr.border = { ...rr.border, right: bkMed };
+    }
+  };
+
+  const familyName = (name: string) => {
+    const i = name.search(/[ 　]/);
+    return i === -1 ? name : name.slice(0, i);
+  };
+
+  // Calendar start day (Sunday of the week containing the 1st)
+  // Use same date construction as existing half/full sheets for consistency
+  const firstOfMonth = new Date(p.year, p.month - 1, 1);
+  const calStartDay  = 1 - firstOfMonth.getDay(); // may be ≤0, new Date handles it correctly
+
+  const dateRowOf = (w: number) => 3 + w * (NAME_ROWS + 1); // 3,10,17,24,31,38
+  const nameRowOf = (w: number, nr: number) => dateRowOf(w) + 1 + nr;
+  const NOTES_ROW = dateRowOf(NUM_WEEKS); // row 45
+
+  // ── Page setup (A4 portrait, 余白最小) ────────────────────────────────
+  sheet.pageSetup = {
+    paperSize: 9,
+    orientation: 'portrait',
+    scale: 80,
+    fitToPage: false,
+    horizontalDpi: 600,
+    verticalDpi: 600,
+    horizontalCentered: true,
+    verticalCentered: false,
+    printArea: `A1:${colLetter(END_COL)}${NOTES_ROW}`,
+    margins: { top: cmIn(1.5), header: cmIn(0.3), left: cmIn(0.3), right: cmIn(0.3), bottom: cmIn(0.5), footer: cmIn(0.3) },
+  };
+
+  // ── Column widths (A4縦で最大限に使う) ────────────────────────────────
+  sheet.getColumn(COL_A).width = pxW(64);   // 曜日/日付ラベル (④)
+  for (let d = 0; d < 7; d++) {
+    sheet.getColumn(DAY_L[d]).width     = pxW(64); // 各日左サブ列
+    sheet.getColumn(DAY_L[d] + 1).width = pxW(64); // 各日右サブ列
+  }
+  for (let c = END_COL + 1; c <= COL_V; c++) sheet.getColumn(c).width = pxW(c === COL_T ? 44 : 8);
+
+  // ── Row heights (A4縦で最大限に使う) ──────────────────────────────────
+  sheet.getRow(1).height = pxH(60);
+  sheet.getRow(2).height = pxH(26);
+  for (let w = 0; w < NUM_WEEKS; w++) {
+    sheet.getRow(dateRowOf(w)).height = pxH(26);
+    for (let nr = 0; nr < NAME_ROWS; nr++) sheet.getRow(nameRowOf(w, nr)).height = pxH(26);
+  }
+  sheet.getRow(NOTES_ROW).height = pxH(100);
+
+  // ── Row 1: Title + helper cells ───────────────────────────────────────
+  // Row 1 レイアウト:
+  // A1=year(#"年",centerCont), B1=空(centerCont)
+  // C1=month(#"月",centerCont), D1=空(centerCont)
+  // E1=シフト表(18pt,standard) ②H1→E1
+  // F1-N1=空(standard) ④E1:N1標準化(E1除く)
+  // O1=部門名(18pt,右詰め) ③J1→O1
+  // T1=DATE式(yyyy/m/d,10pt) ①F1→T1
+  // U1=WEEKDAY(T1,1) helper
+  {
+    const r1 = (col: number) => sheet.getCell(1, col);
+
+    // A1: year + numFmt "#" 年""
+    r1(1).value     = p.year;
+    r1(1).numFmt    = '#" 年"';
+    r1(1).font      = { bold: true, size: 18 };
+    r1(1).alignment = { horizontal: 'centerContinuous', vertical: 'middle' };
+
+    // B1: 空（A1のcenterContinuous範囲用）
+    r1(2).value     = null;
+    r1(2).alignment = { horizontal: 'centerContinuous', vertical: 'middle' };
+
+    // C1: month + numFmt "#" 月""
+    r1(COL_F).value     = p.month;
+    r1(COL_F).numFmt    = '#" 月"';
+    r1(COL_F).font      = { bold: true, size: 18 };
+    r1(COL_F).alignment = { horizontal: 'centerContinuous', vertical: 'middle' };
+
+    // D1: 空（C1のcenterContinuous範囲用）
+    r1(COL_F + 1).value     = null;
+    r1(COL_F + 1).alignment = { horizontal: 'centerContinuous', vertical: 'middle' };
+
+    // E1: "シフト表" 18pt ② H1→E1移動
+    r1(5).value     = 'シフト表';
+    r1(5).font      = { bold: true, size: 18 };
+    r1(5).alignment = { horizontal: 'general', vertical: 'middle' };
+
+    // ④ F1:N1 (cols 6-14) を空・標準配置に（以前の内容をクリア）
+    for (let c = 6; c <= 14; c++) {
+      r1(c).value     = null;
+      r1(c).alignment = { horizontal: 'general', vertical: 'middle' };
+    }
+
+    // O1: 部門名 18pt、右詰め ③ J1→O1移動
+    r1(15).value     = p.departmentName;
+    r1(15).font      = { bold: true, size: 18 };
+    r1(15).alignment = { horizontal: 'right', vertical: 'middle' };
+
+    // T1: DATE(A1,C1,1) → yyyy/m/d 形式、10pt ① F1→T1移動（印刷範囲外ヘルパー）
+    r1(20).value     = { formula: 'DATE(A1,C1,1)' };
+    r1(20).numFmt    = 'yyyy/m/d';
+    r1(20).font      = { bold: true, size: 10 };
+    r1(20).alignment = { horizontal: 'centerContinuous', vertical: 'middle' };
+
+    // U1 = WEEKDAY(T1,1) — ヘルパー ① F1→T1移動に伴い参照先更新
+    r1(COL_V).value = { formula: 'WEEKDAY(T1,1)' };
+    r1(COL_V).font  = { size: 8 };
+  }
+
+  // ── Row 2: 曜日ヘッダー ───────────────────────────────────────────────
+  {
+    const a2 = sheet.getCell(2, COL_A);
+    a2.value     = '曜日';
+    a2.font      = { bold: true, size: 14 };
+    a2.alignment = { horizontal: 'center', vertical: 'middle' };
+    stdBk(a2);
+
+    for (let d = 0; d < 7; d++) {
+      // ⑤ BC列(日)・NO列(土)は標準色のみ、月〜金は曜日色
+      const fc = (d === 1 || d === 2 || d === 3 || d === 4 || d === 5)
+        ? C.weekdayFont : C.weekdayFont; // 全曜日統一(日・土の特別色廃止)
+      const lc = sheet.getCell(2, DAY_L[d]);
+      const rc = sheet.getCell(2, DAY_L[d] + 1);
+      lc.value = DOW_JP[d];
+      for (const cell of [lc, rc]) {
+        cell.font      = { bold: true, size: 14, color: { argb: fc } };
+        cell.alignment = { horizontal: 'centerContinuous', vertical: 'middle' };
+        stdBk(cell);
+      }
+    }
+  }
+
+  // ── T2:T13 — 氏名リスト (12名、従業員リスト順、名字のみ) ───────────────
+  for (let i = 0; i < 12; i++) {
+    const emp = p.sortedEmployees[i];
+    const tc  = sheet.getCell(2 + i, COL_T);
+    tc.value     = emp ? familyName(emp.name) : '';
+    tc.font      = { size: 14 };
+    tc.alignment = { horizontal: 'left', vertical: 'middle' };
+    if (emp) stdBk(tc);
+  }
+
+  // ── Week blocks (rows 3–44) ────────────────────────────────────────────
+  for (let w = 0; w < NUM_WEEKS; w++) {
+    const dateRow = dateRowOf(w);
+
+    // 週内の各日（日〜土）の氏名リストを事前計算（日付行・名前行で共用）
+    const weekData = Array.from({ length: 7 }, (_, d) => {
+      const offset  = w * 7 + d;
+      const dayDate = new Date(p.year, p.month - 1, calStartDay + offset);
+      const inMonth = dayDate.getMonth() === p.month - 1;
+      const isSale  = inMonth && p.isSaleDay(dayDate);
+      const names   = inMonth
+        ? p.sortedEmployees
+            .filter(e => p.getConfirmedShifts(e.id, dayDate).length > 0)
+            .map(e => familyName(e.name))
+        : [];
+      // ⑤ 日(d=0)・土(d=6)の特別色廃止 → 全曜日統一
+      const [fc, bg]: [string, string | null] =
+        !inMonth ? ['FFAAAAAA', null] :
+                   [C.weekdayFont,  null];
+      return { offset, dayDate, inMonth, isSale, names, fc, bg };
+    });
+
+    // ── Date row ──────────────────────────────────────────────────────────
+    {
+      const a = sheet.getCell(dateRow, COL_A);
+      a.value     = '日付';
+      a.font      = { size: 14 };
+      a.alignment = { horizontal: 'center', vertical: 'middle' };
+      stdBk(a);
+
+      for (let d = 0; d < 7; d++) {
+        const { offset, isSale, names, fc, bg } = weekData[d];
+
+        const base       = '$T$1-($U$1-1)';
+        const offsetExpr = offset === 0 ? base : `${base}+${offset}`;
+        const fml        = `IF(MONTH(${offsetExpr})=$C$1,${offsetExpr},"")`;
+
+        const lc  = sheet.getCell(dateRow, DAY_L[d]);
+        const rc  = sheet.getCell(dateRow, DAY_L[d] + 1);
+        lc.value  = { formula: fml };
+        lc.numFmt = 'd';
+
+        const finalBg = isSale ? C.saleBg : bg;
+        for (const cell of [lc, rc]) {
+          cell.font      = { bold: true, size: 14, color: { argb: fc } };
+          if (finalBg) fillCell(cell, finalBg);
+          cell.alignment = { horizontal: 'centerContinuous', vertical: 'middle' };
+          stdBk(cell);
+        }
+        // デフォルトはサブ列間に境界線なし（stdBk で付いた内側を消す）
+        lc.border = { ...lc.border, right: undefined };
+        rc.border = { ...rc.border, left:  undefined };
+        // 7名以上の日のみ極細線を引く
+        if (names.length >= 7) {
+          lc.border = { ...lc.border, right: bkHair };
+          rc.border = { ...rc.border, left:  bkHair };
+        }
+      }
+
+      // 週2以降（rows 10,17,24,31,38）の日付行上辺は太罫線
+      if (w >= 1) {
+        for (let c = COL_A; c <= END_COL; c++) {
+          const cell = sheet.getCell(dateRow, c);
+          cell.border = { ...cell.border, top: bkMed };
+        }
+      }
+    }
+
+    // ── Name rows (6 rows per week) ───────────────────────────────────────
+    for (let nr = 0; nr < NAME_ROWS; nr++) {
+      const nameRow = nameRowOf(w, nr);
+      stdBk(sheet.getCell(nameRow, COL_A));
+
+      for (let d = 0; d < 7; d++) {
+        const { isSale, names, fc, bg } = weekData[d];
+        const finalBg = isSale ? C.saleBg : bg;
+
+        // 左サブ列: names[0..5], 右サブ列: names[6..11]
+        const lc = sheet.getCell(nameRow, DAY_L[d]);
+        const rc = sheet.getCell(nameRow, DAY_L[d] + 1);
+
+        for (const [cell, name] of [
+          [lc, names[nr]            ?? ''] as [ExcelJS.Cell, string],
+          [rc, names[nr + NAME_ROWS] ?? ''] as [ExcelJS.Cell, string],
+        ]) {
+          cell.value     = name;
+          cell.font      = { size: 14, color: { argb: fc } };
+          if (finalBg) fillCell(cell, finalBg);
+          cell.alignment = { horizontal: 'centerContinuous', vertical: 'middle', shrinkToFit: true };
+          stdBk(cell);
+          cell.dataValidation = {
+            type: 'list',
+            allowBlank: true,
+            showDropDown: false,
+            formulae: ['$S:$S'],
+          };
+        }
+        // デフォルトはサブ列間に境界線なし
+        lc.border = { ...lc.border, right: undefined };
+        rc.border = { ...rc.border, left:  undefined };
+        // 7名以上の日のみ極細線を引く
+        if (names.length >= 7) {
+          lc.border = { ...lc.border, right: bkHair };
+          rc.border = { ...rc.border, left:  bkHair };
+        }
+      }
+    }
+  }
+
+  // ── 備考欄 (row 45) ───────────────────────────────────────────────────
+  for (let c = COL_A; c <= END_COL; c++) {
+    const cell = sheet.getCell(NOTES_ROW, c);
+    if (c === COL_A) cell.value = '備考欄';
+    cell.font      = { size: 14 };
+    cell.alignment = { horizontal: 'left', vertical: 'top' };
+    stdBk(cell);
+    // 内部の縦線を全て消去（外枠左右はapplyOuterBkが後から設定）
+    if (c > COL_A)   cell.border = { ...cell.border, left:  undefined };
+    if (c < END_COL) cell.border = { ...cell.border, right: undefined };
+  }
+
+  // ── ① シート全体フォント "HG丸ｺﾞｼｯｸM-PRO" / ④ A2:A44 中央揃え ─────────
+  for (let r = 1; r <= NOTES_ROW; r++) {
+    for (let c = 1; c <= COL_V + 1; c++) {
+      const cell = sheet.getCell(r, c);
+      // font name を全セルに付与（existing size/bold保持、colorは標準=削除、未設定size→14pt）
+      const f = { size: 14, ...cell.font, name: 'HG丸ｺﾞｼｯｸM-PRO' } as ExcelJS.Font;
+      delete f.color;  // 全文字色を標準（黒）にリセット
+      cell.font = f;
+    }
+    // A列(col1)のrow2〜row44を中央揃えに統一
+    if (r >= 2 && r <= NOTES_ROW - 1) {
+      const ac = sheet.getCell(r, COL_A);
+      ac.alignment = { ...ac.alignment, horizontal: 'center' };
+    }
+  }
+
+  // ── Outer borders (黒・太線) ──────────────────────────────────────────
+  applyOuterBk(2, NOTES_ROW, COL_A, END_COL);
+
+  // 曜日ヘッダー行(row2)下 ／ 1週目日付行(row3)上: 太線
+  for (let c = COL_A; c <= END_COL; c++) {
+    const r2 = sheet.getCell(2, c); r2.border = { ...r2.border, bottom: bkMed };
+    const r3 = sheet.getCell(3, c); r3.border = { ...r3.border, top:    bkMed };
+  }
+
+  // 備考欄の上罫線: 太線
+  for (let c = COL_A; c <= END_COL; c++) {
+    const nr = sheet.getCell(NOTES_ROW,     c); nr.border = { ...nr.border, top:    bkMed };
+    const pr = sheet.getCell(NOTES_ROW - 1, c); pr.border = { ...pr.border, bottom: bkMed };
+  }
+
+  // ── ① ロック解除 ──────────────────────────────────────────────────────
+  const unlock = (row: number, col: number) => {
+    sheet.getCell(row, col).protection = { locked: false };
+  };
+  const unlockRange = (sr: number, er: number, sc: number, ec: number) => {
+    for (let r = sr; r <= er; r++)
+      for (let c = sc; c <= ec; c++)
+        unlock(r, c);
+  };
+
+  unlock(1,  1);  // A1
+  unlock(1,  3);  // C1
+  unlock(1, 15);  // O1
+
+  unlockRange( 3,  9, 2, END_COL); // B3:O9   week1(日付行+名前行)
+  unlockRange(11, 16, 2, END_COL); // B11:O16 week2 名前行
+  unlockRange(18, 23, 2, END_COL); // B18:O23 week3 名前行
+  unlockRange(25, 30, 2, END_COL); // B25:O30 week4 名前行
+  unlockRange(32, 37, 2, END_COL); // B32:O37 week5 名前行
+  unlockRange(39, 44, 2, END_COL); // B39:O44 week6 名前行
+  unlockRange(45, 45, 1, END_COL); // A45:O45 備考欄
+  unlockRange( 2, 45, COL_T, COL_T); // S2:S45 氏名リスト列
+
+  // ── ② シート保護（パスワードなし） ────────────────────────────────────
+  // 有効: ロックされていないセル範囲の選択のみ
+  void sheet.protect('', {
+    selectLockedCells:   false,
+    selectUnlockedCells: true,
+    formatCells:         false,
+    formatColumns:       false,
+    formatRows:          false,
+    insertColumns:       false,
+    insertRows:          false,
+    insertHyperlinks:    false,
+    deleteColumns:       false,
+    deleteRows:          false,
+    sort:                false,
+    autoFilter:          false,
+    pivotTables:         false,
+  });
+}
+
 export async function generateShiftExcel(p: ShiftExcelParams): Promise<void> {
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = 'シフト管理システム Ver. 4.0';
+  workbook.creator = 'シフト管理システム Ver. 4.1';
   workbook.created = new Date();
 
   addHalfSheet(workbook, 'first',  p);
   addHalfSheet(workbook, 'second', p);
   addFullSheet(workbook, p);
+  addCalendarSheet(workbook, p);
 
   const buffer = await workbook.xlsx.writeBuffer();
   const blob   = new Blob([buffer], {
