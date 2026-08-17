@@ -15,6 +15,7 @@ export function MobileDepartmentList({ onClose }: MobileDepartmentListProps) {
   const { departments, employees, addDepartment, updateDepartment, deleteDepartment, reorderDepartments, addEmployee } = useData();
   const [newName, setNewName] = useState('');
   const [newManagerName, setNewManagerName] = useState('');
+  const [newManagerPosition, setNewManagerPosition] = useState('');
   const [newManagerPassword, setNewManagerPassword] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
@@ -39,7 +40,7 @@ export function MobileDepartmentList({ onClose }: MobileDepartmentListProps) {
         name: newManagerName.trim(),
         email: `${newManagerName.trim().toLowerCase().replace(/\s/g, '')}_${Date.now()}@example.com`,
         phone: '000-0000-0000',
-        position: 'マネージャー',
+        position: newManagerPosition.trim() || 'マネージャー',
         role: 'manager',
         password: newManagerPassword,
         color: employeeColors[colorIndex],
@@ -48,6 +49,7 @@ export function MobileDepartmentList({ onClose }: MobileDepartmentListProps) {
       });
       setNewName('');
       setNewManagerName('');
+      setNewManagerPosition('');
       setNewManagerPassword('');
       setIsAdding(false);
     } catch { alert('追加に失敗しました'); }
@@ -177,9 +179,17 @@ export function MobileDepartmentList({ onClose }: MobileDepartmentListProps) {
                     className="w-full px-4 py-3 border border-indigo-300 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white" />
                 </div>
                 <div>
-                  <label className="block text-xs text-gray-600 mb-1">役職</label>
-                  <input value="マネージャー" disabled
-                    className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm bg-gray-100 text-gray-500" />
+                  <label className="block text-xs text-gray-600 mb-1">肩書き（自由入力）</label>
+                  <input value={newManagerPosition} onChange={e => setNewManagerPosition(e.target.value)}
+                    placeholder="例：チーフ、アルバイト、副店長"
+                    className="w-full px-4 py-3 border border-indigo-300 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white" />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">管理者権限</label>
+                  <select value="manager" disabled
+                    className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm bg-gray-100 text-gray-500">
+                    <option value="manager">あり（管理者）</option>
+                  </select>
                 </div>
                 <div>
                   <label className="block text-xs text-gray-600 mb-1">パスワード <span className="text-red-500">*</span></label>
@@ -194,7 +204,7 @@ export function MobileDepartmentList({ onClose }: MobileDepartmentListProps) {
                 className="flex-1 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl text-sm font-semibold active:scale-95">
                 追加する
               </button>
-              <button onClick={() => { setIsAdding(false); setNewName(''); setNewManagerName(''); setNewManagerPassword(''); }}
+              <button onClick={() => { setIsAdding(false); setNewName(''); setNewManagerName(''); setNewManagerPosition(''); setNewManagerPassword(''); }}
                 className="flex-1 py-3 bg-gray-200 text-gray-700 rounded-2xl text-sm active:scale-95">
                 キャンセル
               </button>
