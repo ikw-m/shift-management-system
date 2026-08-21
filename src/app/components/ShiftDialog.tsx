@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { ja } from 'date-fns/locale';
-import { X, Check, XCircle, Edit, Save, Clock, CheckCheck, CheckCircle, Trash2 } from 'lucide-react';
+import { X, Check, XCircle, Edit, Save, Clock, CheckCircle, Trash2 } from 'lucide-react';
 import { Employee, Availability, shiftTypeConfig, wishLevelConfig } from '../types';
 
 interface ShiftDialogProps {

@@ -230,7 +230,7 @@ function addHalfSheet(
     const gc = (localCol: number) => off + localCol;
 
     // ── Row 1: Title ───────────────────────────────────────────────
-    const titleText = `${p.departmentName}　${p.year}年${p.month}月${halfLabel}　シフト管理表　[Ver. 4.1]`;
+    const titleText = `${p.departmentName}　${p.year}年${p.month}月${halfLabel}　シフト管理表　[Ver. 4.2]`;
     const verIdx1   = titleText.indexOf('[Ver.');
     const mainPart1 = verIdx1 >= 0 ? titleText.slice(0, verIdx1) : titleText;
     const verPart1  = verIdx1 >= 0 ? titleText.slice(verIdx1) : '';
@@ -519,7 +519,7 @@ function addFullSheet(workbook: ExcelJS.Workbook, p: ShiftExcelParams) {
     const gc = (localCol: number) => off + localCol;
 
     // ── Row 1: Title ────────────────────────────────────────────────
-    const titleText = `${p.departmentName}　${p.year}年${p.month}月　シフト管理表　[Ver. 4.1]`;
+    const titleText = `${p.departmentName}　${p.year}年${p.month}月　シフト管理表　[Ver. 4.2]`;
     const verIdx2   = titleText.indexOf('[Ver.');
     const mainPart2 = verIdx2 >= 0 ? titleText.slice(0, verIdx2) : titleText;
     const verPart2  = verIdx2 >= 0 ? titleText.slice(verIdx2) : '';
@@ -1090,7 +1090,7 @@ function addCalendarSheet(workbook: ExcelJS.Workbook, p: ShiftExcelParams) {
 
 export async function generateShiftExcel(p: ShiftExcelParams): Promise<void> {
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = 'シフト管理システム Ver. 4.1';
+  workbook.creator = 'シフト管理システム Ver. 4.2';
   workbook.created = new Date();
 
   addHalfSheet(workbook, 'first',  p);

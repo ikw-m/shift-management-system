@@ -9,7 +9,6 @@ interface DataContextType {
   addDepartment: (name: string) => Promise<string>;
   updateDepartment: (id: string, name: string) => Promise<void>;
   deleteDepartment: (id: string) => Promise<void>;
-  updateDepartmentOrder: (id: string, displayOrder: number) => Promise<void>;
   reorderDepartments: (ordered: { id: string }[]) => Promise<void>;
   reorderEmployees: (ordered: { id: string }[]) => Promise<void>;
   loading: boolean;
@@ -23,7 +22,6 @@ interface DataContextType {
   deleteAvailability: (id: string) => Promise<void>;
   approveAvailability: (id: string, reviewerName: string) => Promise<void>;
   rejectAvailability: (id: string, reviewerName: string) => Promise<void>;
-  getDailyNote: (date: string, departmentId?: string) => Promise<string>;
   getDailyNotesForMonth: (year: number, month: number, departmentId?: string) => Promise<{ [date: string]: string }>;
   saveDailyNote: (date: string, note: string, departmentId?: string) => Promise<void>;
   getMonthlyProcedure: (year: number, month: number, departmentId?: string) => Promise<string>;
@@ -127,12 +125,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.from('departments').delete().eq('id', id);
     if (error) throw error;
     setDepartments(departments.filter(d => d.id !== id));
-  };
-
-  const updateDepartmentOrder = async (id: string, displayOrder: number) => {
-    const { error } = await supabase.from('departments').update({ display_order: displayOrder }).eq('id', id);
-    if (error) throw error;
-    setDepartments(departments.map(d => d.id === id ? { ...d, displayOrder } : d));
   };
 
   const reorderDepartments = async (ordered: { id: string }[]) => {
@@ -405,19 +397,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const getDailyNote = async (date: string, departmentId?: string): Promise<string> => {
-    try {
-      let query = supabase.from('daily_notes').select('note').eq('date', date);
-      if (departmentId) query = query.eq('department_id', departmentId);
-      const { data, error } = await query.single();
-
-      if (error && error.code !== 'PGRST116') throw error;
-      return data?.note || '';
-    } catch (error) {
-      return '';
-    }
-  };
-
   const saveDailyNote = async (date: string, note: string, departmentId?: string): Promise<void> => {
     try {
       let checkQuery = supabase.from('daily_notes').select('date').eq('date', date);
@@ -520,7 +499,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
         addDepartment,
         updateDepartment,
         deleteDepartment,
-        updateDepartmentOrder,
         reorderDepartments,
         reorderEmployees,
         addEmployee,
@@ -532,7 +510,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
         deleteAvailability,
         approveAvailability,
         rejectAvailability,
-        getDailyNote,
         getDailyNotesForMonth,
         saveDailyNote,
         getMonthlyProcedure,

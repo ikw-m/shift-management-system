@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Users, Plus, Edit, Trash2, Save, X, ChevronUp, ChevronDown, Eye, EyeOff, LogOut } from 'lucide-react';
+import { Plus, Edit, Trash2, Save, ChevronUp, ChevronDown, Eye, EyeOff } from 'lucide-react';
 import { Employee } from '../../types';
 import { useData } from '../../context/DataContext';
 
@@ -127,7 +127,7 @@ export function MobileEmployeeList({ currentUser, departmentName, onBack, onLogo
           <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent font-bold">
             シフト管理システム
           </span>
-          <span className="text-gray-500" style={{ fontSize: '0.7em' }}>Ver. 4.1</span>
+          <span className="text-gray-500" style={{ fontSize: '0.7em' }}>Ver. 4.2</span>
           {departmentName && (
             <span className="text-xs font-bold text-indigo-700 ml-1">｜ {departmentName}</span>
           )}
