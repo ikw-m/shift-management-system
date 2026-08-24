@@ -38,9 +38,35 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [availabilities, setAvailabilities] = useState<Availability[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Supabaseからデータを取得
+  // Supabaseからデータを取得 + availabilitiesリアルタイム購読
   useEffect(() => {
     loadData();
+
+    const channel = supabase
+      .channel('availabilities-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'availabilities' }, async () => {
+        const { data } = await supabase.from('availabilities').select('*').order('date');
+        if (data) {
+          setAvailabilities(data.map(a => ({
+            id: a.id,
+            employeeId: a.employee_id,
+            date: a.date,
+            startTime: a.start_time,
+            endTime: a.end_time,
+            status: a.status,
+            shiftType: a.shift_type || 'karintou',
+            wishLevel: a.wish_level ?? 2,
+            submittedAt: a.submitted_at,
+            reviewedAt: a.reviewed_at,
+            reviewedBy: a.reviewed_by
+          })));
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const loadData = async () => {
