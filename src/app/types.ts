@@ -18,6 +18,12 @@ export interface Employee {
   // 互換性のため
   isManager?: boolean;
   displayOrder?: number;
+  // テンプレート用デフォルト値
+  defaultStartTime?: string;
+  defaultEndTime?: string;
+  defaultShiftType?: 'karintou' | 'cafe';
+  defaultDays?: string[];
+  defaultWishLevel?: number;
 }
 
 

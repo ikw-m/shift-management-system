@@ -61,6 +61,7 @@ export function AppContent() {
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [viewMode, setViewMode] = useState<'calendar' | 'confirmed' | 'employees' | 'shiftCondition'>('calendar');
+  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
 
   // ログインユーザーが変更されたときに画面をリセット
   useEffect(() => {
@@ -157,6 +158,12 @@ export function AppContent() {
     }
   };
 
+  const handleBulkAdd = async (items: Array<Omit<Availability, 'id' | 'status'>>) => {
+    for (const item of items) {
+      await addAvailability(item);
+    }
+  };
+
   const handleApproveAvailability = async (availabilityId: string) => {
     if (!currentUser) return;
     try {
@@ -183,7 +190,17 @@ export function AppContent() {
     }
   };
 
-  const handleAddEmployee = async (name: string, position: string, isManager: boolean, password: string) => {
+  const handleAddEmployee = async (
+    name: string,
+    position: string,
+    isManager: boolean,
+    password: string,
+    defaultStartTime?: string,
+    defaultEndTime?: string,
+    defaultShiftType?: 'karintou' | 'cafe',
+    defaultDays?: string[],
+    defaultWishLevel?: number,
+  ) => {
     try {
       const maxOrder = Math.max(...employees.map((e) => e.displayOrder ?? 0), -1);
       await addEmployee({
@@ -196,6 +213,11 @@ export function AppContent() {
         color: employeeColors[employees.length % employeeColors.length],
         displayOrder: maxOrder + 1,
         departmentId: currentUser?.departmentId,
+        defaultStartTime,
+        defaultEndTime,
+        defaultShiftType,
+        defaultDays,
+        defaultWishLevel,
       });
       setAddEmployeeDialogOpen(false);
     } catch (error) {
@@ -203,7 +225,18 @@ export function AppContent() {
     }
   };
 
-  const handleEditEmployee = async (id: string, name: string, position: string, isManager: boolean, password: string) => {
+  const handleEditEmployee = async (
+    id: string,
+    name: string,
+    position: string,
+    isManager: boolean,
+    password: string,
+    defaultStartTime?: string,
+    defaultEndTime?: string,
+    defaultShiftType?: 'karintou' | 'cafe',
+    defaultDays?: string[],
+    defaultWishLevel?: number,
+  ) => {
     const employee = employees.find(e => e.id === id);
     if (!employee) return;
 
@@ -218,10 +251,53 @@ export function AppContent() {
         color: employee.color,
         displayOrder: employee.displayOrder,
         departmentId: employee.departmentId,
+        defaultStartTime: defaultStartTime ?? employee.defaultStartTime,
+        defaultEndTime: defaultEndTime ?? employee.defaultEndTime,
+        defaultShiftType: defaultShiftType ?? employee.defaultShiftType,
+        defaultDays: defaultDays ?? employee.defaultDays,
+        defaultWishLevel: defaultWishLevel ?? employee.defaultWishLevel,
       });
       setEditEmployeeDialogOpen(false);
     } catch (error) {
       alert('従業員の更新に失敗しました');
+    }
+  };
+
+  const handleTemplateEdit = async (
+    id: string,
+    _name: string,
+    _position: string,
+    _isManager: boolean,
+    password: string,
+    defaultStartTime?: string,
+    defaultEndTime?: string,
+    defaultShiftType?: 'karintou' | 'cafe',
+    defaultDays?: string[],
+    defaultWishLevel?: number,
+  ) => {
+    const employee = employees.find(e => e.id === id);
+    if (!employee) return;
+
+    try {
+      await updateEmployee(id, {
+        name: employee.name,
+        email: employee.email,
+        phone: employee.phone,
+        position: employee.position,
+        role: employee.role,
+        password: password || employee.password,
+        color: employee.color,
+        displayOrder: employee.displayOrder,
+        departmentId: employee.departmentId,
+        defaultStartTime,
+        defaultEndTime,
+        defaultShiftType,
+        defaultDays,
+        defaultWishLevel,
+      });
+      setTemplateDialogOpen(false);
+    } catch (error) {
+      alert('テンプレートの更新に失敗しました');
     }
   };
 
@@ -333,9 +409,10 @@ export function AppContent() {
       date: typeof a.date === 'string' ? new Date(a.date) : a.date,
     }));
 
+  const latestCurrentUser = employees.find(e => e.id === currentUser.id) ?? currentUser;
   const currentUserWithManager = {
-    ...currentUser,
-    isManager: currentUser.role === 'manager' || currentUser.isManager === true,
+    ...latestCurrentUser,
+    isManager: latestCurrentUser.role === 'manager' || latestCurrentUser.isManager === true,
   };
 
   // スマホの場合はモバイルUIを表示
@@ -363,7 +440,7 @@ export function AppContent() {
           <div className="flex items-center justify-between mb-4 h-[44px]">
             <div className="flex items-baseline gap-2">
               <h1 className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">シフト管理システム</h1>
-              <span className="text-xs text-gray-500">Ver. 4.2</span>
+              <span className="text-xs text-gray-500">Ver. 5.0</span>
               {departmentName && (
                 <span className="text-sm font-bold text-indigo-700 ml-2">｜ {departmentName}</span>
               )}
@@ -420,7 +497,7 @@ export function AppContent() {
                 >
                   シフト確認表
                 </button>
-                {currentUserWithManager.isManager && (
+                {currentUserWithManager.isManager ? (
                   <>
                     <button
                       onClick={() => setViewMode('employees')}
@@ -443,6 +520,13 @@ export function AppContent() {
                       シフト条件設定
                     </button>
                   </>
+                ) : (
+                  <button
+                    onClick={() => setTemplateDialogOpen(true)}
+                    className="px-3 py-1.5 rounded-lg font-medium text-xs transition-all duration-200 whitespace-nowrap h-[28px] flex items-center text-gray-600 hover:bg-gray-50"
+                  >
+                    テンプレート設定
+                  </button>
                 )}
               </div>
             </div>
@@ -470,6 +554,7 @@ export function AppContent() {
             onApprove={handleApproveAvailability}
             onReject={handleRejectAvailability}
             onRemoveAvailability={handleRemoveAvailability}
+            onBulkAdd={handleBulkAdd}
           />
         ) : viewMode === 'confirmed' ? (
           <ConfirmedShiftTable
@@ -527,6 +612,15 @@ export function AppContent() {
         employee={editingEmployee}
         employees={processedEmployees}
         onEdit={handleEditEmployee}
+      />
+
+      <EditEmployeeDialog
+        isOpen={templateDialogOpen}
+        onClose={() => setTemplateDialogOpen(false)}
+        employee={currentUserWithManager}
+        employees={processedEmployees}
+        templateMode={true}
+        onEdit={handleTemplateEdit}
       />
     </div>
   );

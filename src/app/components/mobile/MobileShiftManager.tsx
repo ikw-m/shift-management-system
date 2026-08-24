@@ -49,8 +49,9 @@ export function MobileShiftManager({
   const listContainerRef = useRef<HTMLDivElement>(null);
   const dayRefs = useRef<Map<number, HTMLDivElement>>(new Map());
 
-  const { getShiftCondition } = useData();
+  const { getShiftCondition, employees: contextEmployees } = useData();
   const isManager = currentUser.role === 'manager' || currentUser.isManager === true;
+  const latestCurrentUser = contextEmployees.find(e => e.id === currentUser.id) ?? currentUser;
 
   useEffect(() => {
     getShiftCondition(year, currentUser.departmentId).then(setShiftCondition);
@@ -181,10 +182,10 @@ export function MobileShiftManager({
       wishLevel: newWishLevel,
     });
     setAddingDay(null);
-    setNewStartTime('08:00');
-    setNewEndTime('17:00');
-    setNewShiftType('karintou');
-    setNewWishLevel(2);
+    setNewStartTime(latestCurrentUser.defaultStartTime || '08:00');
+    setNewEndTime(latestCurrentUser.defaultEndTime || '17:00');
+    setNewShiftType(latestCurrentUser.defaultShiftType || 'karintou');
+    setNewWishLevel(latestCurrentUser.defaultWishLevel ?? 2);
     setSelectedEmployeeId(currentUser.id);
   };
 
@@ -498,7 +499,19 @@ export function MobileShiftManager({
                           <label className="block text-xs text-gray-500 mb-1">対象スタッフ</label>
                           <select
                             value={selectedEmployeeId}
-                            onChange={e => setSelectedEmployeeId(e.target.value)}
+                            onChange={e => {
+                              const empId = e.target.value;
+                              setSelectedEmployeeId(empId);
+                              const selEmp = empId === currentUser.id
+                                ? latestCurrentUser
+                                : (contextEmployees.find(emp => emp.id === empId) ?? employees.find(emp => emp.id === empId));
+                              if (selEmp) {
+                                setNewStartTime(selEmp.defaultStartTime || '08:00');
+                                setNewEndTime(selEmp.defaultEndTime || '17:00');
+                                setNewShiftType(selEmp.defaultShiftType || 'karintou');
+                                setNewWishLevel(selEmp.defaultWishLevel ?? 2);
+                              }
+                            }}
                             className="w-full px-3 py-2.5 bg-gray-50 border border-indigo-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                           >
                             {[currentUser, ...employees.filter(e => e.id !== currentUser.id)].map(emp => (
@@ -560,7 +573,14 @@ export function MobileShiftManager({
                     </div>
                   ) : (
                     <button
-                      onClick={() => { setAddingDay(day); setSelectedEmployeeId(currentUser.id); }}
+                      onClick={() => {
+                        setAddingDay(day);
+                        setSelectedEmployeeId(currentUser.id);
+                        setNewStartTime(latestCurrentUser.defaultStartTime || '08:00');
+                        setNewEndTime(latestCurrentUser.defaultEndTime || '17:00');
+                        setNewShiftType(latestCurrentUser.defaultShiftType || 'karintou');
+                        setNewWishLevel(latestCurrentUser.defaultWishLevel ?? 2);
+                      }}
                       className="w-full py-2.5 border-2 border-dashed border-indigo-300 rounded-xl text-indigo-600 text-sm font-medium flex items-center justify-center gap-1 active:bg-indigo-50"
                     >
                       <Plus className="w-4 h-4" />

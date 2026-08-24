@@ -72,6 +72,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
         ...emp,
         displayOrder: emp.display_order ?? 0,
         departmentId: emp.department_id ?? undefined,
+        defaultStartTime: emp.default_start_time ?? undefined,
+        defaultEndTime: emp.default_end_time ?? undefined,
+        defaultShiftType: emp.default_shift_type ?? undefined,
+        defaultDays: emp.default_days ?? undefined,
+        defaultWishLevel: emp.default_wish_level ?? undefined,
       })) || [];
 
       setEmployees(processedEmployees);
@@ -162,6 +167,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
         color: employee.color,
         display_order: employee.displayOrder ?? 0,
         department_id: employee.departmentId ?? null,
+        default_start_time: employee.defaultStartTime ?? null,
+        default_end_time: employee.defaultEndTime ?? null,
+        default_shift_type: employee.defaultShiftType ?? null,
+        default_days: employee.defaultDays ?? null,
+        default_wish_level: employee.defaultWishLevel ?? null,
       };
 
       const { data, error } = await supabase
@@ -176,6 +186,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
           ...data,
           displayOrder: data.display_order ?? 0,
           departmentId: data.department_id ?? undefined,
+          defaultStartTime: data.default_start_time ?? undefined,
+          defaultEndTime: data.default_end_time ?? undefined,
+          defaultShiftType: data.default_shift_type ?? undefined,
+          defaultDays: data.default_days ?? undefined,
+          defaultWishLevel: data.default_wish_level ?? undefined,
         }]);
       }
     } catch (error) {
@@ -195,6 +210,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
         color: employee.color,
         display_order: employee.displayOrder ?? 0,
         department_id: employee.departmentId ?? null,
+        default_start_time: employee.defaultStartTime ?? null,
+        default_end_time: employee.defaultEndTime ?? null,
+        default_shift_type: employee.defaultShiftType ?? null,
+        default_days: employee.defaultDays ?? null,
+        default_wish_level: employee.defaultWishLevel ?? null,
       };
 
       const { error } = await supabase
@@ -215,6 +235,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
         color: employee.color,
         displayOrder: employee.displayOrder ?? e.displayOrder,
         departmentId: employee.departmentId,
+        defaultStartTime: employee.defaultStartTime,
+        defaultEndTime: employee.defaultEndTime,
+        defaultShiftType: employee.defaultShiftType,
+        defaultDays: employee.defaultDays,
+        defaultWishLevel: employee.defaultWishLevel,
       } : e));
     } catch (error) {
       throw error;
@@ -278,7 +303,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       
       if (error) throw error;
       if (data) {
-        setAvailabilities([...availabilities, {
+        setAvailabilities(prev => [...prev, {
           id: data.id,
           employeeId: data.employee_id,
           date: data.date,
@@ -346,11 +371,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
         .eq('id', id);
       
       if (error) throw error;
-      setAvailabilities(availabilities.map(a => a.id === id ? { 
-        ...a, 
-        status: 'approved' as const, 
-        reviewedAt: new Date().toISOString(), 
-        reviewedBy: reviewerName 
+      setAvailabilities(prev => prev.map(a => a.id === id ? {
+        ...a,
+        status: 'approved' as const,
+        reviewedAt: new Date().toISOString(),
+        reviewedBy: reviewerName
       } : a));
     } catch (error) {
       throw error;

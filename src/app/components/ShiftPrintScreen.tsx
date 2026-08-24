@@ -126,7 +126,7 @@ export function ShiftPrintScreen({ departmentId, departmentName, onClose }: Shif
             <div>
               <div className="flex items-baseline gap-1.5">
                 <span className="font-bold text-gray-800 text-sm">シフト管理表出力</span>
-                <span className="text-xs text-gray-400">Ver. 4.2</span>
+                <span className="text-xs text-gray-400">Ver. 5.0</span>
               </div>
               {departmentName && (
                 <div className="flex items-center gap-1 text-xs font-bold text-indigo-700 mt-0.5">

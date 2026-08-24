@@ -3,6 +3,7 @@ import { format } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { X, Check, XCircle, Edit, Save, Clock, CheckCircle, Trash2 } from 'lucide-react';
 import { Employee, Availability, shiftTypeConfig, wishLevelConfig } from '../types';
+import { TimeSelect } from './TimeSelect';
 
 interface ShiftDialogProps {
   isOpen: boolean;
@@ -44,6 +45,16 @@ export function ShiftDialog({
   const [editEndTime, setEditEndTime] = useState('');
   const [editShiftType, setEditShiftType] = useState<'karintou' | 'cafe'>('karintou');
   const [editWishLevel, setEditWishLevel] = useState(2);
+
+  // addモードで開いた時、currentUserのテンプレートデフォルト値で初期化
+  useEffect(() => {
+    if (isOpen && mode === 'add') {
+      setStartTime(currentUser.defaultStartTime || '08:00');
+      setEndTime(currentUser.defaultEndTime || '17:00');
+      setShiftType(currentUser.defaultShiftType || 'karintou');
+      setWishLevel(currentUser.defaultWishLevel ?? 2);
+    }
+  }, [isOpen, mode]);
 
   // autoEditIdが指定されている場合、ダイアログを開いた直後に編集モードを自動開始
   useEffect(() => {
@@ -153,21 +164,11 @@ export function ShiftDialog({
           <div className="space-y-4">
             <div>
               <label className="block mb-2 text-gray-700">開始時間</label>
-              <input
-                type="time"
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-                className="w-full px-4 py-2.5 border border-indigo-200 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all shadow-sm"
-              />
+              <TimeSelect value={startTime} onChange={setStartTime} />
             </div>
             <div>
               <label className="block mb-2 text-gray-700">終了時間</label>
-              <input
-                type="time"
-                value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
-                className="w-full px-4 py-2.5 border border-indigo-200 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all shadow-sm"
-              />
+              <TimeSelect value={endTime} onChange={setEndTime} />
             </div>
             <div>
               <label className="block mb-2 text-gray-700">シフトタイプ</label>
@@ -251,21 +252,11 @@ export function ShiftDialog({
                         <div className="space-y-3">
                           <div>
                             <label className="block text-xs mb-1 text-gray-700">開始時間</label>
-                            <input
-                              type="time"
-                              value={editStartTime}
-                              onChange={(e) => setEditStartTime(e.target.value)}
-                              className="w-full px-3 py-2 border border-indigo-200 rounded-lg bg-white text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                            />
+                            <TimeSelect value={editStartTime} onChange={setEditStartTime} />
                           </div>
                           <div>
                             <label className="block text-xs mb-1 text-gray-700">終了時間</label>
-                            <input
-                              type="time"
-                              value={editEndTime}
-                              onChange={(e) => setEditEndTime(e.target.value)}
-                              className="w-full px-3 py-2 border border-indigo-200 rounded-lg bg-white text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                            />
+                            <TimeSelect value={editEndTime} onChange={setEditEndTime} />
                           </div>
                           <div>
                             <label className="block text-xs mb-1 text-gray-700">シフトタイプ</label>

@@ -97,7 +97,7 @@ export function MobileLogin({ employees, departments, onLogin }: MobileLoginProp
         <h1 className="text-2xl bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent font-bold select-none">
           シフト管理システム
         </h1>
-        <span className="text-sm text-gray-500 mt-1">Ver. 4.1</span>
+        <span className="text-sm text-gray-500 mt-1">Ver. 5.0</span>
         <div className="flex items-center gap-1 mt-2">
           <span className={`w-2 h-2 rounded-full ${dbStatus === 'connected' ? 'bg-green-500' : dbStatus === 'error' ? 'bg-red-500' : 'bg-yellow-400'}`} />
           <span className="text-xs text-gray-500">

@@ -1,7 +1,7 @@
 import { useRef, forwardRef, useImperativeHandle, useState, useEffect } from 'react';
 import { format, isSameDay, getDaysInMonth } from 'date-fns';
 import { ja } from 'date-fns/locale';
-import { Calendar, Check, X, Edit, Trash2, Clock, CheckCheck, XCircle } from 'lucide-react';
+import { Calendar, Check, X, Edit, Trash2, Clock, CheckCheck, XCircle, Zap } from 'lucide-react';
 import { Employee, Availability, shiftTypeConfig, wishLevelConfig, ShiftCondition } from '../types';
 import { useData } from '../context/DataContext';
 
@@ -21,6 +21,7 @@ interface ShiftCalendarProps {
   onApprove: (availabilityId: string) => void;
   onReject: (availabilityId: string) => void;
   onRemoveAvailability: (availabilityId: string) => void;
+  onBulkAdd: (items: Array<Omit<import('../types').Availability, 'id' | 'status'>>) => Promise<void>;
 }
 
 export interface ShiftCalendarRef {
@@ -44,6 +45,7 @@ export const ShiftCalendar = forwardRef<ShiftCalendarRef, ShiftCalendarProps>(({
   onApprove,
   onReject,
   onRemoveAvailability,
+  onBulkAdd,
 }, ref) => {
   const { getShiftCondition } = useData();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -72,6 +74,67 @@ export const ShiftCalendar = forwardRef<ShiftCalendarRef, ShiftCalendarProps>(({
     currentUser,
     ...employees.filter(emp => emp.id !== currentUser.id).sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0))
   ];
+
+  const handleBulkInput = async (targetEmployee: Employee) => {
+    if (!targetEmployee.defaultDays || targetEmployee.defaultDays.length === 0) {
+      alert(`${targetEmployee.name}さんのデフォルト用曜日が設定されていません。`);
+      return;
+    }
+
+    const daysInMonth = getDaysInMonth(new Date(year, month - 1));
+    const items: Array<Omit<import('../types').Availability, 'id' | 'status'>> = [];
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const date = new Date(year, month - 1, d);
+      if (!targetEmployee.defaultDays.includes(String(date.getDay()))) continue;
+      const exists = availabilities.some(
+        a => a.employeeId === targetEmployee.id && isSameDay(new Date(a.date), date)
+      );
+      if (exists) continue;
+      items.push({
+        employeeId: targetEmployee.id,
+        date,
+        startTime: targetEmployee.defaultStartTime || '08:00',
+        endTime: targetEmployee.defaultEndTime || '17:00',
+        shiftType: targetEmployee.defaultShiftType || 'karintou',
+        wishLevel: targetEmployee.defaultWishLevel ?? 2,
+      });
+    }
+
+    if (items.length === 0) {
+      alert('追加できるシフトがありません。\n（対象曜日の日付が全て登録済みか、該当する日付がありません）');
+      return;
+    }
+
+    if (!window.confirm(`${targetEmployee.name}さんの${year}年${month}月の対象日 ${items.length}件 を一括登録します。\nよろしいですか？`)) return;
+
+    try {
+      await onBulkAdd(items);
+    } catch {
+      alert('一括入力に失敗しました');
+    }
+  };
+
+  const handleBulkApprove = async (targetEmployee: Employee) => {
+    const pendingItems = availabilities.filter(
+      a => a.employeeId === targetEmployee.id && a.status === 'pending'
+    );
+
+    if (pendingItems.length === 0) {
+      alert(`${targetEmployee.name}さんの承認待ちデータはありません。`);
+      return;
+    }
+
+    if (!window.confirm(`${targetEmployee.name}さんの承認待ち ${pendingItems.length}件 を全て承認します。\nよろしいですか？`)) return;
+
+    try {
+      for (const item of pendingItems) {
+        await onApprove(item.id);
+      }
+    } catch {
+      alert('一括承認に失敗しました');
+    }
+  };
 
   // 表示する日付範囲を取得
   const getDays = () => {
@@ -378,6 +441,24 @@ export const ShiftCalendar = forwardRef<ShiftCalendarRef, ShiftCalendarProps>(({
                     />
                     <span className="font-medium text-gray-700 text-sm">{employee.name}</span>
                   </div>
+                  {(currentUser.isManager || employee.id === currentUser.id) && (
+                    <button
+                      onClick={() => handleBulkInput(employee)}
+                      className="mt-1.5 mx-auto block px-2.5 py-0.5 text-[10px] font-bold text-amber-900 rounded-md bg-gradient-to-r from-amber-400 to-yellow-300 hover:from-amber-500 hover:to-yellow-400 shadow-sm shadow-amber-200 hover:shadow-amber-300 hover:scale-105 transition-all duration-200 flex items-center justify-center gap-0.5 border border-amber-500"
+                    >
+                      <Zap className="w-2.5 h-2.5" />
+                      一括入力
+                    </button>
+                  )}
+                  {currentUser.isManager && (
+                    <button
+                      onClick={() => handleBulkApprove(employee)}
+                      className="mt-1 mx-auto block px-2.5 py-0.5 text-[10px] font-bold text-slate-600 rounded-md bg-gradient-to-r from-slate-300 to-gray-100 hover:from-slate-400 hover:to-gray-200 shadow-sm shadow-slate-200 hover:shadow-slate-300 hover:scale-105 transition-all duration-200 flex items-center justify-center gap-0.5 border border-slate-400"
+                    >
+                      <CheckCheck className="w-2.5 h-2.5" />
+                      一括承認
+                    </button>
+                  )}
                 </td>
                 {displayDays.map((day) => {
                   const isSundayDay = isSunday(day);

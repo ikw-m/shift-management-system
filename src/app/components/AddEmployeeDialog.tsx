@@ -1,10 +1,32 @@
 import { useState } from 'react';
 import { X } from 'lucide-react';
+import { shiftTypeConfig, wishLevelConfig } from '../types';
+import { TimeSelect } from './TimeSelect';
+
+const DAY_OPTIONS = [
+  { value: '1', label: '月' },
+  { value: '2', label: '火' },
+  { value: '3', label: '水' },
+  { value: '4', label: '木' },
+  { value: '5', label: '金' },
+  { value: '6', label: '土' },
+  { value: '0', label: '日' },
+];
 
 interface AddEmployeeDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onAdd: (name: string, position: string, isManager: boolean, password: string) => void;
+  onAdd: (
+    name: string,
+    position: string,
+    isManager: boolean,
+    password: string,
+    defaultStartTime?: string,
+    defaultEndTime?: string,
+    defaultShiftType?: 'karintou' | 'cafe',
+    defaultDays?: string[],
+    defaultWishLevel?: number,
+  ) => void;
 }
 
 export function AddEmployeeDialog({ isOpen, onClose, onAdd }: AddEmployeeDialogProps) {
@@ -12,23 +34,49 @@ export function AddEmployeeDialog({ isOpen, onClose, onAdd }: AddEmployeeDialogP
   const [position, setPosition] = useState('');
   const [isManager, setIsManager] = useState(false);
   const [password, setPassword] = useState('');
+  const [defaultStartTime, setDefaultStartTime] = useState('');
+  const [defaultEndTime, setDefaultEndTime] = useState('');
+  const [defaultShiftType, setDefaultShiftType] = useState<'karintou' | 'cafe' | ''>('');
+  const [defaultDays, setDefaultDays] = useState<string[]>([]);
+  const [defaultWishLevel, setDefaultWishLevel] = useState<number | undefined>(undefined);
+
+  const toggleDay = (value: string) => {
+    setDefaultDays(prev =>
+      prev.includes(value) ? prev.filter(d => d !== value) : [...prev, value]
+    );
+  };
 
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (name.trim() && password.trim()) {
-      onAdd(name.trim(), position.trim(), isManager, password.trim());
+      onAdd(
+        name.trim(),
+        position.trim(),
+        isManager,
+        password.trim(),
+        defaultStartTime || undefined,
+        defaultEndTime || undefined,
+        (defaultShiftType || undefined) as 'karintou' | 'cafe' | undefined,
+        defaultDays.length > 0 ? defaultDays : undefined,
+        defaultWishLevel,
+      );
       setName('');
       setPosition('');
       setIsManager(false);
       setPassword('');
+      setDefaultStartTime('');
+      setDefaultEndTime('');
+      setDefaultShiftType('');
+      setDefaultDays([]);
+      setDefaultWishLevel(undefined);
     }
   };
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-4 border border-indigo-100 shadow-2xl">
+      <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-4 border border-indigo-100 shadow-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <h3 className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">従業員を追加</h3>
           <button onClick={onClose} className="p-2 hover:bg-indigo-50 rounded-xl transition-all duration-200 hover:scale-110">
@@ -84,6 +132,91 @@ export function AddEmployeeDialog({ isOpen, onClose, onAdd }: AddEmployeeDialogP
               placeholder="パスワードを入力"
               className="w-full px-4 py-2.5 bg-white rounded-xl border border-indigo-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all shadow-sm"
             />
+          </div>
+
+          <div className="pt-2 border-t border-gray-100" />
+
+          <div>
+            <label className="block mb-2 text-gray-700">デフォルト用開始時間</label>
+            <TimeSelect value={defaultStartTime} onChange={setDefaultStartTime} allowEmpty />
+          </div>
+
+          <div>
+            <label className="block mb-2 text-gray-700">デフォルト用終了時間</label>
+            <TimeSelect value={defaultEndTime} onChange={setDefaultEndTime} allowEmpty />
+          </div>
+
+          <div>
+            <label className="block mb-2 text-gray-700">デフォルト用シフトタイプ</label>
+            <select
+              value={defaultShiftType}
+              onChange={(e) => setDefaultShiftType(e.target.value as 'karintou' | 'cafe' | '')}
+              className="w-full px-4 py-2.5 bg-white rounded-xl border border-indigo-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all shadow-sm"
+            >
+              <option value="">（デフォルトなし）</option>
+              {Object.entries(shiftTypeConfig).map(([key, value]) => (
+                <option key={key} value={key}>{value.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block mb-2 text-gray-700">デフォルト用曜日</label>
+            <div className="flex gap-1.5">
+              {DAY_OPTIONS.map(({ value, label }) => {
+                const selected = defaultDays.includes(value);
+                const isSat = value === '6';
+                const isSun = value === '0';
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => toggleDay(value)}
+                    className={`flex-1 py-2 rounded-xl text-xs font-bold border-2 transition-all duration-200 hover:scale-105 ${
+                      selected
+                        ? isSat
+                          ? 'bg-blue-500 border-blue-500 text-white'
+                          : isSun
+                          ? 'bg-red-500 border-red-500 text-white'
+                          : 'bg-gradient-to-b from-indigo-500 to-purple-500 border-indigo-500 text-white'
+                        : isSat
+                        ? 'bg-white border-gray-200 text-blue-500'
+                        : isSun
+                        ? 'bg-white border-gray-200 text-red-500'
+                        : 'bg-white border-gray-200 text-gray-600'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
+            <label className="block mb-2 text-gray-700">デフォルト用希望レベル</label>
+            <div className="flex gap-1.5">
+              {[3, 2, 1].map(level => {
+                const cfg = wishLevelConfig[level];
+                const selected = defaultWishLevel === level;
+                return (
+                  <button
+                    key={level}
+                    type="button"
+                    onClick={() => setDefaultWishLevel(selected ? undefined : level)}
+                    className={`flex-1 py-2 rounded-xl text-xs font-bold border-2 transition-all duration-200 hover:scale-105 ${
+                      selected
+                        ? `${cfg.bgColor} ${cfg.textColor} ${cfg.borderColor}`
+                        : 'bg-white border-gray-200 text-gray-400'
+                    }`}
+                  >
+                    <div className="text-sm leading-none">{cfg.badge}</div>
+                    <div className="mt-0.5">{cfg.label}</div>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-xs text-gray-400 mt-1">選択中をもう一度押すと解除</p>
           </div>
 
           <div className="flex gap-3 pt-4">
