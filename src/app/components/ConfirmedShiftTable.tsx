@@ -9,27 +9,23 @@ import { useData } from '../context/DataContext';
 interface ConfirmedShiftTableProps {
   year: number;
   month: number;
-  half: 'first' | 'second';
   employees: Employee[];
   availabilities: Availability[];
   currentUser: Employee | null;
   departmentName?: string;
   onYearChange: (year: number) => void;
   onMonthChange: (month: number) => void;
-  onHalfChange: (half: 'first' | 'second') => void;
 }
 
 export function ConfirmedShiftTable({
   year,
   month,
-  half,
   employees,
   availabilities,
   currentUser,
   departmentName = '',
   onYearChange,
   onMonthChange,
-  onHalfChange,
 }: ConfirmedShiftTableProps) {
   const { getDailyNotesForMonth, saveDailyNote, getMonthlyProcedure, saveMonthlyProcedure, getShiftCondition } = useData();
   const [downloading, setDownloading] = useState(false);
@@ -116,12 +112,9 @@ export function ConfirmedShiftTable({
 
   // 表示する日付範囲を取得（画面表示用）
   const getDisplayDays = () => {
-    const startDay = half === 'first' ? 1 : 16;
     const daysInMonth = getDaysInMonth(new Date(year, month - 1));
-    const endDay = half === 'first' ? 15 : daysInMonth;
-
     const days: Date[] = [];
-    for (let day = startDay; day <= endDay; day++) {
+    for (let day = 1; day <= daysInMonth; day++) {
       days.push(new Date(year, month - 1, day));
     }
     return days;
@@ -444,14 +437,6 @@ export function ConfirmedShiftTable({
                   {m}月
                 </option>
               ))}
-            </select>
-            <select
-              value={half}
-              onChange={(e) => onHalfChange(e.target.value as 'first' | 'second')}
-              className="px-2.5 py-1.5 text-sm rounded-lg border border-emerald-200 bg-white text-gray-700 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 hover:border-emerald-300 transition-colors"
-            >
-              <option value="first">前半（1-15日）</option>
-              <option value="second">後半（16-{getDaysInMonth(new Date(year, month - 1))}日）</option>
             </select>
           </div>
         </div>

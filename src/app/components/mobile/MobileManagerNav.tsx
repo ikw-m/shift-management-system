@@ -17,7 +17,7 @@ export function MobileManagerNav({ currentUser, departmentName, onNavigate, onLo
           <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent font-bold">
             シフト管理システム
           </span>
-          <span className="text-gray-500" style={{ fontSize: '0.7em' }}>Ver. 5.0</span>
+          <span className="text-gray-500" style={{ fontSize: '0.7em' }}>Ver. 6.0</span>
         </div>
         <div className="flex items-center justify-between px-4 h-12">
           <div className="flex items-center gap-2">
@@ -62,7 +62,7 @@ export function MobileManagerNav({ currentUser, departmentName, onNavigate, onLo
             <CalendarDays className="w-6 h-6 text-white" />
           </div>
           <div className="text-left">
-            <p className="font-bold text-gray-800">シフト管理入力</p>
+            <p className="font-bold text-gray-800">シフト入力</p>
             <p className="text-xs text-gray-500 mt-0.5">シフト入力・承認・確認</p>
           </div>
         </button>

@@ -48,10 +48,6 @@ export function AppContent() {
   const now = new Date();
   const [selectedYear, setSelectedYear] = useState(getYear(now));
   const [selectedMonth, setSelectedMonth] = useState(getMonth(now) + 1);
-  const [selectedHalf, setSelectedHalf] = useState<'first' | 'second'>('first');
-  const [confirmedYear, setConfirmedYear] = useState(getYear(now));
-  const [confirmedMonth, setConfirmedMonth] = useState(getMonth(now) + 1);
-  const [confirmedHalf, setConfirmedHalf] = useState<'first' | 'second'>('first');
   const [shiftDialogOpen, setShiftDialogOpen] = useState(false);
   const [shiftDialogMode, setShiftDialogMode] = useState<'add' | 'manage'>('add');
   const [autoEditId, setAutoEditId] = useState<string | undefined>(undefined);
@@ -66,7 +62,10 @@ export function AppContent() {
   // ログインユーザーが変更されたときに画面をリセット
   useEffect(() => {
     if (currentUser) {
+      const today = new Date();
       setViewMode('calendar');
+      setSelectedYear(getYear(today));
+      setSelectedMonth(getMonth(today) + 1);
     }
   }, [currentUser?.id]);
 
@@ -440,7 +439,7 @@ export function AppContent() {
           <div className="flex items-center justify-between mb-4 h-[44px]">
             <div className="flex items-baseline gap-2">
               <h1 className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">シフト管理システム</h1>
-              <span className="text-xs text-gray-500">Ver. 5.0</span>
+              <span className="text-xs text-gray-500">Ver. 6.0</span>
               {departmentName && (
                 <span className="text-sm font-bold text-indigo-700 ml-2">｜ {departmentName}</span>
               )}
@@ -485,7 +484,7 @@ export function AppContent() {
                       : 'text-gray-600 hover:bg-gray-50'
                   }`}
                 >
-                  シフト管理入力
+                  シフト入力
                 </button>
                 <button
                   onClick={() => setViewMode('confirmed')}
@@ -541,13 +540,11 @@ export function AppContent() {
             ref={shiftCalendarRef}
             year={selectedYear}
             month={selectedMonth}
-            half={selectedHalf}
             employees={processedEmployees}
             availabilities={processedAvailabilities}
             currentUser={currentUserWithManager}
             onYearChange={setSelectedYear}
             onMonthChange={setSelectedMonth}
-            onHalfChange={setSelectedHalf}
             onCellClick={handleCellClick}
             onAddClick={handleAddClick}
             onEditClick={handleEditShift}
@@ -558,16 +555,14 @@ export function AppContent() {
           />
         ) : viewMode === 'confirmed' ? (
           <ConfirmedShiftTable
-            year={confirmedYear}
-            month={confirmedMonth}
-            half={confirmedHalf}
+            year={selectedYear}
+            month={selectedMonth}
             employees={processedEmployees}
             availabilities={processedAvailabilities.filter((a) => a.status === 'approved')}
             currentUser={currentUser}
             departmentName={departmentName}
-            onYearChange={setConfirmedYear}
-            onMonthChange={setConfirmedMonth}
-            onHalfChange={setConfirmedHalf}
+            onYearChange={setSelectedYear}
+            onMonthChange={setSelectedMonth}
           />
         ) : viewMode === 'shiftCondition' ? (
           <ShiftConditionSettings departmentId={currentUser?.departmentId} />

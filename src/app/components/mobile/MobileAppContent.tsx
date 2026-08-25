@@ -105,7 +105,7 @@ export function MobileAppContent({
           <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent font-bold">
             シフト管理システム
           </span>
-          <span className="text-gray-500" style={{ fontSize: '0.7em' }}>Ver. 5.0</span>
+          <span className="text-gray-500" style={{ fontSize: '0.7em' }}>Ver. 6.0</span>
           {departmentName && (
             <span className="text-xs font-bold text-indigo-700 ml-1">｜ {departmentName}</span>
           )}
@@ -115,7 +115,7 @@ export function MobileAppContent({
             <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: currentUser.color }} />
             <span className="font-semibold text-gray-800 text-sm">{currentUser.name}</span>
             <span className="text-xs font-bold bg-gradient-to-r from-indigo-500 to-purple-500 text-white px-2 py-0.5 rounded-full tracking-wide">
-              シフト管理入力
+              シフト入力
             </span>
           </div>
           <button

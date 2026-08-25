@@ -577,7 +577,24 @@ export function DataProvider({ children }: { children: ReactNode }) {
 export function useData() {
   const context = useContext(DataContext);
   if (context === undefined) {
-    throw new Error('useData must be used within a DataProvider');
+    return {
+      departments: [], employees: [], availabilities: [], loading: false,
+      reloadData: async () => {},
+      addDepartment: async () => '',
+      updateDepartment: async () => {}, deleteDepartment: async () => {},
+      reorderDepartments: async () => {}, reorderEmployees: async () => {},
+      addEmployee: async () => {}, updateEmployee: async () => {},
+      updateEmployeeOrder: async () => {}, deleteEmployee: async () => {},
+      addAvailability: async () => {}, updateAvailability: async () => {},
+      deleteAvailability: async () => {}, approveAvailability: async () => {},
+      rejectAvailability: async () => {},
+      getDailyNotesForMonth: async () => ({}),
+      saveDailyNote: async () => {},
+      getMonthlyProcedure: async () => '',
+      saveMonthlyProcedure: async () => {},
+      getShiftCondition: async () => null,
+      saveShiftCondition: async () => {},
+    } as DataContextType;
   }
   return context;
 }

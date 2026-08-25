@@ -8,13 +8,11 @@ import { useData } from '../context/DataContext';
 interface ShiftCalendarProps {
   year: number;
   month: number;
-  half: 'first' | 'second';
   employees: Employee[];
   availabilities: Availability[];
   currentUser: Employee;
   onYearChange: (year: number) => void;
   onMonthChange: (month: number) => void;
-  onHalfChange: (half: 'first' | 'second') => void;
   onCellClick: (employeeId: string, date: Date) => void;
   onAddClick: (employeeId: string, date: Date) => void;
   onEditClick: (employeeId: string, date: Date, availabilityId: string) => void;
@@ -32,13 +30,11 @@ export interface ShiftCalendarRef {
 export const ShiftCalendar = forwardRef<ShiftCalendarRef, ShiftCalendarProps>(({
   year,
   month,
-  half,
   employees,
   availabilities,
   currentUser,
   onYearChange,
   onMonthChange,
-  onHalfChange,
   onCellClick,
   onAddClick,
   onEditClick,
@@ -138,12 +134,9 @@ export const ShiftCalendar = forwardRef<ShiftCalendarRef, ShiftCalendarProps>(({
 
   // 表示する日付範囲を取得
   const getDays = () => {
-    const startDay = half === 'first' ? 1 : 16;
     const daysInMonth = getDaysInMonth(new Date(year, month - 1));
-    const endDay = half === 'first' ? 15 : daysInMonth;
-
     const days: Date[] = [];
-    for (let day = startDay; day <= endDay; day++) {
+    for (let day = 1; day <= daysInMonth; day++) {
       days.push(new Date(year, month - 1, day));
     }
     return days;
@@ -155,6 +148,16 @@ export const ShiftCalendar = forwardRef<ShiftCalendarRef, ShiftCalendarProps>(({
     return availabilities.filter(
       (availability) => availability.employeeId === employeeId && isSameDay(availability.date, date)
     );
+  };
+
+  const getApprovedCountForDate = (date: Date): number => {
+    const seen = new Set<string>();
+    availabilities.forEach((a) => {
+      if (a.status === 'approved' && isSameDay(a.date, date)) {
+        seen.add(a.employeeId);
+      }
+    });
+    return seen.size;
   };
 
   // 年の選択肢を生成（現在年の前後5年）
@@ -325,7 +328,7 @@ export const ShiftCalendar = forwardRef<ShiftCalendarRef, ShiftCalendarProps>(({
             <div className="p-1.5 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-lg shadow-lg">
               <Calendar className="w-4 h-4 text-white" />
             </div>
-            シフト管理入力
+            シフト入力
           </h2>
           {/* 凡例 */}
           <div className="flex gap-2">
@@ -379,14 +382,6 @@ export const ShiftCalendar = forwardRef<ShiftCalendarRef, ShiftCalendarProps>(({
               </option>
             ))}
           </select>
-          <select
-            value={half}
-            onChange={(e) => onHalfChange(e.target.value as 'first' | 'second')}
-            className="px-2.5 py-1.5 text-sm rounded-lg border border-indigo-200 bg-white text-gray-700 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 hover:border-indigo-300 transition-colors"
-          >
-            <option value="first">前半（1-15日）</option>
-            <option value="second">後半（16-{getDaysInMonth(new Date(year, month - 1))}日）</option>
-          </select>
         </div>
       </div>
 
@@ -409,6 +404,7 @@ export const ShiftCalendar = forwardRef<ShiftCalendarRef, ShiftCalendarProps>(({
                 const isSaleDayFlag = isSaleDay(day);
                 const isSpecialDay = isSundayDay || isHolidayDay;
                 const requiredStaff = getRequiredStaffCount(day);
+                const approvedCount = getApprovedCountForDate(day);
                 const headerBg = isSaleDayFlag ? 'bg-[#FFFF66]' : isSpecialDay ? 'bg-red-100' : isSaturdayDay ? 'bg-blue-50' : 'bg-indigo-100';
                 const headerText = isSpecialDay ? 'text-red-600' : isSaturdayDay ? 'text-blue-500' : 'text-gray-800';
                 const subText = isSpecialDay ? 'text-red-500' : isSaturdayDay ? 'text-blue-400' : 'text-indigo-600';
@@ -419,10 +415,10 @@ export const ShiftCalendar = forwardRef<ShiftCalendarRef, ShiftCalendarProps>(({
                   >
                     <div className="text-center">
                       <div className={`font-semibold text-sm ${headerText}`}>
-                        {format(day, 'M/d', { locale: ja })}({format(day, 'E', { locale: ja })})
+                        {day.getDate()}日({format(day, 'E', { locale: ja })})
                       </div>
                       <div className={`text-xs ${subText}`}>
-                        要員数【{requiredStaff}人】
+                        【{approvedCount}/{requiredStaff}】
                       </div>
                     </div>
                   </th>
