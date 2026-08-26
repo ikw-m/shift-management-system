@@ -1,7 +1,7 @@
 import { useRef, forwardRef, useImperativeHandle, useState, useEffect } from 'react';
 import { format, isSameDay, getDaysInMonth } from 'date-fns';
 import { ja } from 'date-fns/locale';
-import { Calendar, Check, X, Edit, Trash2, Clock, CheckCheck, XCircle, Zap } from 'lucide-react';
+import { Calendar, Check, X, Edit, Trash2, Clock, CheckCheck, XCircle, Zap, Leaf } from 'lucide-react';
 import { Employee, Availability, shiftTypeConfig, wishLevelConfig, ShiftCondition } from '../types';
 import { useData } from '../context/DataContext';
 
@@ -153,7 +153,7 @@ export const ShiftCalendar = forwardRef<ShiftCalendarRef, ShiftCalendarProps>(({
   const getApprovedCountForDate = (date: Date): number => {
     const seen = new Set<string>();
     availabilities.forEach((a) => {
-      if (a.status === 'approved' && isSameDay(a.date, date)) {
+      if (a.status === 'approved' && !a.isPaidLeave && isSameDay(a.date, date)) {
         seen.add(a.employeeId);
       }
     });
@@ -338,6 +338,10 @@ export const ShiftCalendar = forwardRef<ShiftCalendarRef, ShiftCalendarProps>(({
             <div className="flex items-center gap-1 px-2 py-1 rounded-lg border" style={{ backgroundColor: shiftTypeConfig.cafe.bgColor, borderColor: shiftTypeConfig.cafe.borderColor }}>
               <span className="text-[10px] font-medium" style={{ color: shiftTypeConfig.cafe.color }}>◆ {shiftTypeConfig.cafe.label}</span>
             </div>
+            <div className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-pink-100 text-pink-700 border border-pink-300">
+              <Leaf className="w-2.5 h-2.5 flex-shrink-0" />
+              <span className="text-[10px] font-bold">有休</span>
+            </div>
             <div className="h-4 w-px bg-gray-300 my-auto"></div>
             <div className="flex items-center gap-1 px-2 py-1 rounded-lg border border-blue-300 bg-blue-50">
               <span className="text-[10px] font-medium text-blue-500">土曜（青）</span>
@@ -414,11 +418,11 @@ export const ShiftCalendar = forwardRef<ShiftCalendarRef, ShiftCalendarProps>(({
                     className={`p-2.5 border border-indigo-100 sticky top-0 z-10 shift-calendar-fixed-row-top shift-calendar-fixed-row-bottom ${headerBg}`}
                   >
                     <div className="text-center">
-                      <div className={`font-semibold text-sm ${headerText}`}>
+                      <div className={`font-semibold text-base ${headerText}`}>
                         {day.getDate()}日({format(day, 'E', { locale: ja })})
                       </div>
-                      <div className={`text-xs ${subText}`}>
-                        【{approvedCount}/{requiredStaff}】
+                      <div className={`text-sm ${subText}`}>
+                        【{approvedCount}/{requiredStaff}人】
                       </div>
                     </div>
                   </th>
@@ -531,15 +535,22 @@ export const ShiftCalendar = forwardRef<ShiftCalendarRef, ShiftCalendarProps>(({
                                 <span className="text-[10px] font-medium whitespace-nowrap">
                                   {shiftTypeSymbol} {availability.startTime}-{availability.endTime}
                                 </span>
-                                {(() => {
-                                  const level = availability.wishLevel ?? 2;
-                                  const cfg = wishLevelConfig[level];
-                                  return (
-                                    <span className={`text-[9px] font-bold px-1 rounded ${cfg.bgColor} ${cfg.textColor}`}>
-                                      {cfg.badge}
+                                <span className="flex items-center gap-0.5 flex-shrink-0">
+                                  {(() => {
+                                    const level = availability.wishLevel ?? 2;
+                                    const cfg = wishLevelConfig[level];
+                                    return (
+                                      <span className={`text-[9px] font-bold px-1 rounded ${cfg.bgColor} ${cfg.textColor}`}>
+                                        {cfg.badge}
+                                      </span>
+                                    );
+                                  })()}
+                                  {availability.isPaidLeave && (
+                                    <span className="text-[9px] font-bold px-1 rounded bg-pink-100 text-pink-700 border border-pink-300 whitespace-nowrap">
+                                      有休
                                     </span>
-                                  );
-                                })()}
+                                  )}
+                                </span>
                               </div>
                               {/* 2行目：アクションボタン */}
                               <div className="flex gap-0.5 justify-end">

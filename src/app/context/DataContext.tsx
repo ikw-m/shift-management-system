@@ -56,6 +56,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             status: a.status,
             shiftType: a.shift_type || 'karintou',
             wishLevel: a.wish_level ?? 2,
+            isPaidLeave: a.is_paid_leave ?? false,
             submittedAt: a.submitted_at,
             reviewedAt: a.reviewed_at,
             reviewedBy: a.reviewed_by
@@ -123,6 +124,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         status: a.status,
         shiftType: a.shift_type || 'karintou',
         wishLevel: a.wish_level ?? 2,
+        isPaidLeave: a.is_paid_leave ?? false,
         submittedAt: a.submitted_at,
         reviewedAt: a.reviewed_at,
         reviewedBy: a.reviewed_by
@@ -317,6 +319,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         end_time: availability.endTime,
         shift_type: availability.shiftType || 'karintou',
         wish_level: availability.wishLevel ?? 2,
+        is_paid_leave: availability.isPaidLeave ?? false,
         status: 'pending' as const,
         submitted_at: new Date().toISOString(),
       };
@@ -337,6 +340,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           endTime: data.end_time,
           shiftType: data.shift_type || 'karintou',
           wishLevel: data.wish_level ?? 2,
+          isPaidLeave: data.is_paid_leave ?? false,
           status: data.status,
           submittedAt: data.submitted_at,
           reviewedAt: data.reviewed_at,
@@ -357,6 +361,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         end_time: availability.endTime,
         shift_type: availability.shiftType || 'karintou',
         wish_level: availability.wishLevel ?? 2,
+        is_paid_leave: availability.isPaidLeave ?? false,
       };
 
       const { error } = await supabase

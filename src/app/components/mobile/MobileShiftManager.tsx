@@ -3,9 +3,10 @@ import { format, getDaysInMonth, isSunday, isSaturday } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import {
   ChevronLeft, ChevronRight, ChevronDown, ChevronUp,
-  Check, XCircle, Edit, Save, X, Trash2, Clock, CheckCircle, Plus
+  Check, XCircle, Edit, Save, X, Trash2, Clock, CheckCircle, Plus, Leaf
 } from 'lucide-react';
 import { Employee, Availability, ShiftCondition, shiftTypeConfig, wishLevelConfig } from '../../types';
+import { TimeSelect } from '../TimeSelect';
 import { useData } from '../../context/DataContext';
 
 interface MobileShiftManagerProps {
@@ -13,7 +14,7 @@ interface MobileShiftManagerProps {
   employees: Employee[];
   availabilities: Availability[];
   onAddAvailability: (a: Omit<Availability, 'id' | 'status'>) => void;
-  onEditAvailability: (id: string, startTime: string, endTime: string, shiftType: 'karintou' | 'cafe', wishLevel: number) => void;
+  onEditAvailability: (id: string, startTime: string, endTime: string, shiftType: 'karintou' | 'cafe', wishLevel: number, isPaidLeave?: boolean) => void;
   onRemoveAvailability: (id: string) => void;
   onApprove: (id: string) => void;
   onReject: (id: string) => void;
@@ -39,10 +40,12 @@ export function MobileShiftManager({
   const [editEndTime, setEditEndTime] = useState('');
   const [editShiftType, setEditShiftType] = useState<'karintou' | 'cafe'>('karintou');
   const [editWishLevel, setEditWishLevel] = useState(2);
+  const [editIsPaidLeave, setEditIsPaidLeave] = useState(false);
   const [newStartTime, setNewStartTime] = useState('08:00');
   const [newEndTime, setNewEndTime] = useState('17:00');
   const [newShiftType, setNewShiftType] = useState<'karintou' | 'cafe'>('karintou');
   const [newWishLevel, setNewWishLevel] = useState(2);
+  const [newIsPaidLeave, setNewIsPaidLeave] = useState(false);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>(currentUser.id);
   const [shiftCondition, setShiftCondition] = useState<ShiftCondition | null>(null);
 
@@ -57,7 +60,6 @@ export function MobileShiftManager({
     getShiftCondition(year, currentUser.departmentId).then(setShiftCondition);
   }, [year, getShiftCondition]);
 
-  // 展開時：該当日カードをスクロールコンテナの先頭に表示
   useEffect(() => {
     if (expandedDay === null) return;
     const container = listContainerRef.current;
@@ -85,7 +87,6 @@ export function MobileShiftManager({
     else setMonth(m => m + 1);
   };
 
-  // ========== シフト条件ロジック（PC版と同一） ==========
   const getHolidays = (targetYear: number): string[] => {
     if (!shiftCondition || shiftCondition.year !== targetYear) return [];
     const row = shiftCondition.rows.find(r => r.type === 'holiday');
@@ -119,7 +120,6 @@ export function MobileShiftManager({
     return row ? row.requiredStaff : 0;
   };
 
-  // ========== ユーティリティ ==========
   const getShiftsForDate = (date: Date) =>
     availabilities.filter(a => {
       const d = new Date(a.date);
@@ -131,8 +131,9 @@ export function MobileShiftManager({
   const getEmployee = (id: string) =>
     id === currentUser.id ? currentUser : employees.find(e => e.id === id);
 
+  // ①有休申請は承認済みカウントから除外
   const getApprovedCount = (date: Date) =>
-    getShiftsForDate(date).filter(a => a.status === 'approved').length;
+    getShiftsForDate(date).filter(a => a.status === 'approved' && !a.isPaidLeave).length;
 
   const isSaleDay = (date: Date): boolean => {
     if (!shiftCondition || shiftCondition.year !== date.getFullYear()) return false;
@@ -180,14 +181,63 @@ export function MobileShiftManager({
       endTime: newEndTime,
       shiftType: newShiftType,
       wishLevel: newWishLevel,
+      isPaidLeave: newIsPaidLeave,
     });
     setAddingDay(null);
     setNewStartTime(latestCurrentUser.defaultStartTime || '08:00');
     setNewEndTime(latestCurrentUser.defaultEndTime || '17:00');
     setNewShiftType(latestCurrentUser.defaultShiftType || 'karintou');
     setNewWishLevel(latestCurrentUser.defaultWishLevel ?? 2);
+    setNewIsPaidLeave(false);
     setSelectedEmployeeId(currentUser.id);
   };
+
+  // 希望レベル+有休申請 1行レイアウト（PC版デザインのスマホ縮小版）
+  const WishAndLeaveRow = ({
+    wishLevel, onWishLevel,
+    isPaidLeave, onPaidLeave,
+  }: {
+    wishLevel: number;
+    onWishLevel: (l: number) => void;
+    isPaidLeave: boolean;
+    onPaidLeave: () => void;
+  }) => (
+    <div className="flex justify-center">
+      <div className="flex items-stretch gap-2">
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-gray-500">希望レベル</label>
+          <div className="flex gap-1">
+            {[3, 2, 1].map(level => {
+              const cfg = wishLevelConfig[level];
+              const isSelected = wishLevel === level;
+              return (
+                <button key={level} type="button" onClick={() => onWishLevel(level)}
+                  className={`w-[62px] flex-shrink-0 py-1.5 rounded-lg text-xs font-bold border-2 transition-all active:scale-95 ${
+                    isSelected ? `${cfg.bgColor} ${cfg.textColor} ${cfg.borderColor}` : 'bg-white text-gray-400 border-gray-200'
+                  }`}>
+                  <div className="text-sm leading-none">{cfg.badge}</div>
+                  <div className="text-[10px]">{cfg.label}</div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        <div className="w-px bg-gray-200 flex-shrink-0" />
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-gray-500">有休申請</label>
+          <button type="button" onClick={onPaidLeave}
+            className={`flex-1 flex items-center justify-center gap-1 px-2 rounded-lg border-2 text-xs font-bold transition-all active:scale-95 ${
+              isPaidLeave
+                ? 'bg-pink-500 text-white border-pink-500 shadow-sm'
+                : 'border-dashed border-red-400 text-red-400 bg-white'
+            }`}>
+            <Leaf className="w-3 h-3 flex-shrink-0" />
+            <span className="whitespace-nowrap">有休</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 
   const daysInMonth = getDaysInMonth(new Date(year, month - 1));
 
@@ -207,7 +257,6 @@ export function MobileShiftManager({
       {/* 凡例（横スクロール） */}
       <div className="overflow-x-auto bg-white border-b border-gray-100 flex-shrink-0 scrollbar-hide">
         <div className="flex items-center gap-2 px-4 py-2 w-max">
-          {/* セクション：シフト種別 */}
           <span className="text-xs text-gray-400 whitespace-nowrap">種別</span>
           <span className="text-xs px-2 py-0.5 rounded font-semibold text-white whitespace-nowrap"
             style={{ backgroundColor: shiftTypeConfig.karintou.color }}>
@@ -220,14 +269,12 @@ export function MobileShiftManager({
 
           <span className="text-gray-200 text-sm">｜</span>
 
-          {/* セクション：日付背景 */}
           <span className="text-xs text-gray-400 whitespace-nowrap">日付</span>
           <span className="text-xs px-2 py-0.5 rounded bg-red-100 text-red-700 font-semibold whitespace-nowrap">休日</span>
           <span className="text-xs px-2 py-0.5 rounded bg-green-100 text-green-700 font-semibold whitespace-nowrap">セール</span>
 
           <span className="text-gray-200 text-sm">｜</span>
 
-          {/* セクション：希望レベル */}
           <span className="text-xs text-gray-400 whitespace-nowrap">希望</span>
           {[3, 2, 1].map(level => {
             const cfg = wishLevelConfig[level];
@@ -240,7 +287,6 @@ export function MobileShiftManager({
 
           <span className="text-gray-200 text-sm">｜</span>
 
-          {/* セクション：自分シフトの承認状態 */}
           <span className="text-xs text-gray-400 whitespace-nowrap">状態</span>
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold text-white whitespace-nowrap"
             style={{ backgroundColor: shiftTypeConfig.karintou.color }}>
@@ -256,7 +302,6 @@ export function MobileShiftManager({
 
           <span className="text-gray-200 text-sm">｜</span>
 
-          {/* セクション：アクションボタン */}
           <span className="text-xs text-gray-400 whitespace-nowrap">操作</span>
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-semibold bg-blue-100 text-blue-600 whitespace-nowrap">
             <Edit className="w-3 h-3" /> 編集
@@ -301,7 +346,6 @@ export function MobileShiftManager({
                 }}
                 className={`w-full flex flex-col px-4 py-3 ${getDayHeaderBgClass(date)} active:opacity-80`}
               >
-                {/* 1段目：日付・達成バッジ・承認待ち件数・ドット・矢印 */}
                 <div className="flex items-center justify-between w-full">
                   <div className="flex items-center gap-2">
                     <span className={`font-bold text-base ${getDayTextClass(date)}`}>
@@ -336,7 +380,7 @@ export function MobileShiftManager({
                   </div>
                 </div>
 
-                {/* 2段目：自分のシフトバッジ */}
+                {/* 自分のシフトバッジ */}
                 {myShifts.length > 0 && (
                   <div className="flex gap-1.5 flex-wrap mt-1.5">
                     {myShifts.map(a => {
@@ -344,32 +388,44 @@ export function MobileShiftManager({
                       const icon = a.shiftType === 'karintou' ? '◉' : '◆';
                       if (a.status === 'approved') {
                         return (
-                          <span
-                            key={a.id}
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold text-white"
-                            style={{ backgroundColor: cfg.color }}
-                          >
-                            {icon} {a.startTime}〜{a.endTime} ✓
+                          <span key={a.id} className="inline-flex items-center gap-1 flex-wrap">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold text-white"
+                              style={{ backgroundColor: cfg.color }}>
+                              {icon} {a.startTime}〜{a.endTime} ✓
+                            </span>
+                            {a.isPaidLeave && (
+                              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-pink-100 text-pink-700 border border-pink-300">
+                                <Leaf className="w-2.5 h-2.5 flex-shrink-0" />有休
+                              </span>
+                            )}
                           </span>
                         );
                       }
                       if (a.status === 'pending') {
                         return (
-                          <span
-                            key={a.id}
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold border-2 bg-white"
-                            style={{ borderColor: cfg.color, color: cfg.color }}
-                          >
-                            {icon} {a.startTime}〜{a.endTime} …
+                          <span key={a.id} className="inline-flex items-center gap-1 flex-wrap">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold border-2 bg-white"
+                              style={{ borderColor: cfg.color, color: cfg.color }}>
+                              {icon} {a.startTime}〜{a.endTime} …
+                            </span>
+                            {a.isPaidLeave && (
+                              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-pink-100 text-pink-700 border border-pink-300">
+                                <Leaf className="w-2.5 h-2.5 flex-shrink-0" />有休
+                              </span>
+                            )}
                           </span>
                         );
                       }
                       return (
-                        <span
-                          key={a.id}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold border border-gray-300 bg-white text-gray-400 line-through"
-                        >
-                          {icon} {a.startTime}〜{a.endTime}
+                        <span key={a.id} className="inline-flex items-center gap-1 flex-wrap">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold border border-gray-300 bg-white text-gray-400 line-through">
+                            {icon} {a.startTime}〜{a.endTime}
+                          </span>
+                          {a.isPaidLeave && (
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-pink-100 text-pink-700 border border-pink-300">
+                              <Leaf className="w-2.5 h-2.5 flex-shrink-0" />有休
+                            </span>
+                          )}
                         </span>
                       );
                     })}
@@ -381,15 +437,15 @@ export function MobileShiftManager({
               {isExpanded && (
                 <div className="px-3 pb-3 pt-2 space-y-2">
 
-                  {/* 自分のシフト一覧（先頭に表示） */}
+                  {/* 自分のシフト一覧 */}
                   {myShifts.length > 0 && (
                     <div className="space-y-1.5">
                       <p className="text-xs font-semibold text-indigo-600 px-1">自分のシフト</p>
                       {myShifts.map(a => {
                         const emp = getEmployee(a.employeeId);
                         const canEdit = isManager || (a.status === 'pending' && a.employeeId === currentUser.id);
-                        const canDelete = a.employeeId === currentUser.id &&
-                          (isManager || a.status !== 'approved');
+                        // ⑤isManager特権削除：本人かつ承認済み以外のみ削除可
+                        const canDelete = a.employeeId === currentUser.id && a.status !== 'approved';
                         const isEditing = editingId === a.id;
                         return (
                           <div key={a.id} className="rounded-xl border overflow-hidden">
@@ -401,7 +457,6 @@ export function MobileShiftManager({
                             <div className={`px-3 py-2 ${statusConfig[a.status].cls}`}>
                               {isEditing ? (
                                 <div className="space-y-2">
-                                  {/* 編集中：従業員名を表示 */}
                                   {emp && (
                                     <div className="flex items-center gap-1.5 px-2 py-1 bg-indigo-50 rounded-lg">
                                       <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: emp.color }} />
@@ -409,78 +464,89 @@ export function MobileShiftManager({
                                       <span className="text-xs text-indigo-400">を編集中</span>
                                     </div>
                                   )}
-                                  <div className="flex gap-2 items-center">
-                                    <input type="time" value={editStartTime} onChange={e => setEditStartTime(e.target.value)} className="flex-1 px-2 py-1.5 border border-indigo-200 rounded-lg text-sm bg-white" />
-                                    <span className="text-gray-400 text-xs">〜</span>
-                                    <input type="time" value={editEndTime} onChange={e => setEditEndTime(e.target.value)} className="flex-1 px-2 py-1.5 border border-indigo-200 rounded-lg text-sm bg-white" />
+                                  <div>
+                                    <div className="flex items-center gap-2 justify-center">
+                                      <div className="flex flex-col items-start gap-0.5">
+                                        <label className="block text-xs text-gray-500 mb-1">勤務開始時間</label>
+                                        <TimeSelect value={editStartTime} onChange={setEditStartTime} className="w-32 text-base" />
+                                      </div>
+                                      <span className="text-gray-400 mt-4">〜</span>
+                                      <div className="flex flex-col items-start gap-0.5">
+                                        <label className="block text-xs text-gray-500 mb-1">勤務終了時間</label>
+                                        <TimeSelect value={editEndTime} onChange={setEditEndTime} className="w-32 text-base" />
+                                      </div>
+                                    </div>
                                   </div>
-                                  <div className="flex gap-1.5">
-                                    {Object.entries(shiftTypeConfig).map(([key, val]) => (
-                                      <button key={key} type="button" onClick={() => setEditShiftType(key as 'karintou' | 'cafe')}
-                                        className={`flex-1 py-1.5 rounded-lg text-xs font-bold border-2 transition-all active:scale-95 ${editShiftType === key ? 'border-transparent text-white' : 'border-gray-200 text-gray-600 bg-white'}`}
-                                        style={editShiftType === key ? { backgroundColor: val.color } : {}}>
-                                        {key === 'karintou' ? '◉' : '◆'} {val.label}
-                                      </button>
-                                    ))}
-                                  </div>
-                                  <div className="flex gap-1.5">
-                                    {[3, 2, 1].map(level => {
-                                      const cfg = wishLevelConfig[level];
-                                      return (
-                                        <button key={level} type="button" onClick={() => setEditWishLevel(level)}
-                                          className={`flex-1 py-1.5 rounded-lg text-xs font-bold border-2 transition-all active:scale-95 ${editWishLevel === level ? `${cfg.bgColor} ${cfg.textColor} ${cfg.borderColor}` : 'bg-white text-gray-400 border-gray-200'}`}>
-                                          <div className="text-sm leading-none">{cfg.badge}</div>
-                                          <div className="text-[10px]">{cfg.label}</div>
+                                  <div>
+                                    <label className="block text-xs text-gray-500 mb-1">シフトタイプ</label>
+                                    <div className="flex gap-2">
+                                      {Object.entries(shiftTypeConfig).map(([key, val]) => (
+                                        <button key={key} type="button" onClick={() => setEditShiftType(key as 'karintou' | 'cafe')}
+                                          className={`flex-1 py-2.5 rounded-xl text-sm font-bold border-2 transition-all active:scale-95 ${editShiftType === key ? 'border-transparent text-white' : 'border-gray-200 text-gray-600 bg-white'}`}
+                                          style={editShiftType === key ? { backgroundColor: val.color } : {}}>
+                                          {key === 'karintou' ? '◉' : '◆'} {val.label}
                                         </button>
-                                      );
-                                    })}
+                                      ))}
+                                    </div>
                                   </div>
+                                  {/* ⑧希望レベル＋有休申請 1行配置 */}
+                                  <WishAndLeaveRow
+                                    wishLevel={editWishLevel}
+                                    onWishLevel={setEditWishLevel}
+                                    isPaidLeave={editIsPaidLeave}
+                                    onPaidLeave={() => setEditIsPaidLeave(v => !v)}
+                                  />
                                   <div className="flex gap-2">
-                                    <button onClick={() => { onEditAvailability(a.id, editStartTime, editEndTime, editShiftType, editWishLevel); setEditingId(null); }}
-                                      className="flex-1 py-1.5 bg-emerald-600 text-white rounded-lg text-xs flex items-center justify-center gap-1 active:scale-95">
+                                    <button onClick={() => { onEditAvailability(a.id, editStartTime, editEndTime, editShiftType, editWishLevel, editIsPaidLeave); setEditingId(null); }}
+                                      className="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl text-sm flex items-center justify-center gap-1 active:scale-95">
                                       <Save className="w-3 h-3" /> 保存
                                     </button>
-                                    <button onClick={() => setEditingId(null)} className="flex-1 py-1.5 bg-gray-500 text-white rounded-lg text-xs active:scale-95">キャンセル</button>
+                                    <button onClick={() => setEditingId(null)} className="flex-1 py-2.5 bg-gray-200 text-gray-700 rounded-xl text-sm active:scale-95">キャンセル</button>
                                   </div>
                                 </div>
                               ) : (
                                 <div className="space-y-1">
-                                  {/* 上段：氏名 */}
                                   {emp && (
                                     <div className="flex items-center gap-1">
                                       <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: emp.color }} />
                                       <span className="text-xs font-semibold text-gray-700">{emp.name}</span>
                                     </div>
                                   )}
-                                  {/* 下段：時間・ステータス・希望レベル・アクション */}
-                                  <div className="flex items-center justify-between gap-1">
-                                    <div className="flex items-center gap-1.5 flex-wrap min-w-0">
-                                      <span className="text-sm font-medium whitespace-nowrap">{a.startTime}〜{a.endTime}</span>
-                                      <span className="text-xs whitespace-nowrap">{statusConfig[a.status].label}</span>
-                                      {(() => {
-                                        const wcfg = wishLevelConfig[a.wishLevel ?? 2];
-                                        return <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full border whitespace-nowrap ${wcfg.bgColor} ${wcfg.textColor} ${wcfg.borderColor}`}>{wcfg.badge}</span>;
-                                      })()}
+                                  {/* 1行目：時間・承認状態・希望レベル・有休バッジ */}
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className="text-sm font-medium whitespace-nowrap">{a.startTime}〜{a.endTime}</span>
+                                    <span className="text-xs whitespace-nowrap">{statusConfig[a.status].label}</span>
+                                    {(() => {
+                                      const wcfg = wishLevelConfig[a.wishLevel ?? 2];
+                                      return <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full border whitespace-nowrap ${wcfg.bgColor} ${wcfg.textColor} ${wcfg.borderColor}`}>{wcfg.badge}</span>;
+                                    })()}
+                                    {a.isPaidLeave && (
+                                      <span className="inline-flex items-center gap-0.5 text-xs font-bold px-1.5 py-0.5 rounded-md border bg-pink-100 text-pink-700 border-pink-300 whitespace-nowrap">
+                                        <Leaf className="w-3 h-3 flex-shrink-0" />有休
+                                      </span>
+                                    )}
+                                  </div>
+                                  {/* 2行目：操作ボタン */}
+                                  {(isManager || canEdit || canDelete) && (
+                                    <div className="flex justify-end gap-1">
+                                      {isManager && a.status === 'pending' && (
+                                        <>
+                                          <button onClick={() => onApprove(a.id)} className="p-1.5 bg-green-600 rounded-lg active:scale-95" title="承認"><Check className="w-3.5 h-3.5 text-white" /></button>
+                                          <button onClick={() => onReject(a.id)} className="p-1.5 bg-red-600 rounded-lg active:scale-95" title="却下"><XCircle className="w-3.5 h-3.5 text-white" /></button>
+                                        </>
+                                      )}
+                                      {isManager && a.status === 'approved' && (
+                                        <button onClick={() => onReject(a.id)} className="p-1.5 bg-red-100 rounded-lg active:scale-95" title="却下に変更"><XCircle className="w-3.5 h-3.5 text-red-600" /></button>
+                                      )}
+                                      {canEdit && (
+                                        <button onClick={() => { setEditingId(a.id); setEditStartTime(a.startTime); setEditEndTime(a.endTime); setEditShiftType(a.shiftType); setEditWishLevel(a.wishLevel ?? 2); setEditIsPaidLeave(a.isPaidLeave ?? false); }}
+                                          className="p-1.5 bg-blue-100 rounded-lg active:scale-95" title="編集"><Edit className="w-3.5 h-3.5 text-blue-600" /></button>
+                                      )}
+                                      {canDelete && (
+                                        <button onClick={() => onRemoveAvailability(a.id)} className="p-1.5 bg-red-100 rounded-lg active:scale-95" title="削除"><Trash2 className="w-3.5 h-3.5 text-red-600" /></button>
+                                      )}
                                     </div>
-                                    <div className="flex gap-1 flex-shrink-0">
-                                    {a.status === 'pending' && isManager && (
-                                      <>
-                                        <button onClick={() => onApprove(a.id)} className="p-1.5 bg-green-600 text-white rounded-lg active:scale-95"><Check className="w-3.5 h-3.5" /></button>
-                                        <button onClick={() => onReject(a.id)} className="p-1.5 bg-red-600 text-white rounded-lg active:scale-95"><XCircle className="w-3.5 h-3.5" /></button>
-                                      </>
-                                    )}
-                                    {a.status === 'approved' && isManager && (
-                                      <button onClick={() => onReject(a.id)} className="p-1.5 bg-red-600 text-white rounded-lg active:scale-95" title="却下に変更"><XCircle className="w-3.5 h-3.5" /></button>
-                                    )}
-                                    {canEdit && (
-                                      <button onClick={() => { setEditingId(a.id); setEditStartTime(a.startTime); setEditEndTime(a.endTime); setEditShiftType(a.shiftType); setEditWishLevel(a.wishLevel ?? 2); }}
-                                        className="p-1.5 bg-blue-100 rounded-lg active:scale-95" title="編集"><Edit className="w-3.5 h-3.5 text-blue-600" /></button>
-                                    )}
-                                    {canDelete && (
-                                      <button onClick={() => onRemoveAvailability(a.id)} className="p-1.5 bg-red-100 rounded-lg active:scale-95" title="削除"><Trash2 className="w-3.5 h-3.5 text-red-600" /></button>
-                                    )}
-                                  </div>
-                                  </div>
+                                  )}
                                 </div>
                               )}
                             </div>
@@ -490,7 +556,7 @@ export function MobileShiftManager({
                     </div>
                   )}
 
-                  {/* シフト追加ボタン/フォーム（自分のシフトの直後） */}
+                  {/* シフト追加ボタン/フォーム */}
                   {isAdding ? (
                     <div className="bg-white rounded-xl border border-indigo-200 p-3 space-y-3">
                       <p className="text-xs font-semibold text-indigo-700">シフトを追加</p>
@@ -522,44 +588,38 @@ export function MobileShiftManager({
                           </select>
                         </div>
                       )}
-                      <div className="flex gap-2 items-center">
-                        <div className="flex-1">
-                          <label className="block text-xs text-gray-500 mb-1">開始</label>
-                          <input type="time" value={newStartTime} onChange={e => setNewStartTime(e.target.value)}
-                            className="w-full px-2 py-2.5 bg-gray-50 border border-indigo-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                      <div>
+                        <div className="flex items-center gap-2 justify-center">
+                          <div className="flex flex-col items-start gap-0.5">
+                            <label className="block text-xs text-gray-500 mb-1">勤務開始時間</label>
+                            <TimeSelect value={newStartTime} onChange={setNewStartTime} className="w-32 text-base" />
+                          </div>
+                          <span className="text-gray-400 mt-4">〜</span>
+                          <div className="flex flex-col items-start gap-0.5">
+                            <label className="block text-xs text-gray-500 mb-1">勤務終了時間</label>
+                            <TimeSelect value={newEndTime} onChange={setNewEndTime} className="w-32 text-base" />
+                          </div>
                         </div>
-                        <span className="text-gray-400 mt-4">〜</span>
-                        <div className="flex-1">
-                          <label className="block text-xs text-gray-500 mb-1">終了</label>
-                          <input type="time" value={newEndTime} onChange={e => setNewEndTime(e.target.value)}
-                            className="w-full px-2 py-2.5 bg-gray-50 border border-indigo-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        {Object.entries(shiftTypeConfig).map(([key, val]) => (
-                          <button key={key} type="button" onClick={() => setNewShiftType(key as 'karintou' | 'cafe')}
-                            className={`flex-1 py-2.5 rounded-xl text-xs font-bold border-2 transition-all active:scale-95 ${newShiftType === key ? 'border-transparent text-white' : 'border-gray-200 text-gray-600 bg-white'}`}
-                            style={newShiftType === key ? { backgroundColor: val.color } : {}}>
-                            {key === 'karintou' ? '◉' : '◆'} {val.label}
-                          </button>
-                        ))}
                       </div>
                       <div>
-                        <label className="block text-xs text-gray-500 mb-1">希望レベル</label>
-                        <div className="flex gap-1.5">
-                          {[3, 2, 1].map(level => {
-                            const cfg = wishLevelConfig[level];
-                            const isSelected = newWishLevel === level;
-                            return (
-                              <button key={level} type="button" onClick={() => setNewWishLevel(level)}
-                                className={`flex-1 py-2 rounded-xl text-xs font-bold border-2 transition-all active:scale-95 ${isSelected ? `${cfg.bgColor} ${cfg.textColor} ${cfg.borderColor}` : 'bg-white text-gray-400 border-gray-200'}`}>
-                                <div className="text-sm leading-none">{cfg.badge}</div>
-                                <div className="text-[10px] mt-0.5">{cfg.label}</div>
-                              </button>
-                            );
-                          })}
+                        <label className="block text-xs text-gray-500 mb-1">シフトタイプ</label>
+                        <div className="flex gap-2">
+                          {Object.entries(shiftTypeConfig).map(([key, val]) => (
+                            <button key={key} type="button" onClick={() => setNewShiftType(key as 'karintou' | 'cafe')}
+                              className={`flex-1 py-2.5 rounded-xl text-sm font-bold border-2 transition-all active:scale-95 ${newShiftType === key ? 'border-transparent text-white' : 'border-gray-200 text-gray-600 bg-white'}`}
+                              style={newShiftType === key ? { backgroundColor: val.color } : {}}>
+                              {key === 'karintou' ? '◉' : '◆'} {val.label}
+                            </button>
+                          ))}
                         </div>
                       </div>
+                      {/* ⑧希望レベル＋有休申請 1行配置 */}
+                      <WishAndLeaveRow
+                        wishLevel={newWishLevel}
+                        onWishLevel={setNewWishLevel}
+                        isPaidLeave={newIsPaidLeave}
+                        onPaidLeave={() => setNewIsPaidLeave(v => !v)}
+                      />
                       <div className="flex gap-2">
                         <button onClick={() => handleAdd(day)}
                           className="flex-1 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl text-sm font-semibold active:scale-95">
@@ -580,6 +640,7 @@ export function MobileShiftManager({
                         setNewEndTime(latestCurrentUser.defaultEndTime || '17:00');
                         setNewShiftType(latestCurrentUser.defaultShiftType || 'karintou');
                         setNewWishLevel(latestCurrentUser.defaultWishLevel ?? 2);
+                        setNewIsPaidLeave(false);
                       }}
                       className="w-full py-2.5 border-2 border-dashed border-indigo-300 rounded-xl text-indigo-600 text-sm font-medium flex items-center justify-center gap-1 active:bg-indigo-50"
                     >
@@ -588,15 +649,15 @@ export function MobileShiftManager({
                     </button>
                   )}
 
-                  {/* 他スタッフのシフト一覧（追加ボタンの下） */}
+                  {/* 他スタッフのシフト一覧 */}
                   {shifts.filter(a => a.employeeId !== currentUser.id).length > 0 && (
                     <div className="space-y-1.5">
                       <p className="text-xs font-semibold text-gray-400 px-1">他のスタッフ</p>
                       {shifts.filter(a => a.employeeId !== currentUser.id).map(a => {
                         const emp = getEmployee(a.employeeId);
                         const canEdit = isManager;
-                        const canDelete = a.employeeId === currentUser.id &&
-                          (isManager || a.status !== 'approved');
+                        // ⑤isManager特権削除
+                        const canDelete = a.employeeId === currentUser.id && a.status !== 'approved';
                         const isEditing = editingId === a.id;
                         return (
                           <div key={a.id} className="rounded-xl border overflow-hidden">
@@ -608,7 +669,6 @@ export function MobileShiftManager({
                             <div className={`px-3 py-2 ${statusConfig[a.status].cls}`}>
                               {isEditing ? (
                                 <div className="space-y-2">
-                                  {/* 編集中：従業員名を表示 */}
                                   {emp && (
                                     <div className="flex items-center gap-1.5 px-2 py-1 bg-indigo-50 rounded-lg">
                                       <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: emp.color }} />
@@ -616,78 +676,89 @@ export function MobileShiftManager({
                                       <span className="text-xs text-indigo-400">を編集中</span>
                                     </div>
                                   )}
-                                  <div className="flex gap-2 items-center">
-                                    <input type="time" value={editStartTime} onChange={e => setEditStartTime(e.target.value)} className="flex-1 px-2 py-1.5 border border-indigo-200 rounded-lg text-sm bg-white" />
-                                    <span className="text-gray-400 text-xs">〜</span>
-                                    <input type="time" value={editEndTime} onChange={e => setEditEndTime(e.target.value)} className="flex-1 px-2 py-1.5 border border-indigo-200 rounded-lg text-sm bg-white" />
+                                  <div>
+                                    <div className="flex items-center gap-2 justify-center">
+                                      <div className="flex flex-col items-start gap-0.5">
+                                        <label className="block text-xs text-gray-500 mb-1">勤務開始時間</label>
+                                        <TimeSelect value={editStartTime} onChange={setEditStartTime} className="w-32 text-base" />
+                                      </div>
+                                      <span className="text-gray-400 mt-4">〜</span>
+                                      <div className="flex flex-col items-start gap-0.5">
+                                        <label className="block text-xs text-gray-500 mb-1">勤務終了時間</label>
+                                        <TimeSelect value={editEndTime} onChange={setEditEndTime} className="w-32 text-base" />
+                                      </div>
+                                    </div>
                                   </div>
-                                  <div className="flex gap-1.5">
-                                    {Object.entries(shiftTypeConfig).map(([key, val]) => (
-                                      <button key={key} type="button" onClick={() => setEditShiftType(key as 'karintou' | 'cafe')}
-                                        className={`flex-1 py-1.5 rounded-lg text-xs font-bold border-2 transition-all active:scale-95 ${editShiftType === key ? 'border-transparent text-white' : 'border-gray-200 text-gray-600 bg-white'}`}
-                                        style={editShiftType === key ? { backgroundColor: val.color } : {}}>
-                                        {key === 'karintou' ? '◉' : '◆'} {val.label}
-                                      </button>
-                                    ))}
-                                  </div>
-                                  <div className="flex gap-1.5">
-                                    {[3, 2, 1].map(level => {
-                                      const cfg = wishLevelConfig[level];
-                                      return (
-                                        <button key={level} type="button" onClick={() => setEditWishLevel(level)}
-                                          className={`flex-1 py-1.5 rounded-lg text-xs font-bold border-2 transition-all active:scale-95 ${editWishLevel === level ? `${cfg.bgColor} ${cfg.textColor} ${cfg.borderColor}` : 'bg-white text-gray-400 border-gray-200'}`}>
-                                          <div className="text-sm leading-none">{cfg.badge}</div>
-                                          <div className="text-[10px]">{cfg.label}</div>
+                                  <div>
+                                    <label className="block text-xs text-gray-500 mb-1">シフトタイプ</label>
+                                    <div className="flex gap-2">
+                                      {Object.entries(shiftTypeConfig).map(([key, val]) => (
+                                        <button key={key} type="button" onClick={() => setEditShiftType(key as 'karintou' | 'cafe')}
+                                          className={`flex-1 py-2.5 rounded-xl text-sm font-bold border-2 transition-all active:scale-95 ${editShiftType === key ? 'border-transparent text-white' : 'border-gray-200 text-gray-600 bg-white'}`}
+                                          style={editShiftType === key ? { backgroundColor: val.color } : {}}>
+                                          {key === 'karintou' ? '◉' : '◆'} {val.label}
                                         </button>
-                                      );
-                                    })}
+                                      ))}
+                                    </div>
                                   </div>
+                                  {/* ⑧希望レベル＋有休申請 1行配置 */}
+                                  <WishAndLeaveRow
+                                    wishLevel={editWishLevel}
+                                    onWishLevel={setEditWishLevel}
+                                    isPaidLeave={editIsPaidLeave}
+                                    onPaidLeave={() => setEditIsPaidLeave(v => !v)}
+                                  />
                                   <div className="flex gap-2">
-                                    <button onClick={() => { onEditAvailability(a.id, editStartTime, editEndTime, editShiftType, editWishLevel); setEditingId(null); }}
-                                      className="flex-1 py-1.5 bg-emerald-600 text-white rounded-lg text-xs flex items-center justify-center gap-1 active:scale-95">
+                                    <button onClick={() => { onEditAvailability(a.id, editStartTime, editEndTime, editShiftType, editWishLevel, editIsPaidLeave); setEditingId(null); }}
+                                      className="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl text-sm flex items-center justify-center gap-1 active:scale-95">
                                       <Save className="w-3 h-3" /> 保存
                                     </button>
-                                    <button onClick={() => setEditingId(null)} className="flex-1 py-1.5 bg-gray-500 text-white rounded-lg text-xs active:scale-95">キャンセル</button>
+                                    <button onClick={() => setEditingId(null)} className="flex-1 py-2.5 bg-gray-200 text-gray-700 rounded-xl text-sm active:scale-95">キャンセル</button>
                                   </div>
                                 </div>
                               ) : (
                                 <div className="space-y-1">
-                                  {/* 上段：氏名 */}
                                   {emp && (
                                     <div className="flex items-center gap-1">
                                       <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: emp.color }} />
                                       <span className="text-xs font-semibold text-gray-700">{emp.name}</span>
                                     </div>
                                   )}
-                                  {/* 下段：時間・ステータス・希望レベル・アクション */}
-                                  <div className="flex items-center justify-between gap-1">
-                                    <div className="flex items-center gap-1.5 flex-wrap min-w-0">
-                                      <span className="text-sm font-medium whitespace-nowrap">{a.startTime}〜{a.endTime}</span>
-                                      <span className="text-xs whitespace-nowrap">{statusConfig[a.status].label}</span>
-                                      {(() => {
-                                        const wcfg = wishLevelConfig[a.wishLevel ?? 2];
-                                        return <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full border whitespace-nowrap ${wcfg.bgColor} ${wcfg.textColor} ${wcfg.borderColor}`}>{wcfg.badge}</span>;
-                                      })()}
+                                  {/* 1行目：時間・承認状態・希望レベル・有休バッジ */}
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className="text-sm font-medium whitespace-nowrap">{a.startTime}〜{a.endTime}</span>
+                                    <span className="text-xs whitespace-nowrap">{statusConfig[a.status].label}</span>
+                                    {(() => {
+                                      const wcfg = wishLevelConfig[a.wishLevel ?? 2];
+                                      return <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full border whitespace-nowrap ${wcfg.bgColor} ${wcfg.textColor} ${wcfg.borderColor}`}>{wcfg.badge}</span>;
+                                    })()}
+                                    {a.isPaidLeave && (
+                                      <span className="inline-flex items-center gap-0.5 text-xs font-bold px-1.5 py-0.5 rounded-md border bg-pink-100 text-pink-700 border-pink-300 whitespace-nowrap">
+                                        <Leaf className="w-3 h-3 flex-shrink-0" />有休
+                                      </span>
+                                    )}
+                                  </div>
+                                  {/* 2行目：操作ボタン */}
+                                  {(isManager || canEdit || canDelete) && (
+                                    <div className="flex justify-end gap-1">
+                                      {isManager && a.status === 'pending' && (
+                                        <>
+                                          <button onClick={() => onApprove(a.id)} className="p-1.5 bg-green-600 rounded-lg active:scale-95" title="承認"><Check className="w-3.5 h-3.5 text-white" /></button>
+                                          <button onClick={() => onReject(a.id)} className="p-1.5 bg-red-600 rounded-lg active:scale-95" title="却下"><XCircle className="w-3.5 h-3.5 text-white" /></button>
+                                        </>
+                                      )}
+                                      {isManager && a.status === 'approved' && (
+                                        <button onClick={() => onReject(a.id)} className="p-1.5 bg-red-100 rounded-lg active:scale-95" title="却下に変更"><XCircle className="w-3.5 h-3.5 text-red-600" /></button>
+                                      )}
+                                      {canEdit && (
+                                        <button onClick={() => { setEditingId(a.id); setEditStartTime(a.startTime); setEditEndTime(a.endTime); setEditShiftType(a.shiftType); setEditWishLevel(a.wishLevel ?? 2); setEditIsPaidLeave(a.isPaidLeave ?? false); }}
+                                          className="p-1.5 bg-blue-100 rounded-lg active:scale-95" title="編集"><Edit className="w-3.5 h-3.5 text-blue-600" /></button>
+                                      )}
+                                      {canDelete && (
+                                        <button onClick={() => onRemoveAvailability(a.id)} className="p-1.5 bg-red-100 rounded-lg active:scale-95" title="削除"><Trash2 className="w-3.5 h-3.5 text-red-600" /></button>
+                                      )}
                                     </div>
-                                    <div className="flex gap-1 flex-shrink-0">
-                                    {a.status === 'pending' && isManager && (
-                                      <>
-                                        <button onClick={() => onApprove(a.id)} className="p-1.5 bg-green-600 text-white rounded-lg active:scale-95"><Check className="w-3.5 h-3.5" /></button>
-                                        <button onClick={() => onReject(a.id)} className="p-1.5 bg-red-600 text-white rounded-lg active:scale-95"><XCircle className="w-3.5 h-3.5" /></button>
-                                      </>
-                                    )}
-                                    {a.status === 'approved' && isManager && (
-                                      <button onClick={() => onReject(a.id)} className="p-1.5 bg-red-600 text-white rounded-lg active:scale-95" title="却下に変更"><XCircle className="w-3.5 h-3.5" /></button>
-                                    )}
-                                    {canEdit && (
-                                      <button onClick={() => { setEditingId(a.id); setEditStartTime(a.startTime); setEditEndTime(a.endTime); setEditShiftType(a.shiftType); setEditWishLevel(a.wishLevel ?? 2); }}
-                                        className="p-1.5 bg-blue-100 rounded-lg active:scale-95" title="編集"><Edit className="w-3.5 h-3.5 text-blue-600" /></button>
-                                    )}
-                                    {canDelete && (
-                                      <button onClick={() => onRemoveAvailability(a.id)} className="p-1.5 bg-red-100 rounded-lg active:scale-95" title="削除"><Trash2 className="w-3.5 h-3.5 text-red-600" /></button>
-                                    )}
-                                  </div>
-                                  </div>
+                                  )}
                                 </div>
                               )}
                             </div>
@@ -697,7 +768,6 @@ export function MobileShiftManager({
                     </div>
                   )}
 
-                  {/* シフトが全くない場合 */}
                   {shifts.length === 0 && (
                     <p className="text-xs text-gray-400 text-center py-1">シフトなし</p>
                   )}

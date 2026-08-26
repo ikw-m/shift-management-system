@@ -36,6 +36,7 @@ export interface Availability {
   status: 'pending' | 'approved' | 'rejected';
   shiftType: 'karintou' | 'cafe';
   wishLevel?: number;
+  isPaidLeave?: boolean;
   submittedAt?: string;
   reviewedAt?: string | null;
   reviewedBy?: string | null;

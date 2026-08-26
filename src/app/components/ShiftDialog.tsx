@@ -1,21 +1,21 @@
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { ja } from 'date-fns/locale';
-import { X, Check, XCircle, Edit, Save, Clock, CheckCircle, Trash2 } from 'lucide-react';
+import { X, Save, Trash2, Leaf } from 'lucide-react';
 import { Employee, Availability, shiftTypeConfig, wishLevelConfig } from '../types';
 import { TimeSelect } from './TimeSelect';
 
 interface ShiftDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  mode: 'add' | 'manage';
-  autoEditId?: string;
+  mode: 'add' | 'edit';
+  editAvailabilityId?: string;
   employee: Employee | null;
   date: Date | null;
   availabilities: Availability[];
   currentUser: Employee;
   onAddAvailability: (availability: Omit<Availability, 'id' | 'status'>) => void;
-  onEditAvailability: (availabilityId: string, startTime: string, endTime: string, shiftType: 'karintou' | 'cafe', wishLevel: number) => void;
+  onEditAvailability: (availabilityId: string, startTime: string, endTime: string, shiftType: 'karintou' | 'cafe', wishLevel: number, isPaidLeave: boolean) => void;
   onRemoveAvailability: (availabilityId: string) => void;
   onApprove: (availabilityId: string) => void;
   onReject: (availabilityId: string) => void;
@@ -25,7 +25,7 @@ export function ShiftDialog({
   isOpen,
   onClose,
   mode,
-  autoEditId,
+  editAvailabilityId,
   employee,
   date,
   availabilities,
@@ -33,106 +33,58 @@ export function ShiftDialog({
   onAddAvailability,
   onEditAvailability,
   onRemoveAvailability,
-  onApprove,
-  onReject,
 }: ShiftDialogProps) {
   const [startTime, setStartTime] = useState('08:00');
   const [endTime, setEndTime] = useState('17:00');
   const [shiftType, setShiftType] = useState<'karintou' | 'cafe'>('karintou');
   const [wishLevel, setWishLevel] = useState(2);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editStartTime, setEditStartTime] = useState('');
-  const [editEndTime, setEditEndTime] = useState('');
-  const [editShiftType, setEditShiftType] = useState<'karintou' | 'cafe'>('karintou');
-  const [editWishLevel, setEditWishLevel] = useState(2);
+  const [isPaidLeave, setIsPaidLeave] = useState(false);
 
-  // addモードで開いた時、currentUserのテンプレートデフォルト値で初期化
+  const editTarget = editAvailabilityId
+    ? availabilities.find(a => a.id === editAvailabilityId) ?? null
+    : null;
+
   useEffect(() => {
-    if (isOpen && mode === 'add') {
+    if (!isOpen) return;
+    if (mode === 'add') {
       setStartTime(currentUser.defaultStartTime || '08:00');
       setEndTime(currentUser.defaultEndTime || '17:00');
       setShiftType(currentUser.defaultShiftType || 'karintou');
       setWishLevel(currentUser.defaultWishLevel ?? 2);
+      setIsPaidLeave(false);
+    } else if (mode === 'edit' && editTarget) {
+      setStartTime(editTarget.startTime);
+      setEndTime(editTarget.endTime);
+      setShiftType(editTarget.shiftType);
+      setWishLevel(editTarget.wishLevel ?? 2);
+      setIsPaidLeave(editTarget.isPaidLeave ?? false);
     }
-  }, [isOpen, mode]);
-
-  // autoEditIdが指定されている場合、ダイアログを開いた直後に編集モードを自動開始
-  useEffect(() => {
-    if (isOpen && autoEditId && availabilities.length > 0) {
-      const av = availabilities.find(a => a.id === autoEditId);
-      if (av) {
-        setEditingId(av.id);
-        setEditStartTime(av.startTime);
-        setEditEndTime(av.endTime);
-        setEditShiftType(av.shiftType);
-        setEditWishLevel(av.wishLevel ?? 2);
-      }
-    }
-    if (!isOpen) setEditingId(null);
-  }, [isOpen, autoEditId]);
+  }, [isOpen, mode, editAvailabilityId]);
 
   if (!isOpen || !employee || !date) return null;
+  if (mode === 'edit' && !editTarget) return null;
 
-  const handleAddAvailability = () => {
-    onAddAvailability({
-      employeeId: employee.id,
-      date,
-      startTime,
-      endTime,
-      shiftType,
-      wishLevel,
-    });
-    setStartTime('08:00');
-    setEndTime('17:00');
-    setShiftType('karintou');
-    setWishLevel(2);
+  const handleSubmit = () => {
+    if (mode === 'add') {
+      onAddAvailability({ employeeId: employee.id, date, startTime, endTime, shiftType, wishLevel, isPaidLeave });
+    } else if (editTarget) {
+      onEditAvailability(editTarget.id, startTime, endTime, shiftType, wishLevel, isPaidLeave);
+    }
+    onClose();
   };
 
-  const handleStartEdit = (availability: Availability) => {
-    setEditingId(availability.id);
-    setEditStartTime(availability.startTime);
-    setEditEndTime(availability.endTime);
-    setEditShiftType(availability.shiftType);
-    setEditWishLevel(availability.wishLevel ?? 2);
-  };
-
-  const handleSaveEdit = (availabilityId: string) => {
-    onEditAvailability(availabilityId, editStartTime, editEndTime, editShiftType, editWishLevel);
-    setEditingId(null);
-    if (autoEditId) onClose();
-  };
-
-  const handleCancelEdit = () => {
-    setEditingId(null);
-    setEditStartTime('');
-    setEditEndTime('');
-    if (autoEditId) onClose();
-  };
-
-  const currentAvailabilities = availabilities.filter(
-    (availability) =>
-      availability.employeeId === employee.id &&
-      availability.date.toDateString() === date.toDateString()
-  );
-
-  const statusLabels = {
-    pending: { text: '承認待ち', icon: Clock },
-    approved: { text: '承認済み', icon: CheckCircle },
-    rejected: { text: '却下', icon: XCircle },
-  };
-
-  const statusColors = {
-    pending: 'bg-yellow-50 border-yellow-300 text-yellow-900',
-    approved: 'bg-green-50 border-green-300 text-green-900',
-    rejected: 'bg-red-50 border-red-300 text-red-900',
-  };
+  const canDelete = editTarget
+    ? (editTarget.employeeId === currentUser.id && editTarget.status !== 'approved')
+    : false;
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
       <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-4 border border-indigo-100 max-h-[90vh] overflow-y-auto shadow-2xl">
+
+        {/* ヘッダー */}
         <div className="flex items-center justify-between mb-4">
           <h3 className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-            {mode === 'add' ? '勤務希望を追加' : '登録済みシフトの管理'}
+            希望シフト入力
           </h3>
           <button
             onClick={onClose}
@@ -142,276 +94,122 @@ export function ShiftDialog({
           </button>
         </div>
 
-        <div className="mb-6 bg-gradient-to-r from-indigo-50 to-purple-50 p-4 rounded-xl border border-indigo-100">
+        {/* 従業員 */}
+        <div className="mb-4 bg-gradient-to-r from-indigo-50 to-purple-50 p-4 rounded-xl border border-indigo-100">
           <p className="text-indigo-600 text-sm mb-1">従業員</p>
           <p className="text-gray-800 font-semibold">{employee.name}</p>
           <p className="text-indigo-500 text-sm">{employee.role}</p>
         </div>
 
-        <div className="mb-6 bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-xl border border-purple-100">
+        {/* 日付 */}
+        <div className="mb-4 bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-xl border border-purple-100">
           <p className="text-purple-600 text-sm mb-1">日付</p>
           <p className="text-gray-800 font-semibold">{format(date, 'yyyy年M月d日 (E)', { locale: ja })}</p>
         </div>
 
-        {mode === 'manage' && currentAvailabilities.length === 0 && (
-          <p className="text-sm text-gray-400 text-center py-4">この日の登録済みシフトはありません</p>
-        )}
+        {/* フォーム（ベージュ枠） */}
+        <div className="bg-yellow-50 border border-yellow-300 rounded-xl p-4">
+          <p className="text-sm font-semibold mb-3 text-gray-800">
+            {mode === 'add' ? '勤務希望を追加' : '勤務希望を編集'}
+          </p>
 
-        {mode === 'add' && (
-        <>
-        <div className="mb-6">
-          <p className="text-gray-700 mb-3 font-medium">勤務可能時間を入力</p>
-          <div className="space-y-4">
-            <div>
-              <label className="block mb-2 text-gray-700">開始時間</label>
-              <TimeSelect value={startTime} onChange={setStartTime} />
-            </div>
-            <div>
-              <label className="block mb-2 text-gray-700">終了時間</label>
-              <TimeSelect value={endTime} onChange={setEndTime} />
-            </div>
-            <div>
-              <label className="block mb-2 text-gray-700">シフトタイプ</label>
-              <select
-                value={shiftType}
-                onChange={(e) => setShiftType(e.target.value as 'karintou' | 'cafe')}
-                className="w-full px-4 py-2.5 border border-indigo-200 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all shadow-sm"
-              >
-                {Object.entries(shiftTypeConfig).map(([key, value]) => (
-                  <option key={key} value={key}>
-                    {value.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block mb-2 text-gray-700">希望レベル</label>
-              <div className="flex gap-2">
-                {[3, 2, 1].map(level => {
-                  const cfg = wishLevelConfig[level];
-                  const isSelected = wishLevel === level;
-                  return (
-                    <button
-                      key={level}
-                      type="button"
-                      onClick={() => setWishLevel(level)}
-                      className={`flex-1 py-2.5 px-2 rounded-xl border-2 text-xs font-bold transition-all duration-200 hover:scale-105 ${
-                        isSelected
-                          ? `${cfg.bgColor} ${cfg.textColor} ${cfg.borderColor}`
-                          : 'bg-white text-gray-400 border-gray-200'
-                      }`}
-                    >
-                      <div className="text-base leading-none mb-1">{cfg.badge}</div>
-                      <div>{cfg.label}</div>
-                    </button>
-                  );
-                })}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 justify-center">
+              <div className="flex flex-col items-start gap-0.5">
+                <label className="block text-xs text-gray-700 mb-1">勤務開始時間</label>
+                <TimeSelect value={startTime} onChange={setStartTime} className="w-32 text-base" />
               </div>
+              <span className="text-gray-500 mt-5">〜</span>
+              <div className="flex flex-col items-start gap-0.5">
+                <label className="block text-xs text-gray-700 mb-1">勤務終了時間</label>
+                <TimeSelect value={endTime} onChange={setEndTime} className="w-32 text-base" />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs mb-1 text-gray-700">シフトタイプ</label>
+              <div className="flex gap-2">
+                {Object.entries(shiftTypeConfig).map(([key, val]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setShiftType(key as 'karintou' | 'cafe')}
+                    className={`flex-1 py-2.5 rounded-xl text-sm font-bold border-2 transition-all duration-200 hover:scale-105 ${
+                      shiftType === key ? 'border-transparent text-white' : 'border-gray-200 text-gray-600 bg-white'
+                    }`}
+                    style={shiftType === key ? { backgroundColor: val.color } : {}}
+                  >
+                    {key === 'karintou' ? '◉' : '◆'} {val.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 希望レベル・有休申請（センタリングで左右余白を均等に） */}
+            <div className="flex justify-center">
+              <div className="flex items-stretch gap-3">
+                <div className="flex flex-col gap-2">
+                  <label className="text-gray-700 font-medium text-sm">希望レベル</label>
+                  <div className="flex gap-1.5">
+                    {[3, 2, 1].map(level => {
+                      const cfg = wishLevelConfig[level];
+                      const isSelected = wishLevel === level;
+                      return (
+                        <button
+                          key={level}
+                          type="button"
+                          onClick={() => setWishLevel(level)}
+                          className={`w-[76px] flex-shrink-0 py-1.5 rounded-xl border-2 font-bold transition-all duration-200 hover:scale-105 ${
+                            isSelected
+                              ? `${cfg.bgColor} ${cfg.textColor} ${cfg.borderColor}`
+                              : 'bg-white text-gray-400 border-gray-200'
+                          }`}
+                        >
+                          <div className="text-base leading-none mb-0.5">{cfg.badge}</div>
+                          <div className="text-[11px]">{cfg.label}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="w-px bg-gray-200 flex-shrink-0" />
+                <div className="flex flex-col gap-2">
+                  <label className="text-gray-700 font-medium text-sm">有休申請</label>
+                  <button
+                    type="button"
+                    onClick={() => setIsPaidLeave(v => !v)}
+                    className={`flex-1 flex items-center justify-center gap-1.5 px-3 rounded-xl border-2 font-bold transition-all duration-200 hover:scale-105 ${
+                      isPaidLeave
+                        ? 'bg-pink-500 text-white border-pink-500 shadow-md'
+                        : 'border-dashed border-red-400 text-red-400 bg-white'
+                    }`}
+                  >
+                    <Leaf className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span className="text-xs whitespace-nowrap">有休</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* アクションボタン */}
+            <div className="flex gap-2 pt-1">
+              {mode === 'edit' && canDelete && (
+                <button
+                  onClick={() => { onRemoveAvailability(editTarget!.id); onClose(); }}
+                  className="flex-1 px-4 py-2 bg-gradient-to-r from-rose-600 to-red-600 text-white rounded-lg hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-1 text-sm hover:scale-105"
+                >
+                  <Trash2 className="w-3 h-3" />削除
+                </button>
+              )}
+              <button
+                onClick={handleSubmit}
+                className="flex-1 px-4 py-2 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-lg hover:shadow-lg hover:scale-105 transition-all duration-200 flex items-center justify-center gap-1 text-sm"
+              >
+                {mode === 'add' ? '勤務希望を追加' : <><Save className="w-3 h-3" />保存</>}
+              </button>
             </div>
           </div>
         </div>
 
-          <button
-            onClick={handleAddAvailability}
-            className="w-full px-4 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:shadow-lg hover:scale-105 transition-all duration-200 mb-4 shadow-md"
-          >
-            勤務希望を追加
-          </button>
-        </>
-        )}
-
-        {mode === 'manage' && currentAvailabilities.length > 0 && (
-          <div>
-            <p className="text-gray-700 mb-3 font-medium">登録済み勤務希望</p>
-            {!currentUser.isManager ? (
-              <div className="mb-3 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl text-sm text-blue-800 space-y-1 border border-blue-200 shadow-sm">
-                <p>※ 勤務希望の承認・却下は管理者のみが行えます</p>
-                <p>※ 承認待ちの勤務希望のみ編集・削除が可能です</p>
-              </div>
-            ) : (
-              <div className="mb-3 p-3 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl text-sm text-purple-800 space-y-1 border border-purple-200 shadow-sm">
-                <p>※ 管理者は全てのシフトを編集・削除できます</p>
-              </div>
-            )}
-            <div className="space-y-3">
-              {currentAvailabilities.map((availability) => {
-                // 編集：マネージャーは全員分・スタッフは自分の承認待ちのみ
-                const canEdit = currentUser.isManager || (availability.status === 'pending' && availability.employeeId === currentUser.id);
-                // 削除：登録者本人のみ・スタッフは承認済み以外のみ削除可能
-                const canDelete = availability.employeeId === currentUser.id &&
-                  (currentUser.isManager || availability.status !== 'approved');
-
-                return (
-                  <div
-                    key={availability.id}
-                    className={`p-4 rounded-xl border ${statusColors[availability.status]} transition-all duration-200 hover:shadow-md`}
-                  >
-                    {editingId === availability.id ? (
-                      <div>
-                        <p className="text-sm font-semibold mb-3 text-gray-800">勤務希望を編集</p>
-                        <div className="space-y-3">
-                          <div>
-                            <label className="block text-xs mb-1 text-gray-700">開始時間</label>
-                            <TimeSelect value={editStartTime} onChange={setEditStartTime} />
-                          </div>
-                          <div>
-                            <label className="block text-xs mb-1 text-gray-700">終了時間</label>
-                            <TimeSelect value={editEndTime} onChange={setEditEndTime} />
-                          </div>
-                          <div>
-                            <label className="block text-xs mb-1 text-gray-700">シフトタイプ</label>
-                            <div className="flex gap-2">
-                              {Object.entries(shiftTypeConfig).map(([key, val]) => (
-                                <button
-                                  key={key}
-                                  type="button"
-                                  onClick={() => setEditShiftType(key as 'karintou' | 'cafe')}
-                                  className={`flex-1 py-2 rounded-lg text-xs font-bold border-2 transition-all ${
-                                    editShiftType === key ? 'border-transparent text-white' : 'border-gray-200 text-gray-600 bg-white'
-                                  }`}
-                                  style={editShiftType === key ? { backgroundColor: val.color } : {}}
-                                >
-                                  {key === 'karintou' ? '◉' : '◆'} {val.label}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                          <div>
-                            <label className="block text-xs mb-1 text-gray-700">希望レベル</label>
-                            <div className="flex gap-2">
-                              {[3, 2, 1].map(level => {
-                                const cfg = wishLevelConfig[level];
-                                const isSelected = editWishLevel === level;
-                                return (
-                                  <button
-                                    key={level}
-                                    type="button"
-                                    onClick={() => setEditWishLevel(level)}
-                                    className={`flex-1 py-2 rounded-lg text-xs font-bold border-2 transition-all ${
-                                      isSelected ? `${cfg.bgColor} ${cfg.textColor} ${cfg.borderColor}` : 'bg-white text-gray-400 border-gray-200'
-                                    }`}
-                                  >
-                                    <div className="text-sm leading-none">{cfg.badge}</div>
-                                    <div>{cfg.label}</div>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleSaveEdit(availability.id)}
-                              className="flex-1 px-3 py-2 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-lg hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-1 text-sm hover:scale-105"
-                            >
-                              <Save className="w-3 h-3" />
-                              保存
-                            </button>
-                            <button
-                              onClick={handleCancelEdit}
-                              className="flex-1 px-3 py-2 bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-lg hover:shadow-lg transition-all duration-200 text-sm hover:scale-105"
-                            >
-                              キャンセル
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div>
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <div className="flex items-center gap-1">
-                              {(() => {
-                                const StatusIcon = statusLabels[availability.status].icon;
-                                return <StatusIcon className="w-3.5 h-3.5" />;
-                              })()}
-                              <span className="text-sm font-semibold">
-                                {availability.shiftType === 'karintou' ? '◉' : '◆'}
-                              </span>
-                              <span className="text-sm font-semibold">{statusLabels[availability.status].text}</span>
-                            </div>
-                            <span
-                              className="text-xs px-2 py-1 rounded-md font-medium"
-                              style={{
-                                backgroundColor: shiftTypeConfig[availability.shiftType].bgColor,
-                                color: shiftTypeConfig[availability.shiftType].color,
-                                border: `1px solid ${shiftTypeConfig[availability.shiftType].borderColor}`,
-                              }}
-                            >
-                              {shiftTypeConfig[availability.shiftType].label}
-                            </span>
-                          </div>
-                          {availability.status === 'pending' && currentUser.isManager && (
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => onApprove(availability.id)}
-                                className="px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-lg hover:shadow-lg transition-all duration-200 flex items-center gap-1 hover:scale-105"
-                              >
-                                <Check className="w-4 h-4" />
-                                承認
-                              </button>
-                              <button
-                                onClick={() => onReject(availability.id)}
-                                className="px-3 py-1.5 bg-gradient-to-r from-rose-600 to-red-600 text-white rounded-lg hover:shadow-lg transition-all duration-200 flex items-center gap-1 hover:scale-105"
-                              >
-                                <XCircle className="w-4 h-4" />
-                                却下
-                              </button>
-                            </div>
-                          )}
-                          {availability.status === 'approved' && currentUser.isManager && (
-                            <button
-                              onClick={() => onReject(availability.id)}
-                              className="px-3 py-1.5 bg-gradient-to-r from-rose-600 to-red-600 text-white rounded-lg hover:shadow-lg transition-all duration-200 flex items-center gap-1 hover:scale-105"
-                            >
-                              <XCircle className="w-4 h-4" />
-                              却下に変更
-                            </button>
-                          )}
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2 flex-1">
-                            <p className="text-sm font-medium">
-                              {availability.startTime} - {availability.endTime}
-                            </p>
-                            {(() => {
-                              const level = availability.wishLevel ?? 2;
-                              const cfg = wishLevelConfig[level];
-                              return (
-                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold border ${cfg.bgColor} ${cfg.textColor} ${cfg.borderColor}`}>
-                                  {cfg.badge} {cfg.label}
-                                </span>
-                              );
-                            })()}
-                          </div>
-                          {canEdit && (
-                            <div className="flex gap-1">
-                              <button
-                                onClick={() => handleStartEdit(availability)}
-                                className="p-1.5 text-blue-600 hover:bg-blue-100 rounded-lg transition-all duration-200 hover:scale-110"
-                                title="編集"
-                              >
-                                <Edit className="w-4 h-4" />
-                              </button>
-                              {canDelete && (
-                                <button
-                                  onClick={() => onRemoveAvailability(availability.id)}
-                                  className="p-1.5 text-rose-600 hover:bg-rose-100 rounded-lg transition-all duration-200 hover:scale-110"
-                                  title="削除"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

@@ -14,7 +14,7 @@ interface MobileAppContentProps {
   departmentName: string;
   onLogout: () => void;
   onAddAvailability: (a: Omit<Availability, 'id' | 'status'>) => void;
-  onEditAvailability: (id: string, startTime: string, endTime: string, shiftType: 'karintou' | 'cafe', wishLevel: number) => void;
+  onEditAvailability: (id: string, startTime: string, endTime: string, shiftType: 'karintou' | 'cafe', wishLevel: number, isPaidLeave?: boolean) => void;
   onRemoveAvailability: (id: string) => void;
   onApprove: (id: string) => void;
   onReject: (id: string) => void;
@@ -105,7 +105,7 @@ export function MobileAppContent({
           <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent font-bold">
             シフト管理システム
           </span>
-          <span className="text-gray-500" style={{ fontSize: '0.7em' }}>Ver. 6.0</span>
+          <span className="text-gray-500" style={{ fontSize: '0.7em' }}>Ver. 7.0</span>
           {departmentName && (
             <span className="text-xs font-bold text-indigo-700 ml-1">｜ {departmentName}</span>
           )}

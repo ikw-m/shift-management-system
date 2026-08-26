@@ -1,6 +1,6 @@
 import { format, isSameDay, getDaysInMonth, getDay } from 'date-fns';
 import { ja } from 'date-fns/locale';
-import { FileCheck, Download, ClipboardList } from 'lucide-react';
+import { FileCheck, Download, ClipboardList, Leaf } from 'lucide-react';
 import { generateShiftExcel } from '../utils/generateShiftExcel';
 import { Employee, Availability, shiftTypeConfig, ShiftCondition } from '../types';
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -128,7 +128,9 @@ export function ConfirmedShiftTable({
     employees.forEach((employee) => {
       const shifts = availabilities.filter(
         (availability) =>
-          availability.employeeId === employee.id && isSameDay(availability.date, date)
+          availability.employeeId === employee.id &&
+          isSameDay(availability.date, date) &&
+          !availability.isPaidLeave
       );
       if (shifts.length > 0) {
         count += 1; // 同一日に複数シフトがあっても1人としてカウント
@@ -151,7 +153,9 @@ export function ConfirmedShiftTable({
     setDownloading(true);
     try {
       const getApprovedCount = (date: Date) =>
-        sortedEmployees.filter(e => getConfirmedShiftsForEmployeeAndDate(e.id, date).length > 0).length;
+        sortedEmployees.filter(e =>
+          getConfirmedShiftsForEmployeeAndDate(e.id, date).some(s => !s.isPaidLeave)
+        ).length;
 
       await generateShiftExcel({
         departmentName: departmentName ?? '',
@@ -405,6 +409,9 @@ export function ConfirmedShiftTable({
               <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg" style={{ backgroundColor: shiftTypeConfig.cafe.color }}>
                 <span className="text-[10px] font-semibold text-white">◆ {shiftTypeConfig.cafe.label}</span>
               </div>
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-[3px] rounded-lg bg-pink-100 text-pink-700 border border-pink-300">
+                <Leaf className="w-2.5 h-2.5 flex-shrink-0" />有休
+              </span>
             </div>
           </div>
           <div className="flex items-center gap-2 ml-auto">
@@ -487,11 +494,11 @@ export function ConfirmedShiftTable({
                   <tr key={day.toISOString()} className="hover:bg-emerald-50/30 transition-colors">
                     <td className={`p-1 border border-emerald-100 ${dateCellBg} w-28 sticky left-0 z-10 relative confirmed-shift-fixed-column confirmed-shift-fixed-column-left confirmed-shift-fixed-column-right`}>
                       <div className="text-center">
-                        <div className={`font-semibold text-xs leading-tight ${dateFontColor}`}>
+                        <div className={`font-semibold text-sm leading-tight ${dateFontColor}`}>
                           {day.getDate()}日({format(day, 'E', { locale: ja })})
                         </div>
-                        <div className={`font-semibold text-xs leading-tight mt-0.5 ${subFontColor}`}>
-                          【{approvedCount}/{requiredStaff}】
+                        <div className={`font-semibold text-sm leading-tight mt-0.5 ${subFontColor}`}>
+                          【{approvedCount}/{requiredStaff}人】
                         </div>
                       </div>
                     </td>
@@ -513,9 +520,16 @@ export function ConfirmedShiftTable({
                                   border: `1px solid ${shiftTypeConfig[shift.shiftType].color}`
                                 }}
                               >
-                                <div className="font-semibold text-[10px]">
+                                <div className="font-semibold text-xs">
                                   {shift.shiftType === 'karintou' ? '◉' : '◆'} {shift.startTime} - {shift.endTime}
                                 </div>
+                                {shift.isPaidLeave && (
+                                  <div className="mt-0.5 mx-[-4px]">
+                                    <span className="flex items-center justify-center gap-1 text-[13px] font-bold px-1 rounded-lg w-full bg-pink-100 text-pink-700 border border-pink-300">
+                                      <Leaf className="w-3.5 h-3.5 flex-shrink-0" />有休
+                                    </span>
+                                  </div>
+                                )}
                               </div>
                             ))}
                           </div>

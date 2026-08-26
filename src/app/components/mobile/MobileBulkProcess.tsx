@@ -3,7 +3,7 @@ import { format, getDaysInMonth, isSunday, isSaturday } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import {
   ChevronLeft, ChevronRight, ChevronDown, ChevronUp,
-  Zap, CheckCheck, Clock, CheckCircle, XCircle,
+  Zap, CheckCheck, Clock, CheckCircle, XCircle, Leaf,
 } from 'lucide-react';
 import { Employee, ShiftCondition, shiftTypeConfig, wishLevelConfig } from '../../types';
 import { useData } from '../../context/DataContext';
@@ -108,7 +108,7 @@ export function MobileBulkProcess({ currentUser, departmentName, onBack }: Mobil
   const getEmployee = (id: string) => contextEmployees.find(e => e.id === id);
 
   const getApprovedCount = (date: Date) =>
-    getShiftsForDate(date).filter(a => a.status === 'approved').length;
+    getShiftsForDate(date).filter(a => a.status === 'approved' && !a.isPaidLeave).length;
 
   const isSaleDay = (date: Date): boolean => {
     if (!shiftCondition || shiftCondition.year !== date.getFullYear()) return false;
@@ -159,7 +159,13 @@ export function MobileBulkProcess({ currentUser, departmentName, onBack }: Mobil
       const dow = String(date.getDay());
       if (!selectedEmployee.defaultDays.includes(dow)) continue;
       const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-      const exists = availabilities.some(a => a.employeeId === selectedEmployee.id && a.date === dateStr);
+      const exists = availabilities.some(a => {
+        const d = new Date(a.date);
+        return a.employeeId === selectedEmployee.id &&
+          d.getFullYear() === year &&
+          d.getMonth() + 1 === month &&
+          d.getDate() === day;
+      });
       if (exists) continue;
       targetDates.push(dateStr);
     }
@@ -210,7 +216,7 @@ export function MobileBulkProcess({ currentUser, departmentName, onBack }: Mobil
           <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent font-bold">
             シフト管理システム
           </span>
-          <span className="text-gray-500" style={{ fontSize: '0.7em' }}>Ver. 6.0</span>
+          <span className="text-gray-500" style={{ fontSize: '0.7em' }}>Ver. 7.0</span>
           {departmentName && (
             <span className="text-xs font-bold text-indigo-700 ml-1">｜ {departmentName}</span>
           )}
@@ -347,25 +353,39 @@ export function MobileBulkProcess({ currentUser, departmentName, onBack }: Mobil
                     {myShifts.map(a => {
                       const cfg = shiftTypeConfig[a.shiftType];
                       const icon = a.shiftType === 'karintou' ? '◉' : '◆';
+                      const paidBadge = a.isPaidLeave ? (
+                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-pink-100 text-pink-700 border border-pink-300">
+                          <Leaf className="w-2.5 h-2.5 flex-shrink-0" />有休
+                        </span>
+                      ) : null;
                       if (a.status === 'approved') {
                         return (
-                          <span key={a.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold text-white"
-                            style={{ backgroundColor: cfg.color }}>
-                            {icon} {a.startTime}〜{a.endTime} ✓
+                          <span key={a.id} className="inline-flex items-center gap-1 flex-wrap">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold text-white"
+                              style={{ backgroundColor: cfg.color }}>
+                              {icon} {a.startTime}〜{a.endTime} ✓
+                            </span>
+                            {paidBadge}
                           </span>
                         );
                       }
                       if (a.status === 'pending') {
                         return (
-                          <span key={a.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold border-2 bg-white"
-                            style={{ borderColor: cfg.color, color: cfg.color }}>
-                            {icon} {a.startTime}〜{a.endTime} …
+                          <span key={a.id} className="inline-flex items-center gap-1 flex-wrap">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold border-2 bg-white"
+                              style={{ borderColor: cfg.color, color: cfg.color }}>
+                              {icon} {a.startTime}〜{a.endTime} …
+                            </span>
+                            {paidBadge}
                           </span>
                         );
                       }
                       return (
-                        <span key={a.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold border border-gray-300 bg-white text-gray-400 line-through">
-                          {icon} {a.startTime}〜{a.endTime}
+                        <span key={a.id} className="inline-flex items-center gap-1 flex-wrap">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold border border-gray-300 bg-white text-gray-400 line-through">
+                            {icon} {a.startTime}〜{a.endTime}
+                          </span>
+                          {paidBadge}
                         </span>
                       );
                     })}
@@ -404,6 +424,11 @@ export function MobileBulkProcess({ currentUser, departmentName, onBack }: Mobil
                                     const wcfg = wishLevelConfig[a.wishLevel ?? 2];
                                     return <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full border ${wcfg.bgColor} ${wcfg.textColor} ${wcfg.borderColor}`}>{wcfg.badge}</span>;
                                   })()}
+                                  {a.isPaidLeave && (
+                                    <span className="inline-flex items-center gap-0.5 text-xs font-bold px-1.5 py-0.5 rounded-md border bg-pink-100 text-pink-700 border-pink-300 whitespace-nowrap">
+                                      <Leaf className="w-3 h-3 flex-shrink-0" />有休
+                                    </span>
+                                  )}
                                 </div>
                               </div>
                             </div>
@@ -441,6 +466,11 @@ export function MobileBulkProcess({ currentUser, departmentName, onBack }: Mobil
                                     const wcfg = wishLevelConfig[a.wishLevel ?? 2];
                                     return <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full border ${wcfg.bgColor} ${wcfg.textColor} ${wcfg.borderColor}`}>{wcfg.badge}</span>;
                                   })()}
+                                  {a.isPaidLeave && (
+                                    <span className="inline-flex items-center gap-0.5 text-xs font-bold px-1.5 py-0.5 rounded-md border bg-pink-100 text-pink-700 border-pink-300 whitespace-nowrap">
+                                      <Leaf className="w-3 h-3 flex-shrink-0" />有休
+                                    </span>
+                                  )}
                                 </div>
                               </div>
                             </div>

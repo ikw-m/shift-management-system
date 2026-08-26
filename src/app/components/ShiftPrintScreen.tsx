@@ -88,7 +88,9 @@ export function ShiftPrintScreen({ departmentId, departmentName, onClose }: Shif
     availabilities.filter(a => a.employeeId === employeeId && isSameDay(a.date, date) && a.status === 'approved');
 
   const getApprovedCount = (date: Date) =>
-    sortedEmployees.filter(e => getConfirmedShifts(e.id, date).length > 0).length;
+    sortedEmployees.filter(e =>
+      availabilities.some(a => a.employeeId === e.id && isSameDay(a.date, date) && a.status === 'approved' && !a.isPaidLeave)
+    ).length;
 
   const handleDownload = async () => {
     if (downloading) return;
@@ -126,7 +128,7 @@ export function ShiftPrintScreen({ departmentId, departmentName, onClose }: Shif
             <div>
               <div className="flex items-baseline gap-1.5">
                 <span className="font-bold text-gray-800 text-sm">シフト管理表出力</span>
-                <span className="text-xs text-gray-400">Ver. 6.0</span>
+                <span className="text-xs text-gray-400">Ver. 7.0</span>
               </div>
               {departmentName && (
                 <div className="flex items-center gap-1 text-xs font-bold text-indigo-700 mt-0.5">

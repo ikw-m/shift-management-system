@@ -196,27 +196,34 @@ export function EditEmployeeDialog({ isOpen, onClose, employee, employees, templ
           </div>
 
           <div>
-            <label className="block mb-2 text-gray-700">デフォルト用開始時間</label>
-            <TimeSelect value={defaultStartTime} onChange={setDefaultStartTime} allowEmpty />
-          </div>
-
-          <div>
-            <label className="block mb-2 text-gray-700">デフォルト用終了時間</label>
-            <TimeSelect value={defaultEndTime} onChange={setDefaultEndTime} allowEmpty />
+            <div className="flex items-center gap-2 justify-center">
+              <div className="flex flex-col items-start gap-0.5">
+                <label className="block mb-1 text-gray-700">勤務開始時間</label>
+                <TimeSelect value={defaultStartTime} onChange={setDefaultStartTime} allowEmpty className="w-32 text-base" />
+              </div>
+              <span className="text-gray-500 mt-5">〜</span>
+              <div className="flex flex-col items-start gap-0.5">
+                <label className="block mb-1 text-gray-700">勤務終了時間</label>
+                <TimeSelect value={defaultEndTime} onChange={setDefaultEndTime} allowEmpty className="w-32 text-base" />
+              </div>
+            </div>
           </div>
 
           <div>
             <label className="block mb-2 text-gray-700">デフォルト用シフトタイプ</label>
-            <select
-              value={defaultShiftType}
-              onChange={(e) => setDefaultShiftType(e.target.value as 'karintou' | 'cafe' | '')}
-              className="w-full px-4 py-2.5 bg-white rounded-xl border border-indigo-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all shadow-sm"
-            >
-              <option value="">（デフォルトなし）</option>
-              {Object.entries(shiftTypeConfig).map(([key, value]) => (
-                <option key={key} value={key}>{value.label}</option>
-              ))}
-            </select>
+            <div className="flex gap-2">
+              {Object.entries(shiftTypeConfig).map(([key, val]) => {
+                const isSelected = defaultShiftType === key;
+                return (
+                  <button key={key} type="button"
+                    onClick={() => setDefaultShiftType(isSelected ? '' : key as 'karintou' | 'cafe')}
+                    className={`flex-1 py-2.5 rounded-xl text-sm font-bold border-2 transition-all active:scale-95 ${isSelected ? 'border-transparent text-white' : 'border-gray-200 text-gray-600 bg-white'}`}
+                    style={isSelected ? { backgroundColor: val.color } : {}}>
+                    {key === 'karintou' ? '◉' : '◆'} {val.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <div>

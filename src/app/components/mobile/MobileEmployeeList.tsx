@@ -188,7 +188,7 @@ export function MobileEmployeeList({ currentUser, departmentName, onBack, onLogo
           <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent font-bold">
             シフト管理システム
           </span>
-          <span className="text-gray-500" style={{ fontSize: '0.7em' }}>Ver. 6.0</span>
+          <span className="text-gray-500" style={{ fontSize: '0.7em' }}>Ver. 7.0</span>
           {departmentName && (
             <span className="text-xs font-bold text-indigo-700 ml-1">｜ {departmentName}</span>
           )}
@@ -246,28 +246,36 @@ export function MobileEmployeeList({ currentUser, departmentName, onBack, onLogo
                   <p className="text-xs text-gray-400 mb-2">テンプレート設定</p>
                   <div className="space-y-2">
                     <div>
-                      <p className="text-xs text-gray-600 mb-1">開始時間</p>
-                      <TimeSelect value={editDefaultStartTime} onChange={setEditDefaultStartTime} allowEmpty />
+                      <div className="flex items-center gap-2 justify-center">
+                        <div className="flex flex-col items-start gap-0.5">
+                          <label className="block text-xs text-gray-500 mb-1">勤務開始時間</label>
+                          <TimeSelect value={editDefaultStartTime} onChange={setEditDefaultStartTime} allowEmpty className="w-32 text-base" />
+                        </div>
+                        <span className="text-gray-400 mt-4">〜</span>
+                        <div className="flex flex-col items-start gap-0.5">
+                          <label className="block text-xs text-gray-500 mb-1">勤務終了時間</label>
+                          <TimeSelect value={editDefaultEndTime} onChange={setEditDefaultEndTime} allowEmpty className="w-32 text-base" />
+                        </div>
+                      </div>
                     </div>
                     <div>
-                      <p className="text-xs text-gray-600 mb-1">終了時間</p>
-                      <TimeSelect value={editDefaultEndTime} onChange={setEditDefaultEndTime} allowEmpty />
+                      <label className="block text-xs text-gray-500 mb-1">デフォルト用シフトタイプ</label>
+                      <div className="flex gap-2">
+                        {Object.entries(shiftTypeConfig).map(([key, val]) => {
+                          const isSelected = editDefaultShiftType === key;
+                          return (
+                            <button key={key} type="button"
+                              onClick={() => setEditDefaultShiftType(isSelected ? '' : key as 'karintou' | 'cafe')}
+                              className={`flex-1 py-2.5 rounded-xl text-sm font-bold border-2 transition-all active:scale-95 ${isSelected ? 'border-transparent text-white' : 'border-gray-200 text-gray-600 bg-white'}`}
+                              style={isSelected ? { backgroundColor: val.color } : {}}>
+                              {key === 'karintou' ? '◉' : '◆'} {val.label}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                     <div>
-                      <p className="text-xs text-gray-600 mb-1">シフトタイプ</p>
-                      <select
-                        value={editDefaultShiftType}
-                        onChange={e => setEditDefaultShiftType(e.target.value as 'karintou' | 'cafe' | '')}
-                        className="w-full px-3 py-2 border border-indigo-200 rounded-xl text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      >
-                        <option value="">（デフォルトなし）</option>
-                        {Object.entries(shiftTypeConfig).map(([key, val]) => (
-                          <option key={key} value={key}>{val.label}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-600 mb-1">曜日</p>
+                      <label className="block text-xs text-gray-500 mb-1">デフォルト用曜日</label>
                       <div className="flex gap-1">
                         {DAY_OPTIONS.map(({ value, label }) => {
                           const selected = editDefaultDays.includes(value);
@@ -295,7 +303,7 @@ export function MobileEmployeeList({ currentUser, departmentName, onBack, onLogo
                       </div>
                     </div>
                     <div>
-                      <p className="text-xs text-gray-600 mb-1">希望レベル</p>
+                      <label className="block text-xs text-gray-500 mb-1">デフォルト用希望レベル</label>
                       <div className="flex gap-1">
                         {[3, 2, 1].map(level => {
                           const cfg = wishLevelConfig[level];
@@ -401,28 +409,36 @@ export function MobileEmployeeList({ currentUser, departmentName, onBack, onLogo
               <p className="text-xs text-gray-400 mb-2">テンプレート設定（任意）</p>
               <div className="space-y-2">
                 <div>
-                  <p className="text-xs text-gray-600 mb-1">開始時間</p>
-                  <TimeSelect value={newDefaultStartTime} onChange={setNewDefaultStartTime} allowEmpty />
+                  <div className="flex items-center gap-2 justify-center">
+                    <div className="flex flex-col items-start gap-0.5">
+                      <label className="block text-xs text-gray-500 mb-1">勤務開始時間</label>
+                      <TimeSelect value={newDefaultStartTime} onChange={setNewDefaultStartTime} allowEmpty className="w-32 text-base" />
+                    </div>
+                    <span className="text-gray-400 mt-4">〜</span>
+                    <div className="flex flex-col items-start gap-0.5">
+                      <label className="block text-xs text-gray-500 mb-1">勤務終了時間</label>
+                      <TimeSelect value={newDefaultEndTime} onChange={setNewDefaultEndTime} allowEmpty className="w-32 text-base" />
+                    </div>
+                  </div>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-600 mb-1">終了時間</p>
-                  <TimeSelect value={newDefaultEndTime} onChange={setNewDefaultEndTime} allowEmpty />
+                  <label className="block text-xs text-gray-500 mb-1">デフォルト用シフトタイプ</label>
+                  <div className="flex gap-2">
+                    {Object.entries(shiftTypeConfig).map(([key, val]) => {
+                      const isSelected = newDefaultShiftType === key;
+                      return (
+                        <button key={key} type="button"
+                          onClick={() => setNewDefaultShiftType(isSelected ? '' : key as 'karintou' | 'cafe')}
+                          className={`flex-1 py-2.5 rounded-xl text-sm font-bold border-2 transition-all active:scale-95 ${isSelected ? 'border-transparent text-white' : 'border-gray-200 text-gray-600 bg-white'}`}
+                          style={isSelected ? { backgroundColor: val.color } : {}}>
+                          {key === 'karintou' ? '◉' : '◆'} {val.label}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-600 mb-1">シフトタイプ</p>
-                  <select
-                    value={newDefaultShiftType}
-                    onChange={e => setNewDefaultShiftType(e.target.value as 'karintou' | 'cafe' | '')}
-                    className="w-full px-3 py-2 border border-indigo-200 rounded-xl text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  >
-                    <option value="">（デフォルトなし）</option>
-                    {Object.entries(shiftTypeConfig).map(([key, val]) => (
-                      <option key={key} value={key}>{val.label}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-600 mb-1">曜日</p>
+                  <label className="block text-xs text-gray-500 mb-1">デフォルト用曜日</label>
                   <div className="flex gap-1">
                     {DAY_OPTIONS.map(({ value, label }) => {
                       const selected = newDefaultDays.includes(value);
@@ -450,7 +466,7 @@ export function MobileEmployeeList({ currentUser, departmentName, onBack, onLogo
                   </div>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-600 mb-1">希望レベル</p>
+                  <label className="block text-xs text-gray-500 mb-1">デフォルト用希望レベル</label>
                   <div className="flex gap-1">
                     {[3, 2, 1].map(level => {
                       const cfg = wishLevelConfig[level];

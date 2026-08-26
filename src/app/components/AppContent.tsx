@@ -49,8 +49,8 @@ export function AppContent() {
   const [selectedYear, setSelectedYear] = useState(getYear(now));
   const [selectedMonth, setSelectedMonth] = useState(getMonth(now) + 1);
   const [shiftDialogOpen, setShiftDialogOpen] = useState(false);
-  const [shiftDialogMode, setShiftDialogMode] = useState<'add' | 'manage'>('add');
-  const [autoEditId, setAutoEditId] = useState<string | undefined>(undefined);
+  const [shiftDialogMode, setShiftDialogMode] = useState<'add' | 'edit'>('add');
+  const [editAvailabilityId, setEditAvailabilityId] = useState<string | undefined>(undefined);
   const [addEmployeeDialogOpen, setAddEmployeeDialogOpen] = useState(false);
   const [editEmployeeDialogOpen, setEditEmployeeDialogOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
@@ -75,7 +75,7 @@ export function AppContent() {
     if (employee) {
       setSelectedEmployee(employee);
       setSelectedDate(date);
-      setShiftDialogMode('manage');
+      setShiftDialogMode('add');
       setShiftDialogOpen(true);
     }
   };
@@ -86,8 +86,8 @@ export function AppContent() {
     if (employee) {
       setSelectedEmployee(employee);
       setSelectedDate(date);
-      setShiftDialogMode('manage');
-      setAutoEditId(availabilityId);
+      setShiftDialogMode('edit');
+      setEditAvailabilityId(availabilityId);
       setShiftDialogOpen(true);
     }
   };
@@ -101,6 +101,7 @@ export function AppContent() {
       setSelectedEmployee(employee);
       setSelectedDate(date);
       setShiftDialogMode('add');
+      setEditAvailabilityId(undefined);
       setShiftDialogOpen(true);
     }
   };
@@ -135,6 +136,7 @@ export function AppContent() {
     endTime: string,
     shiftType: 'karintou' | 'cafe',
     wishLevel: number,
+    isPaidLeave?: boolean,
   ) => {
     const availability = availabilities.find(a => a.id === availabilityId);
     if (!availability) return;
@@ -148,6 +150,7 @@ export function AppContent() {
         endTime,
         shiftType,
         wishLevel,
+        isPaidLeave: isPaidLeave ?? availability.isPaidLeave ?? false,
       });
       setTimeout(() => {
         shiftCalendarRef.current?.setScrollTop(scrollTop);
@@ -439,7 +442,7 @@ export function AppContent() {
           <div className="flex items-center justify-between mb-4 h-[44px]">
             <div className="flex items-baseline gap-2">
               <h1 className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">シフト管理システム</h1>
-              <span className="text-xs text-gray-500">Ver. 6.0</span>
+              <span className="text-xs text-gray-500">Ver. 7.0</span>
               {departmentName && (
                 <span className="text-sm font-bold text-indigo-700 ml-2">｜ {departmentName}</span>
               )}
@@ -581,9 +584,9 @@ export function AppContent() {
 
       <ShiftDialog
         isOpen={shiftDialogOpen}
-        onClose={() => { setShiftDialogOpen(false); setAutoEditId(undefined); }}
+        onClose={() => { setShiftDialogOpen(false); setEditAvailabilityId(undefined); }}
         mode={shiftDialogMode}
-        autoEditId={autoEditId}
+        editAvailabilityId={editAvailabilityId}
         employee={selectedEmployee}
         date={selectedDate}
         availabilities={processedAvailabilities}

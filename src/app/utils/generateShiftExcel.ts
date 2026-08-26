@@ -26,12 +26,16 @@ const C = {
   procTitleFont: 'FF065F46',
   procBg:        'FFFFFBEB',
   legendFont:    'FF6B7280',
-  notesBg:       'FFFFFBEB',
-  borderGray:    'FF9CA3AF',
-  borderWhite:   'FFFFFFFF',
+  notesBg:        'FFFFFBEB',
+  borderGray:     'FF9CA3AF',
+  borderWhite:    'FFFFFFFF',
+  paidLeaveBg:     'FFFCE7F3',
+  paidLeaveFont:   'FFBE185D',
+  paidLeaveBorder: 'FFDC2626',
+  paidLeaveRed:    'FFFF0000',
 } as const;
 
-function mkBorder(style: 'thin' | 'medium', argb: string): ExcelJS.Border {
+function mkBorder(style: 'thin' | 'medium' | 'thick', argb: string): ExcelJS.Border {
   return { style, color: { argb } } as ExcelJS.Border;
 }
 
@@ -97,6 +101,7 @@ export interface ShiftExcelShift {
   startTime: string;
   endTime: string;
   shiftType: 'karintou' | 'cafe';
+  isPaidLeave?: boolean;
 }
 
 export interface ShiftExcelParams {
@@ -230,7 +235,7 @@ function addHalfSheet(
     const gc = (localCol: number) => off + localCol;
 
     // ── Row 1: Title ───────────────────────────────────────────────
-    const titleText = `${p.departmentName}　${p.year}年${p.month}月${halfLabel}　シフト管理表　[Ver. 6.0]`;
+    const titleText = `${p.departmentName}　${p.year}年${p.month}月${halfLabel}　シフト管理表　[Ver. 7.0]`;
     const verIdx1   = titleText.indexOf('[Ver.');
     const mainPart1 = verIdx1 >= 0 ? titleText.slice(0, verIdx1) : titleText;
     const verPart1  = verIdx1 >= 0 ? titleText.slice(verIdx1) : '';
@@ -316,7 +321,7 @@ function addHalfSheet(
       // Date cell — wrapText: true (date cells only)
       {
         const cell = sheet.getCell(rowIdx, gc(1));
-        cell.value     = `${day.getDate()}日(${format(day, 'E', { locale: ja })})\n【${approved}/${required}】`;
+        cell.value     = `${day.getDate()}日(${format(day, 'E', { locale: ja })})\n【${approved}/${required}人】`;
         cell.font      = { name: 'Century', bold: true, size: 12, color: { argb: style.font } };
         fillCell(cell, style.bg);
         cell.alignment = alignCenterWrap;  // wrapText: true (date only)
@@ -328,6 +333,7 @@ function addHalfSheet(
         const emp = e < pageEmps.length ? pageEmps[e] : null;
         const nc  = sheet.getCell(rowIdx, gc(2 + e * 2));
         const wc  = sheet.getCell(rowIdx, gc(3 + e * 2));
+        let cellHasPL = false;
 
         if (emp) {
           const shifts = p.getConfirmedShifts(emp.id, day);
@@ -343,24 +349,43 @@ function addHalfSheet(
             wc.alignment = alignCenter;
             fillCell(wc, empBg);
           } else {
-            const shift      = shifts[0];
-            const isKarintou = shift.shiftType === 'karintou';
-            const shiftBg    = isKarintou ? C.karintouBg : C.cafeBg;
-            const shiftFg    = isKarintou ? C.karintouFont : C.cafeFont;
-            const symbol     = isKarintou ? '◎' : '◆';
-            const timeText   = shifts.map(s => `${s.startTime}-${s.endTime}`).join('\n');
+            const shift        = shifts[0];
+            const isKarintou   = shift.shiftType === 'karintou';
+            const shiftBg      = isKarintou ? C.karintouBg : C.cafeBg;
+            const shiftFg      = isKarintou ? C.karintouFont : C.cafeFont;
+            const symbol       = isKarintou ? '◎' : '◆';
+            const hasPaidLeave = shifts.some(s => s.isPaidLeave);
+            const timeText     = shifts.map(s => `${s.startTime}-${s.endTime}`).join('\n');
 
-            // Narrow: shift color
-            nc.value     = symbol;
-            nc.font      = { name: 'Century', size: 9, color: { argb: shiftFg } };
-            nc.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: shiftBg } };
+            // Narrow: paid leave → 🍃 赤 ピンク, else → shift color symbol
+            if (hasPaidLeave) {
+              nc.value = '🍃';
+              nc.font  = { name: 'Century', size: 9, color: { argb: C.paidLeaveRed } };
+              nc.fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: C.paidLeaveBg } };
+            } else {
+              nc.value = symbol;
+              nc.font  = { name: 'Century', size: 9, color: { argb: shiftFg } };
+              nc.fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: shiftBg } };
+            }
             nc.alignment = alignCenter;
 
-            // Wide: always day-based background (both design and text)
-            wc.value     = timeText;
-            wc.font      = { name: 'Century', size: 9 };
-            fillCell(wc, empBg);
-            wc.alignment = alignCenter;
+            // Wide: paid leave → 有　休 (HG丸ゴシック 11pt bold 赤) 2段, else → time only
+            if (hasPaidLeave) {
+              wc.value = {
+                richText: [
+                  { text: timeText,   font: { name: 'Century', size: 9 } },
+                  { text: '\n有　休', font: { name: 'HG丸ｺﾞｼｯｸM-PRO', size: 11, bold: true, color: { argb: C.paidLeaveRed } } },
+                ],
+              };
+              wc.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+              fillCell(wc, C.paidLeaveBg);
+              cellHasPL = true;
+            } else {
+              wc.value     = timeText;
+              wc.font      = { name: 'Century', size: 9 };
+              wc.alignment = alignCenter;
+              fillCell(wc, empBg);
+            }
           }
         } else {
           // Empty employee slot
@@ -371,9 +396,13 @@ function addHalfSheet(
           fillCell(wc, empBg);
         }
 
-        // Pair center line = white on both sides
-        nc.border = { top: bGray, left: bGray, bottom: bGray, right: bWhite };
-        wc.border = { top: bGray, left: bWhite, bottom: bGray, right: bGray };
+        // 罫線: 有休 → 上左下(NC)/上右下(WC) 赤大太線, else → グレー細線
+        nc.border = cellHasPL
+          ? { top: mkBorder('thick', C.paidLeaveRed), left: mkBorder('thick', C.paidLeaveRed), bottom: mkBorder('thick', C.paidLeaveRed), right: bWhite }
+          : { top: bGray, left: bGray, bottom: bGray, right: bWhite };
+        wc.border = cellHasPL
+          ? { top: mkBorder('thick', C.paidLeaveRed), right: mkBorder('thick', C.paidLeaveRed), bottom: mkBorder('thick', C.paidLeaveRed), left: bWhite }
+          : { top: bGray, left: bWhite, bottom: bGray, right: bGray };
       }
 
       // Notes cell
@@ -433,7 +462,9 @@ function addHalfSheet(
       const b = sheet.getCell(r, gc(2));
       b.border = { ...b.border, left: bMed };
       const y = sheet.getCell(r, gc(PAGE_COLS - 1));
-      y.border = { ...y.border, right: bMed };
+      // 有休赤大太線が既に設定されている場合は上書きしない
+      const yIsRed = (y.border as any)?.right?.style === 'thick';
+      if (!yIsRed) y.border = { ...y.border, right: bMed };
       const z = sheet.getCell(r, gc(PAGE_COLS));
       z.border = { ...z.border, left: bMed };
     }
@@ -519,7 +550,7 @@ function addFullSheet(workbook: ExcelJS.Workbook, p: ShiftExcelParams) {
     const gc = (localCol: number) => off + localCol;
 
     // ── Row 1: Title ────────────────────────────────────────────────
-    const titleText = `${p.departmentName}　${p.year}年${p.month}月　シフト管理表　[Ver. 6.0]`;
+    const titleText = `${p.departmentName}　${p.year}年${p.month}月　シフト管理表　[Ver. 7.0]`;
     const verIdx2   = titleText.indexOf('[Ver.');
     const mainPart2 = verIdx2 >= 0 ? titleText.slice(0, verIdx2) : titleText;
     const verPart2  = verIdx2 >= 0 ? titleText.slice(verIdx2) : '';
@@ -607,7 +638,7 @@ function addFullSheet(workbook: ExcelJS.Workbook, p: ShiftExcelParams) {
         cell.value     = {
           richText: [
             { text: `${day.getDate()}日(${format(day, 'E', { locale: ja })}) `, font: { name: 'Century', bold: true, size: 10, color: { argb: style.font } } },
-            { text: `${approved}/${required}`,                                   font: { name: 'Century', bold: false, size: 10, color: { argb: style.font } } },
+            { text: `${approved}/${required}人`,                                  font: { name: 'Century', bold: false, size: 10, color: { argb: style.font } } },
           ],
         };
         fillCell(cell, style.bg);
@@ -629,16 +660,27 @@ function addFullSheet(workbook: ExcelJS.Workbook, p: ShiftExcelParams) {
             wc.font  = { name: 'Century', size: 9 };
             fillCell(wc, empBg);
           } else {
-            const shift      = shifts[0];
-            const isKarintou = shift.shiftType === 'karintou';
-            const shiftBg    = isKarintou ? C.karintouBg : C.cafeBg;
-            const shiftFg    = isKarintou ? C.karintouFont : C.cafeFont;
-            nc.value = isKarintou ? '◎' : '◆';
-            nc.font  = { name: 'Century', size: 9, color: { argb: shiftFg } };
-            nc.fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: shiftBg } };
-            wc.value = shifts.map(s => `${s.startTime}-${s.endTime}`).join('\n');
-            wc.font  = { name: 'Century', size: 9 };
-            fillCell(wc, empBg);
+            const shift        = shifts[0];
+            const isKarintou   = shift.shiftType === 'karintou';
+            const shiftBg      = isKarintou ? C.karintouBg : C.cafeBg;
+            const shiftFg      = isKarintou ? C.karintouFont : C.cafeFont;
+            const hasPaidLeave = shifts.some(s => s.isPaidLeave);
+            const timeText     = shifts.map(s => `${s.startTime}-${s.endTime}`).join('\n');
+            if (hasPaidLeave) {
+              nc.value = '🍃';
+              nc.font  = { name: 'Century', size: 9, color: { argb: C.paidLeaveFont } };
+              nc.fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: C.paidLeaveBg } };
+              wc.value = timeText;
+              wc.font  = { name: 'Century', size: 9 };
+              wc.fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: C.paidLeaveBg } };
+            } else {
+              nc.value = isKarintou ? '◎' : '◆';
+              nc.font  = { name: 'Century', size: 9, color: { argb: shiftFg } };
+              nc.fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: shiftBg } };
+              wc.value = timeText;
+              wc.font  = { name: 'Century', size: 9 };
+              fillCell(wc, empBg);
+            }
           }
         } else {
           nc.value = ' ';
@@ -649,8 +691,16 @@ function addFullSheet(workbook: ExcelJS.Workbook, p: ShiftExcelParams) {
         }
 
         for (const cell of [nc, wc]) cell.alignment = alignCenter;
-        nc.border = { top: bGray, left: bGray, bottom: bGray, right: bWhite };
-        wc.border = { top: bGray, left: bWhite, bottom: bGray, right: bGray };
+
+        const hasPL = emp ? p.getConfirmedShifts(emp.id, day).some(s => s.isPaidLeave) : false;
+        if (hasPL) {
+          const bRedMed: ExcelJS.Border = { style: 'medium', color: { argb: C.paidLeaveBorder } };
+          nc.border = { top: bRedMed, left: bRedMed, bottom: bRedMed, right: bWhite };
+          wc.border = { top: bRedMed, left: bWhite,  bottom: bRedMed, right: bRedMed };
+        } else {
+          nc.border = { top: bGray, left: bGray, bottom: bGray, right: bWhite };
+          wc.border = { top: bGray, left: bWhite, bottom: bGray, right: bGray };
+        }
       }
 
       {
@@ -709,7 +759,8 @@ function addFullSheet(workbook: ExcelJS.Workbook, p: ShiftExcelParams) {
       const b = sheet.getCell(r, gc(2));
       b.border = { ...b.border, left: bMed };
       const y = sheet.getCell(r, gc(PAGE_COLS - 1));
-      y.border = { ...y.border, right: bMed };
+      const yIsRed = (y.border as any)?.right?.style === 'thick';
+      if (!yIsRed) y.border = { ...y.border, right: bMed };
       const z = sheet.getCell(r, gc(PAGE_COLS));
       z.border = { ...z.border, left: bMed };
     }
@@ -904,16 +955,22 @@ function addCalendarSheet(workbook: ExcelJS.Workbook, p: ShiftExcelParams) {
       const dayDate = new Date(p.year, p.month - 1, calStartDay + offset);
       const inMonth = dayDate.getMonth() === p.month - 1;
       const isSale  = inMonth && p.isSaleDay(dayDate);
-      const names   = inMonth
+      const empData = inMonth
         ? p.sortedEmployees
-            .filter(e => p.getConfirmedShifts(e.id, dayDate).length > 0)
-            .map(e => familyName(e.name))
+            .map(e => {
+              const shifts = p.getConfirmedShifts(e.id, dayDate);
+              return shifts.length > 0
+                ? { name: familyName(e.name), isPaidLeave: shifts.some(s => s.isPaidLeave) }
+                : null;
+            })
+            .filter((x): x is { name: string; isPaidLeave: boolean } => x !== null)
         : [];
+      const names = empData.map(e => e.name);
       // ⑤ 日(d=0)・土(d=6)の特別色廃止 → 全曜日統一
       const [fc, bg]: [string, string | null] =
         !inMonth ? ['FFAAAAAA', null] :
                    [C.weekdayFont,  null];
-      return { offset, dayDate, inMonth, isSale, names, fc, bg };
+      return { offset, dayDate, inMonth, isSale, names, empData, fc, bg };
     });
 
     // ── Date row ──────────────────────────────────────────────────────────
@@ -968,20 +1025,24 @@ function addCalendarSheet(workbook: ExcelJS.Workbook, p: ShiftExcelParams) {
       stdBk(sheet.getCell(nameRow, COL_A));
 
       for (let d = 0; d < 7; d++) {
-        const { isSale, names, fc, bg } = weekData[d];
+        const { isSale, names, empData, fc, bg } = weekData[d];
         const finalBg = isSale ? C.saleBg : bg;
 
-        // 左サブ列: names[0..5], 右サブ列: names[6..11]
+        // 左サブ列: empData[0..5], 右サブ列: empData[6..11]
         const lc = sheet.getCell(nameRow, DAY_L[d]);
         const rc = sheet.getCell(nameRow, DAY_L[d] + 1);
 
-        for (const [cell, name] of [
-          [lc, names[nr]            ?? ''] as [ExcelJS.Cell, string],
-          [rc, names[nr + NAME_ROWS] ?? ''] as [ExcelJS.Cell, string],
+        for (const [cell, empInfo] of [
+          [lc, empData[nr]             ?? null] as [ExcelJS.Cell, { name: string; isPaidLeave: boolean } | null],
+          [rc, empData[nr + NAME_ROWS] ?? null] as [ExcelJS.Cell, { name: string; isPaidLeave: boolean } | null],
         ]) {
-          cell.value     = name;
-          cell.font      = { size: 14, color: { argb: fc } };
-          if (finalBg) fillCell(cell, finalBg);
+          cell.value = empInfo?.name ?? '';
+          cell.font  = { size: 14, color: { argb: fc } };
+          if (empInfo?.isPaidLeave) {
+            fillCell(cell, C.paidLeaveBg);
+          } else if (finalBg) {
+            fillCell(cell, finalBg);
+          }
           cell.alignment = { horizontal: 'centerContinuous', vertical: 'middle', shrinkToFit: true };
           stdBk(cell);
           cell.dataValidation = {
@@ -1090,7 +1151,7 @@ function addCalendarSheet(workbook: ExcelJS.Workbook, p: ShiftExcelParams) {
 
 export async function generateShiftExcel(p: ShiftExcelParams): Promise<void> {
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = 'シフト管理システム Ver. 6.0';
+  workbook.creator = 'シフト管理システム Ver. 7.0';
   workbook.created = new Date();
 
   addHalfSheet(workbook, 'first',  p);
