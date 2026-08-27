@@ -415,7 +415,7 @@ function addHalfSheet(
         } else {
           cell.fill = { type: 'pattern', pattern: 'none' };
         }
-        cell.alignment = { horizontal: 'left', vertical: 'top' };
+        cell.alignment = { horizontal: 'left', vertical: 'top', wrapText: true };
         stdBorder(cell);
       }
     });
@@ -712,7 +712,7 @@ function addFullSheet(workbook: ExcelJS.Workbook, p: ShiftExcelParams) {
         } else {
           cell.fill = { type: 'pattern', pattern: 'none' };
         }
-        cell.alignment = { horizontal: 'left', vertical: 'top' };
+        cell.alignment = { horizontal: 'left', vertical: 'top', wrapText: true };
         stdBorder(cell);
       }
     });
@@ -1069,7 +1069,7 @@ function addCalendarSheet(workbook: ExcelJS.Workbook, p: ShiftExcelParams) {
     const cell = sheet.getCell(NOTES_ROW, c);
     if (c === COL_A) cell.value = '備考欄';
     cell.font      = { size: 14 };
-    cell.alignment = { horizontal: 'left', vertical: 'top' };
+    cell.alignment = { horizontal: 'left', vertical: 'top', wrapText: true };
     stdBk(cell);
     // 内部の縦線を全て消去（外枠左右はapplyOuterBkが後から設定）
     if (c > COL_A)   cell.border = { ...cell.border, left:  undefined };
