@@ -440,7 +440,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
     try {
       const pad = (n: number) => String(n).padStart(2, '0');
       const from = `${year}-${pad(month)}-01`;
-      const to = `${year}-${pad(month)}-31`;
+      const lastDay = new Date(year, month, 0).getDate();
+      const to = `${year}-${pad(month)}-${pad(lastDay)}`;
       let query = supabase.from('daily_notes').select('date, note').gte('date', from).lte('date', to);
       if (departmentId) query = query.eq('department_id', departmentId);
       const { data, error } = await query;
