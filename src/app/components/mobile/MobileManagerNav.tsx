@@ -1,10 +1,10 @@
-import { CalendarDays, Users, Settings, LogOut, Zap } from 'lucide-react';
+import { CalendarDays, Users, Settings, LogOut } from 'lucide-react';
 import { Employee } from '../../types';
 
 interface MobileManagerNavProps {
   currentUser: Employee;
   departmentName: string;
-  onNavigate: (screen: 'bulkProcess' | 'shift' | 'employees' | 'shiftCondition') => void;
+  onNavigate: (screen: 'shift' | 'employees' | 'shiftCondition') => void;
   onLogout: () => void;
 }
 
@@ -17,7 +17,7 @@ export function MobileManagerNav({ currentUser, departmentName, onNavigate, onLo
           <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent font-bold">
             シフト管理システム
           </span>
-          <span className="text-gray-500" style={{ fontSize: '0.7em' }}>Ver. 7.0</span>
+          <span className="text-gray-500" style={{ fontSize: '0.7em' }}>Ver. 7.1</span>
         </div>
         <div className="flex items-center justify-between px-4 h-12">
           <div className="flex items-center gap-2">
@@ -42,19 +42,6 @@ export function MobileManagerNav({ currentUser, departmentName, onNavigate, onLo
       {/* ナビボタン群 */}
       <div className="flex-1 px-5 py-4 space-y-3">
         <button
-          onClick={() => onNavigate('bulkProcess')}
-          className="w-full flex items-center gap-4 p-5 bg-white rounded-2xl shadow-sm border border-indigo-100 active:scale-95 transition-all"
-        >
-          <div className="p-3 bg-gradient-to-br from-violet-500 to-indigo-500 rounded-xl shadow">
-            <Zap className="w-6 h-6 text-white" />
-          </div>
-          <div className="text-left">
-            <p className="font-bold text-gray-800">一括処理</p>
-            <p className="text-xs text-gray-500 mt-0.5">シフトの一括入力・一括承認</p>
-          </div>
-        </button>
-
-        <button
           onClick={() => onNavigate('shift')}
           className="w-full flex items-center gap-4 p-5 bg-white rounded-2xl shadow-sm border border-indigo-100 active:scale-95 transition-all"
         >
@@ -63,7 +50,7 @@ export function MobileManagerNav({ currentUser, departmentName, onNavigate, onLo
           </div>
           <div className="text-left">
             <p className="font-bold text-gray-800">シフト入力</p>
-            <p className="text-xs text-gray-500 mt-0.5">シフト入力・承認・確認</p>
+            <p className="text-xs text-gray-500 mt-0.5">勤務希望の入力・確認・一括入力</p>
           </div>
         </button>
 

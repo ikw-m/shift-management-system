@@ -235,7 +235,7 @@ function addHalfSheet(
     const gc = (localCol: number) => off + localCol;
 
     // ── Row 1: Title ───────────────────────────────────────────────
-    const titleText = `${p.departmentName}　${p.year}年${p.month}月${halfLabel}　シフト管理表　[Ver. 7.0]`;
+    const titleText = `${p.departmentName}　${p.year}年${p.month}月${halfLabel}　シフト管理表　[Ver. 7.1]`;
     const verIdx1   = titleText.indexOf('[Ver.');
     const mainPart1 = verIdx1 >= 0 ? titleText.slice(0, verIdx1) : titleText;
     const verPart1  = verIdx1 >= 0 ? titleText.slice(verIdx1) : '';
@@ -268,6 +268,7 @@ function addHalfSheet(
             { text: ' カフェ　× シフトなし', font: { name: 'HG丸ｺﾞｼｯｸM-PRO', size: 9, color: { argb: C.legendFont } } },
           ],
         };
+        cell.font = { name: 'HG丸ｺﾞｼｯｸM-PRO', size: 9, color: { argb: C.legendFont } };
       }
       cell.alignment = { horizontal: 'left', vertical: 'middle' };
     }
@@ -282,7 +283,7 @@ function addHalfSheet(
     {
       const cell = sheet.getCell(3, gc(1));
       cell.value     = '日付';
-      cell.font      = { bold: true, size: 10, color: { argb: C.headerFont } };
+      cell.font      = { name: 'HG丸ｺﾞｼｯｸM-PRO', bold: true, size: 10, color: { argb: C.headerFont } };
       cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: C.headerBg } };
       cell.alignment = alignCenter;
       stdBorder(cell);
@@ -302,7 +303,7 @@ function addHalfSheet(
     {
       const cell = sheet.getCell(3, gc(PAGE_COLS));
       cell.value     = '備考';
-      cell.font      = { bold: true, size: 10, color: { argb: C.headerFont } };
+      cell.font      = { name: 'HG丸ｺﾞｼｯｸM-PRO', bold: true, size: 10, color: { argb: C.headerFont } };
       cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: C.headerBg } };
       cell.alignment = alignCenter;
       stdBorder(cell);
@@ -409,7 +410,7 @@ function addHalfSheet(
       {
         const cell = sheet.getCell(rowIdx, gc(PAGE_COLS));
         cell.value     = p.dailyNotes[day.toISOString()] || '';
-        cell.font      = { name: 'Century', size: 9 };
+        cell.font      = { name: 'HG丸ｺﾞｼｯｸM-PRO', size: 9 };
         if (isSale) {
           cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C.saleBg } };
         } else {
@@ -460,7 +461,9 @@ function addHalfSheet(
       const a = sheet.getCell(r, gc(1));
       a.border = { ...a.border, right: bMed };
       const b = sheet.getCell(r, gc(2));
-      b.border = { ...b.border, left: bMed };
+      // 有休赤大太線が既に設定されている場合は上書きしない
+      const bIsRed = (b.border as any)?.left?.style === 'thick';
+      if (!bIsRed) b.border = { ...b.border, left: bMed };
       const y = sheet.getCell(r, gc(PAGE_COLS - 1));
       // 有休赤大太線が既に設定されている場合は上書きしない
       const yIsRed = (y.border as any)?.right?.style === 'thick';
@@ -550,7 +553,7 @@ function addFullSheet(workbook: ExcelJS.Workbook, p: ShiftExcelParams) {
     const gc = (localCol: number) => off + localCol;
 
     // ── Row 1: Title ────────────────────────────────────────────────
-    const titleText = `${p.departmentName}　${p.year}年${p.month}月　シフト管理表　[Ver. 7.0]`;
+    const titleText = `${p.departmentName}　${p.year}年${p.month}月　シフト管理表　[Ver. 7.1]`;
     const verIdx2   = titleText.indexOf('[Ver.');
     const mainPart2 = verIdx2 >= 0 ? titleText.slice(0, verIdx2) : titleText;
     const verPart2  = verIdx2 >= 0 ? titleText.slice(verIdx2) : '';
@@ -583,6 +586,7 @@ function addFullSheet(workbook: ExcelJS.Workbook, p: ShiftExcelParams) {
             { text: ' カフェ　× シフトなし',   font: { name: 'HG丸ｺﾞｼｯｸM-PRO', size: 9, color: { argb: C.legendFont } } },
           ],
         };
+        cell.font = { name: 'HG丸ｺﾞｼｯｸM-PRO', size: 9, color: { argb: C.legendFont } };
       }
       cell.alignment = { horizontal: 'left', vertical: 'middle' };
     }
@@ -597,7 +601,7 @@ function addFullSheet(workbook: ExcelJS.Workbook, p: ShiftExcelParams) {
     {
       const cell = sheet.getCell(3, gc(1));
       cell.value     = '日付';
-      cell.font      = { bold: true, size: 10, color: { argb: C.headerFont } };
+      cell.font      = { name: 'HG丸ｺﾞｼｯｸM-PRO', bold: true, size: 10, color: { argb: C.headerFont } };
       cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: C.headerBg } };
       cell.alignment = alignCenter;
       stdBorder(cell);
@@ -617,7 +621,7 @@ function addFullSheet(workbook: ExcelJS.Workbook, p: ShiftExcelParams) {
     {
       const cell = sheet.getCell(3, gc(PAGE_COLS));
       cell.value     = '備考';
-      cell.font      = { bold: true, size: 10, color: { argb: C.headerFont } };
+      cell.font      = { name: 'HG丸ｺﾞｼｯｸM-PRO', bold: true, size: 10, color: { argb: C.headerFont } };
       cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: C.headerBg } };
       cell.alignment = alignCenter;
       stdBorder(cell);
@@ -641,6 +645,7 @@ function addFullSheet(workbook: ExcelJS.Workbook, p: ShiftExcelParams) {
             { text: `${approved}/${required}人`,                                  font: { name: 'Century', bold: false, size: 10, color: { argb: style.font } } },
           ],
         };
+        cell.font      = { name: 'Century', bold: true, size: 10, color: { argb: style.font } };
         fillCell(cell, style.bg);
         cell.alignment = alignCenter;
         stdBorder(cell);
@@ -706,7 +711,7 @@ function addFullSheet(workbook: ExcelJS.Workbook, p: ShiftExcelParams) {
       {
         const cell = sheet.getCell(rowIdx, gc(PAGE_COLS));
         cell.value     = p.dailyNotes[day.toISOString()] || '';
-        cell.font      = { name: 'Century', size: 9 };
+        cell.font      = { name: 'HG丸ｺﾞｼｯｸM-PRO', size: 9 };
         if (isSale) {
           cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C.saleBg } };
         } else {
@@ -757,9 +762,13 @@ function addFullSheet(workbook: ExcelJS.Workbook, p: ShiftExcelParams) {
       const a = sheet.getCell(r, gc(1));
       a.border = { ...a.border, right: bMed };
       const b = sheet.getCell(r, gc(2));
-      b.border = { ...b.border, left: bMed };
+      // 有休赤罫線が既に設定されている場合は上書きしない（thick=前半後半, medium赤=月別）
+      const bIsRed = (b.border as any)?.left?.style === 'thick' ||
+                     (b.border as any)?.left?.color?.argb === C.paidLeaveBorder;
+      if (!bIsRed) b.border = { ...b.border, left: bMed };
       const y = sheet.getCell(r, gc(PAGE_COLS - 1));
-      const yIsRed = (y.border as any)?.right?.style === 'thick';
+      const yIsRed = (y.border as any)?.right?.style === 'thick' ||
+                     (y.border as any)?.right?.color?.argb === C.paidLeaveBorder;
       if (!yIsRed) y.border = { ...y.border, right: bMed };
       const z = sheet.getCell(r, gc(PAGE_COLS));
       z.border = { ...z.border, left: bMed };
@@ -1151,7 +1160,7 @@ function addCalendarSheet(workbook: ExcelJS.Workbook, p: ShiftExcelParams) {
 
 export async function generateShiftExcel(p: ShiftExcelParams): Promise<void> {
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = 'シフト管理システム Ver. 7.0';
+  workbook.creator = 'シフト管理システム Ver. 7.1';
   workbook.created = new Date();
 
   addHalfSheet(workbook, 'first',  p);
