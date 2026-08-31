@@ -115,7 +115,7 @@ export interface ShiftExcelParams {
   isHoliday: (date: Date) => boolean;
   isSaleDay: (date: Date) => boolean;
   dailyNotes: { [isoKey: string]: string };
-  noteText: string;
+  procedures: [string, string, string];
 }
 
 const PAGE_COLS        = 26;
@@ -235,7 +235,7 @@ function addHalfSheet(
     const gc = (localCol: number) => off + localCol;
 
     // ── Row 1: Title ───────────────────────────────────────────────
-    const titleText = `${p.departmentName}　${p.year}年${p.month}月${halfLabel}　シフト管理表　[Ver. 7.1]`;
+    const titleText = `${p.departmentName}　${p.year}年${p.month}月${halfLabel}　シフト管理表　[Ver. 7.2]`;
     const verIdx1   = titleText.indexOf('[Ver.');
     const mainPart1 = verIdx1 >= 0 ? titleText.slice(0, verIdx1) : titleText;
     const verPart1  = verIdx1 >= 0 ? titleText.slice(verIdx1) : '';
@@ -437,7 +437,7 @@ function addHalfSheet(
     }
 
     // ── Rows procTextRow1-3: 業務手順 Text 3行固定────────────────────
-    const procLines = p.noteText.split('\n');
+    const procLines = p.procedures;
     [procTextRow1, procTextRow2, procTextRow3].forEach((rowNum, i) => {
       for (let c = 1; c <= PAGE_COLS; c++) {
         const cell = sheet.getCell(rowNum, gc(c));
@@ -553,7 +553,7 @@ function addFullSheet(workbook: ExcelJS.Workbook, p: ShiftExcelParams) {
     const gc = (localCol: number) => off + localCol;
 
     // ── Row 1: Title ────────────────────────────────────────────────
-    const titleText = `${p.departmentName}　${p.year}年${p.month}月　シフト管理表　[Ver. 7.1]`;
+    const titleText = `${p.departmentName}　${p.year}年${p.month}月　シフト管理表　[Ver. 7.2]`;
     const verIdx2   = titleText.indexOf('[Ver.');
     const mainPart2 = verIdx2 >= 0 ? titleText.slice(0, verIdx2) : titleText;
     const verPart2  = verIdx2 >= 0 ? titleText.slice(verIdx2) : '';
@@ -738,7 +738,7 @@ function addFullSheet(workbook: ExcelJS.Workbook, p: ShiftExcelParams) {
     }
 
     // ── procTextRow1-3: 業務手順 Text 3行固定────────────────────────────
-    const procLines = p.noteText.split('\n');
+    const procLines = p.procedures;
     [procTextRow1, procTextRow2, procTextRow3].forEach((rowNum, i) => {
       for (let c = 1; c <= PAGE_COLS; c++) {
         const cell = sheet.getCell(rowNum, gc(c));
@@ -1160,7 +1160,7 @@ function addCalendarSheet(workbook: ExcelJS.Workbook, p: ShiftExcelParams) {
 
 export async function generateShiftExcel(p: ShiftExcelParams): Promise<void> {
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = 'シフト管理システム Ver. 7.1';
+  workbook.creator = 'シフト管理システム Ver. 7.2';
   workbook.created = new Date();
 
   addHalfSheet(workbook, 'first',  p);

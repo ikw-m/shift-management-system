@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Employee, Availability, ShiftCondition, Department } from '../types';
+import { Employee, Availability, ShiftCondition, Department, ProcedureTemplate } from '../types';
 import { supabase } from '../../lib/supabase';
 
 interface DataContextType {
@@ -24,8 +24,11 @@ interface DataContextType {
   rejectAvailability: (id: string, reviewerName: string) => Promise<void>;
   getDailyNotesForMonth: (year: number, month: number, departmentId?: string) => Promise<{ [date: string]: string }>;
   saveDailyNote: (date: string, note: string, departmentId?: string) => Promise<void>;
-  getMonthlyProcedure: (year: number, month: number, departmentId?: string) => Promise<string>;
-  saveMonthlyProcedure: (year: number, month: number, procedure: string, departmentId?: string) => Promise<void>;
+  getMonthlyProcedure: (year: number, month: number, departmentId?: string) => Promise<[string, string, string]>;
+  saveMonthlyProcedure: (year: number, month: number, procedures: [string, string, string], departmentId?: string) => Promise<void>;
+  getProcedureTemplates: (departmentId?: string) => Promise<ProcedureTemplate[]>;
+  addProcedureTemplate: (content: string, departmentId?: string) => Promise<void>;
+  deleteProcedureTemplate: (id: string) => Promise<void>;
   getShiftCondition: (year: number, departmentId?: string) => Promise<ShiftCondition | null>;
   saveShiftCondition: (year: number, condition: ShiftCondition, departmentId?: string) => Promise<void>;
 }
@@ -476,36 +479,69 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const getMonthlyProcedure = async (year: number, month: number, departmentId?: string): Promise<string> => {
+  const getMonthlyProcedure = async (year: number, month: number, departmentId?: string): Promise<[string, string, string]> => {
     try {
-      let query = supabase.from('monthly_procedures').select('procedure').eq('year', year).eq('month', month);
+      let query = supabase.from('monthly_procedures').select('procedure1, procedure2, procedure3').eq('year', year).eq('month', month);
       if (departmentId) query = query.eq('department_id', departmentId);
       const { data, error } = await query.single();
 
       if (error && error.code !== 'PGRST116') throw error;
-      return data?.procedure || '';
-    } catch (error) {
-      return '';
+      return [data?.procedure1 || '', data?.procedure2 || '', data?.procedure3 || ''];
+    } catch {
+      return ['', '', ''];
     }
   };
 
-  const saveMonthlyProcedure = async (year: number, month: number, procedure: string, departmentId?: string): Promise<void> => {
+  const saveMonthlyProcedure = async (year: number, month: number, procedures: [string, string, string], departmentId?: string): Promise<void> => {
     try {
+      const [procedure1, procedure2, procedure3] = procedures;
       let checkQuery = supabase.from('monthly_procedures').select('year').eq('year', year).eq('month', month);
       if (departmentId) checkQuery = checkQuery.eq('department_id', departmentId);
       const { data: existing } = await checkQuery.maybeSingle();
 
       if (existing) {
-        let updateQuery = supabase.from('monthly_procedures').update({ procedure }).eq('year', year).eq('month', month);
+        let updateQuery = supabase.from('monthly_procedures').update({ procedure1, procedure2, procedure3 }).eq('year', year).eq('month', month);
         if (departmentId) updateQuery = updateQuery.eq('department_id', departmentId);
         const { error } = await updateQuery;
         if (error) throw error;
       } else {
-        const record: Record<string, unknown> = { year, month, procedure };
+        const record: Record<string, unknown> = { year, month, procedure1, procedure2, procedure3 };
         if (departmentId) record.department_id = departmentId;
         const { error } = await supabase.from('monthly_procedures').insert(record);
         if (error) throw error;
       }
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const getProcedureTemplates = async (departmentId?: string): Promise<ProcedureTemplate[]> => {
+    try {
+      let query = supabase.from('procedure_templates').select('*').order('created_at', { ascending: true });
+      if (departmentId) query = query.eq('department_id', departmentId);
+      const { data, error } = await query;
+      if (error) throw error;
+      return (data || []) as ProcedureTemplate[];
+    } catch {
+      return [];
+    }
+  };
+
+  const addProcedureTemplate = async (content: string, departmentId?: string): Promise<void> => {
+    try {
+      const record: Record<string, unknown> = { content };
+      if (departmentId) record.department_id = departmentId;
+      const { error } = await supabase.from('procedure_templates').insert(record);
+      if (error) throw error;
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const deleteProcedureTemplate = async (id: string): Promise<void> => {
+    try {
+      const { error } = await supabase.from('procedure_templates').delete().eq('id', id);
+      if (error) throw error;
     } catch (error) {
       throw error;
     }
@@ -571,6 +607,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
         saveDailyNote,
         getMonthlyProcedure,
         saveMonthlyProcedure,
+        getProcedureTemplates,
+        addProcedureTemplate,
+        deleteProcedureTemplate,
         getShiftCondition,
         saveShiftCondition,
       }}
@@ -596,8 +635,11 @@ export function useData() {
       rejectAvailability: async () => {},
       getDailyNotesForMonth: async () => ({}),
       saveDailyNote: async () => {},
-      getMonthlyProcedure: async () => '',
+      getMonthlyProcedure: async () => ['', '', ''] as [string, string, string],
       saveMonthlyProcedure: async () => {},
+      getProcedureTemplates: async () => [],
+      addProcedureTemplate: async () => {},
+      deleteProcedureTemplate: async () => {},
       getShiftCondition: async () => null,
       saveShiftCondition: async () => {},
     } as DataContextType;

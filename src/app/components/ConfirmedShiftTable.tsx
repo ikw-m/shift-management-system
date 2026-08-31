@@ -1,8 +1,9 @@
+import { toast } from 'sonner';
 import { format, isSameDay, getDaysInMonth, getDay } from 'date-fns';
 import { ja } from 'date-fns/locale';
-import { FileCheck, Download, ClipboardList, Leaf } from 'lucide-react';
+import { FileCheck, Download, ClipboardList, Leaf, BookmarkPlus, Library, Trash2, X } from 'lucide-react';
 import { generateShiftExcel } from '../utils/generateShiftExcel';
-import { Employee, Availability, shiftTypeConfig, ShiftCondition } from '../types';
+import { Employee, Availability, shiftTypeConfig, ShiftCondition, ProcedureTemplate } from '../types';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useData } from '../context/DataContext';
 
@@ -27,9 +28,12 @@ export function ConfirmedShiftTable({
   onYearChange,
   onMonthChange,
 }: ConfirmedShiftTableProps) {
-  const { getDailyNotesForMonth, saveDailyNote, getMonthlyProcedure, saveMonthlyProcedure, getShiftCondition } = useData();
+  const { getDailyNotesForMonth, saveDailyNote, getMonthlyProcedure, saveMonthlyProcedure, getProcedureTemplates, addProcedureTemplate, deleteProcedureTemplate, getShiftCondition } = useData();
   const [downloading, setDownloading] = useState(false);
-  const [noteText, setNoteText] = useState('このシフト確認表には、管理者によって承認された勤務希望のみが表示されています。');
+  const [procedureRows, setProcedureRows] = useState<[string, string, string]>(['', '', '']);
+  const procedureRowsRef = useRef<[string, string, string]>(['', '', '']);
+  const [templates, setTemplates] = useState<ProcedureTemplate[]>([]);
+  const [openTemplatePickerRow, setOpenTemplatePickerRow] = useState<number | null>(null);
   const [dailyNotes, setDailyNotes] = useState<{ [key: string]: string }>({});
   const [shiftCondition, setShiftCondition] = useState<ShiftCondition | null>(null);
 
@@ -48,14 +52,20 @@ export function ConfirmedShiftTable({
   useEffect(() => {
     const loadMonthlyProcedure = async () => {
       try {
-        const procedure = await getMonthlyProcedure(year, month, currentUser?.departmentId);
-        setNoteText(procedure || 'このシフト確認表には、管理者によって承認された勤務希望のみが表示されています。');
+        const rows = await getMonthlyProcedure(year, month, currentUser?.departmentId);
+        setProcedureRows(rows);
+        procedureRowsRef.current = rows;
       } catch (error) {
         console.error('月別業務手順の読み込みに失敗しました:', error);
       }
     };
     loadMonthlyProcedure();
   }, [year, month, getMonthlyProcedure]);
+
+  // テンプレート一覧を読み込み
+  useEffect(() => {
+    getProcedureTemplates(currentUser?.departmentId).then(setTemplates);
+  }, [currentUser?.departmentId, getProcedureTemplates]);
 
   // 月の備考を一括取得
   useEffect(() => {
@@ -88,20 +98,55 @@ export function ConfirmedShiftTable({
     }, 600);
   }, [isManager, saveDailyNote, currentUser?.departmentId]);
 
-  const handleProcedureChange = useCallback((value: string) => {
-    // 最大3行（改行文字2つまで）制限
-    if ((value.match(/\n/g) || []).length > 2) return;
-    setNoteText(value);
+  const handleProcedureChange = useCallback((rowIndex: number, value: string) => {
+    const next: [string, string, string] = [...procedureRowsRef.current] as [string, string, string];
+    next[rowIndex] = value;
+    setProcedureRows(next);
+    procedureRowsRef.current = next;
 
     if (procedureTimer.current) clearTimeout(procedureTimer.current);
     procedureTimer.current = setTimeout(async () => {
       try {
-        await saveMonthlyProcedure(year, month, value, currentUser?.departmentId);
+        await saveMonthlyProcedure(year, month, procedureRowsRef.current, currentUser?.departmentId);
       } catch (error) {
         console.error('月別業務手順の保存に失敗しました:', error);
       }
     }, 600);
   }, [year, month, saveMonthlyProcedure, currentUser?.departmentId]);
+
+  const handleAddTemplate = useCallback(async (rowIndex: number) => {
+    const content = procedureRowsRef.current[rowIndex].trim();
+    if (!content) return;
+    const isDuplicate = templates.some(t => t.content === content);
+    if (isDuplicate) {
+      toast.error('同じ内容がすでに登録されています');
+      return;
+    }
+    try {
+      await addProcedureTemplate(content, currentUser?.departmentId);
+      const updated = await getProcedureTemplates(currentUser?.departmentId);
+      setTemplates(updated);
+      toast.success('テンプレートに保存しました');
+    } catch (error) {
+      console.error('テンプレート保存に失敗しました:', error);
+      toast.error('保存に失敗しました');
+    }
+  }, [templates, addProcedureTemplate, getProcedureTemplates, currentUser?.departmentId]);
+
+  const handleSelectTemplate = useCallback((rowIndex: number, content: string) => {
+    handleProcedureChange(rowIndex, content);
+    setOpenTemplatePickerRow(null);
+  }, [handleProcedureChange]);
+
+  const handleDeleteTemplate = useCallback(async (id: string) => {
+    try {
+      await deleteProcedureTemplate(id);
+      const updated = await getProcedureTemplates(currentUser?.departmentId);
+      setTemplates(updated);
+    } catch (error) {
+      console.error('テンプレート削除に失敗しました:', error);
+    }
+  }, [deleteProcedureTemplate, getProcedureTemplates, currentUser?.departmentId]);
 
   // 従業員をdisplayOrderでソート（最大15人まで表示）
   const sortedEmployees = [...employees].sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0)).slice(0, 15);
@@ -168,7 +213,7 @@ export function ConfirmedShiftTable({
         isHoliday,
         isSaleDay,
         dailyNotes,
-        noteText,
+        procedures: procedureRowsRef.current,
       });
     } catch {
       alert('ダウンロードに失敗しました。');
@@ -449,7 +494,7 @@ export function ConfirmedShiftTable({
         </div>
 
         {/* 画面表示用テーブル（横に従業員、縦に日付） */}
-        <div className="overflow-auto max-h-[calc(100vh-275px)] screen-only">
+        <div className="overflow-auto max-h-[calc(100dvh-315px)] screen-only">
           <table className="w-full border-collapse">
             <thead>
               <tr>
@@ -559,14 +604,74 @@ export function ConfirmedShiftTable({
             </div>
             <h3 className="text-sm font-semibold text-gray-800">業務手順</h3>
           </div>
-          <textarea
-            value={noteText}
-            onChange={(e) => handleProcedureChange(e.target.value)}
-            disabled={!isManager}
-            className={`w-full px-3 py-2 text-xs text-gray-700 bg-white border border-emerald-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none shadow-sm transition-shadow ${isManager ? 'hover:shadow-md' : 'cursor-not-allowed opacity-60'}`}
-            rows={3}
-            placeholder={isManager ? '業務手順や備考を入力してください...' : ''}
-          />
+          <div className="border border-emerald-200 rounded-xl shadow-sm">
+            {([0, 1, 2] as const).map((rowIndex) => (
+              <div key={rowIndex} className={`relative flex items-center bg-white ${rowIndex < 2 ? 'border-b border-emerald-100' : ''} ${rowIndex === 0 ? 'rounded-t-xl' : ''} ${rowIndex === 2 ? 'rounded-b-xl' : ''}`}>
+                {isManager && (
+                  <>
+                    <button
+                      type="button"
+                      title="この行をテンプレートに保存"
+                      onClick={() => handleAddTemplate(rowIndex)}
+                      className="flex-shrink-0 p-1.5 ml-1.5 text-emerald-600 hover:bg-emerald-100 rounded-lg transition-colors"
+                    >
+                      <BookmarkPlus className="w-3.5 h-3.5" />
+                    </button>
+                    <div className="relative flex-shrink-0">
+                      <button
+                        type="button"
+                        title="テンプレートから呼び出し"
+                        onClick={() => setOpenTemplatePickerRow(openTemplatePickerRow === rowIndex ? null : rowIndex)}
+                        className="flex-shrink-0 p-1.5 text-emerald-600 hover:bg-emerald-100 rounded-lg transition-colors"
+                      >
+                        <Library className="w-3.5 h-3.5" />
+                      </button>
+                      {openTemplatePickerRow === rowIndex && (
+                        <div className="absolute left-0 bottom-full mb-1 z-50 bg-white border border-emerald-200 rounded-xl shadow-xl min-w-[260px] max-h-48 overflow-y-auto">
+                          <div className="flex items-center justify-between px-3 py-2 border-b border-emerald-100">
+                            <span className="text-xs font-semibold text-gray-700">テンプレート一覧</span>
+                            <button onClick={() => setOpenTemplatePickerRow(null)} className="text-gray-400 hover:text-gray-600">
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                          {templates.length === 0 ? (
+                            <p className="text-xs text-gray-400 px-3 py-3 text-center">テンプレートがありません</p>
+                          ) : (
+                            templates.map((tpl) => (
+                              <div key={tpl.id} className="flex items-center justify-between px-3 py-2 hover:bg-emerald-50 group">
+                                <button
+                                  type="button"
+                                  onClick={() => handleSelectTemplate(rowIndex, tpl.content)}
+                                  className="flex-1 text-left text-xs text-gray-700 truncate mr-2"
+                                >
+                                  {tpl.content}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteTemplate(tpl.id)}
+                                  className="flex-shrink-0 text-gray-300 hover:text-red-500 transition-colors"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+                <input
+                  type="text"
+                  value={procedureRows[rowIndex]}
+                  onChange={(e) => handleProcedureChange(rowIndex, e.target.value)}
+                  disabled={!isManager}
+                  className={`flex-1 px-3 py-1.5 text-xs text-gray-700 bg-white border-none focus:outline-none focus:ring-0 ${isManager ? '' : 'cursor-not-allowed opacity-60'}`}
+                  placeholder={isManager ? `手順${rowIndex + 1}を入力...` : ''}
+                />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </>

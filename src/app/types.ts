@@ -53,6 +53,13 @@ export const shiftTypeConfig = {
   cafe: { label: 'カフェ', color: '#FFC72C', bgColor: '#fff7ed', borderColor: '#fed7aa' },
 };
 
+export interface ProcedureTemplate {
+  id: string;
+  department_id?: string;
+  content: string;
+  created_at: string;
+}
+
 export type ShiftConditionRowType =
   | 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday'
   | 'holiday' | 'springSale' | 'summerSale' | 'winterSale';

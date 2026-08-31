@@ -436,13 +436,13 @@ export function AppContent() {
   }
 
   return (
-    <div className={`${(viewMode === 'calendar' || viewMode === 'confirmed') ? 'h-screen overflow-hidden' : 'min-h-screen'} p-4`} style={{ background: 'linear-gradient(135deg, #f5f7fa 0%, #e8ebf0 100%)' }}>
+    <div className={`${(viewMode === 'calendar' || viewMode === 'confirmed') ? 'h-[100dvh] overflow-hidden' : 'min-h-[100dvh]'} p-4`} style={{ background: 'linear-gradient(135deg, #f5f7fa 0%, #e8ebf0 100%)' }}>
       <div className={(viewMode === 'calendar' || viewMode === 'confirmed') ? 'mb-2' : 'max-w-7xl mx-auto mb-6'}>
         <header>
           <div className="flex items-center justify-between mb-4 h-[44px]">
             <div className="flex items-baseline gap-2">
               <h1 className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">シフト管理システム</h1>
-              <span className="text-xs text-gray-500">Ver. 7.1</span>
+              <span className="text-xs text-gray-500">Ver. 7.2</span>
               {departmentName && (
                 <span className="text-sm font-bold text-indigo-700 ml-2">｜ {departmentName}</span>
               )}
