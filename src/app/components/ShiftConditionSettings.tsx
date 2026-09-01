@@ -178,6 +178,7 @@ export function ShiftConditionSettings({ departmentId }: ShiftConditionSettingsP
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [mode, setMode] = useState<'register' | 'update' | null>(null);
   const [rows, setRows] = useState<ShiftConditionRow[]>([]);
+  const [annualHolidayDays, setAnnualHolidayDays] = useState(108);
   const inputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
 
   const handleDisplay = async () => {
@@ -194,6 +195,7 @@ export function ShiftConditionSettings({ departmentId }: ShiftConditionSettingsP
       // 更新モード
       setMode('update');
       setRows(existing.rows);
+      setAnnualHolidayDays(existing.annualHolidayDays ?? 108);
     } else {
       // 登録モード
       setMode('register');
@@ -203,6 +205,7 @@ export function ShiftConditionSettings({ departmentId }: ShiftConditionSettingsP
         dates: type === 'holiday' ? getHolidays(year) : [],
       }));
       setRows(initialRows);
+      setAnnualHolidayDays(108);
     }
   };
 
@@ -218,6 +221,7 @@ export function ShiftConditionSettings({ departmentId }: ShiftConditionSettingsP
     const condition: ShiftCondition = {
       year: selectedYear,
       rows: cleanedRows,
+      annualHolidayDays,
     };
 
     try {
@@ -241,6 +245,7 @@ export function ShiftConditionSettings({ departmentId }: ShiftConditionSettingsP
     const condition: ShiftCondition = {
       year: selectedYear,
       rows: cleanedRows,
+      annualHolidayDays,
     };
 
     try {
@@ -274,6 +279,7 @@ export function ShiftConditionSettings({ departmentId }: ShiftConditionSettingsP
     setMode(null);
     setRows([]);
     setInputYear('');
+    setAnnualHolidayDays(108);
   };
 
   const updateRow = (index: number, field: 'requiredStaff' | 'dates', value: number | string[]) => {
@@ -364,6 +370,22 @@ export function ShiftConditionSettings({ departmentId }: ShiftConditionSettingsP
       {/* ボディ部分 */}
       {mode && (
         <div className="p-6 overflow-auto max-h-[calc(100vh-280px)]">
+          {/* 年間休日日数 */}
+          {selectedYear && (
+            <div className="mb-4 flex items-center gap-2 flex-wrap text-sm text-gray-700">
+              <span className="font-medium">{selectedYear - 1}年10月から</span>
+              <span className="font-medium">{selectedYear}年9月までの年間休日日数は</span>
+              <input
+                type="number"
+                min="0"
+                max="365"
+                value={annualHolidayDays}
+                onChange={e => setAnnualHolidayDays(parseInt(e.target.value) || 0)}
+                className="w-20 px-2 py-1 text-sm rounded border border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-center font-bold"
+              />
+              <span className="font-medium">日です。</span>
+            </div>
+          )}
           <div className="overflow-x-auto">
             <table className="w-full border-collapse border border-gray-300">
               <thead>

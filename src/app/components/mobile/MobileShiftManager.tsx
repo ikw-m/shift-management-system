@@ -53,22 +53,89 @@ export function MobileShiftManager({
   const [newIsPaidLeave, setNewIsPaidLeave] = useState(false);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>(currentUser.id);
   const [shiftCondition, setShiftCondition] = useState<ShiftCondition | null>(null);
+  const [annualHolidayDays, setAnnualHolidayDays] = useState<number>(0);
+  const [carryover, setCarryover] = useState<{ days: number; isManual: boolean } | null>(null);
+  const [prevCarryoverSum, setPrevCarryoverSum] = useState<number>(0);
 
   const listContainerRef = useRef<HTMLDivElement>(null);
   const dayRefs = useRef<Map<number, HTMLDivElement>>(new Map());
 
-  const { getShiftCondition, employees: contextEmployees, addAvailability, approveAvailability } = useData();
+  const { getShiftCondition, employees: contextEmployees, addAvailability, approveAvailability, getHolidayCarryover, upsertHolidayCarryover, getHolidayCarryoverRange } = useData();
   const isManager = currentUser.role === 'manager' || currentUser.isManager === true;
   const latestCurrentUser = contextEmployees.find(e => e.id === currentUser.id) ?? currentUser;
 
+  // 入社・退職年月によるフィルタ関数（currentUserは常に表示）
+  const isEmployeeVisible = (emp: { hireDate?: string; retirementDate?: string }) => {
+    if (!emp.hireDate && !emp.retirementDate) return false;
+    const displayYM = year * 100 + month;
+    const toYM = (s: string) => Number(s.substring(0, 4)) * 100 + Number(s.substring(5, 7));
+    const hireYM = emp.hireDate ? toYM(emp.hireDate) : null;
+    const retireYM = emp.retirementDate ? toYM(emp.retirementDate) : null;
+    if (hireYM && retireYM) return hireYM <= displayYM && displayYM <= retireYM;
+    if (hireYM) return hireYM <= displayYM;
+    return false;
+  };
+
   const deptEmployees = contextEmployees
-    .filter(e => e.departmentId === currentUser.departmentId)
+    .filter(e => e.departmentId === currentUser.departmentId && isEmployeeVisible(e))
     .sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
   const selectedEmployee = deptEmployees.find(e => e.id === selectedEmployeeId) ?? latestCurrentUser;
 
+  // シフト条件設定を読み込み（祝日・セール日判定用：カレンダー年）
   useEffect(() => {
     getShiftCondition(year, currentUser.departmentId).then(setShiftCondition);
   }, [year, getShiftCondition]);
+
+  // 年間休日日数を読み込み（✕バッジY値用：年度ベース）
+  useEffect(() => {
+    const fiscalYear = month >= 10 ? year + 1 : year;
+    getShiftCondition(fiscalYear, currentUser.departmentId).then(condition => {
+      setAnnualHolidayDays(condition?.annualHolidayDays ?? 0);
+    });
+  }, [year, month, getShiftCondition]);
+
+  // 選択従業員の当月休日数を読み込み
+  useEffect(() => {
+    const empId = isManager ? selectedEmployeeId : currentUser.id;
+    getHolidayCarryover(empId, year, month).then(data => {
+      setCarryover(data ? { days: data.carryoverDays, isManual: data.isManual } : null);
+    });
+  }, [year, month, selectedEmployeeId, isManager, currentUser.id, getHolidayCarryover]);
+
+  // 年度初め〜前月の当月休日数合計（✕バッジ用）
+  useEffect(() => {
+    const empId = isManager ? selectedEmployeeId : currentUser.id;
+    const fiscalStartYear = month >= 10 ? year : year - 1;
+    const prevMonths: { year: number; month: number }[] = [];
+    let y = fiscalStartYear; let m = 10;
+    while (y < year || (y === year && m < month)) {
+      prevMonths.push({ year: y, month: m });
+      m++; if (m > 12) { m = 1; y++; }
+    }
+    if (prevMonths.length === 0) { setPrevCarryoverSum(0); return; }
+    getHolidayCarryoverRange([empId], prevMonths).then(result => {
+      setPrevCarryoverSum(result[empId] ?? 0);
+    });
+  }, [year, month, selectedEmployeeId, isManager, currentUser.id, getHolidayCarryoverRange]);
+
+  const handleCarryoverChange = async (value: number | null) => {
+    const empId = isManager ? selectedEmployeeId : currentUser.id;
+    if (value === null) {
+      // 空白 = 自動計算リセット
+      const approvedDates = new Set(
+        availabilities
+          .filter(a => a.employeeId === empId && a.status === 'approved' &&
+            new Date(a.date).getFullYear() === year && new Date(a.date).getMonth() + 1 === month)
+          .map(a => new Date(a.date).getDate())
+      );
+      const autoValue = approvedDates.size === 0 ? 0 : new Date(year, month, 0).getDate() - approvedDates.size;
+      setCarryover({ days: autoValue, isManual: false });
+      try { await upsertHolidayCarryover(empId, year, month, autoValue, false); } catch {}
+    } else {
+      setCarryover({ days: value, isManual: true });
+      try { await upsertHolidayCarryover(empId, year, month, value, true); } catch {}
+    }
+  };
 
   useEffect(() => {
     if (expandedDay === null) return;
@@ -311,6 +378,42 @@ export function MobileShiftManager({
 
   const daysInMonth = getDaysInMonth(new Date(year, month - 1));
 
+  // ✕(X/Y)バッジ計算（年度初め〜前月の合計 + 当月累計空き日数）
+  const selectedEmpId = isManager ? selectedEmployeeId : currentUser.id;
+  // 当月休日数の表示値（DBレコードなし時は自動計算）
+  const autoComputedCarryover = (() => {
+    const approvedDates = new Set(
+      availabilities
+        .filter(a => a.employeeId === selectedEmpId && a.status === 'approved' &&
+          new Date(a.date).getFullYear() === year && new Date(a.date).getMonth() + 1 === month)
+        .map(a => new Date(a.date).getDate())
+    );
+    return approvedDates.size === 0 ? 0 : new Date(year, month, 0).getDate() - approvedDates.size;
+  })();
+  const displayCarryoverDays = carryover !== null ? carryover.days : autoComputedCarryover;
+  const displayIsManual = carryover?.isManual ?? false;
+
+  const selectedEmp = employees.find(e => e.id === selectedEmpId);
+  const holidayBadgeMap: Record<number, { x: number; y: number } | '✕' | null> = {};
+  let runCount = 0;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const hasApproved = availabilities.some(a => {
+      const ad = new Date(a.date);
+      return a.employeeId === selectedEmpId && a.status === 'approved' &&
+        ad.getFullYear() === year && ad.getMonth() + 1 === month && ad.getDate() === d;
+    });
+    if (selectedEmp?.holidayManagement) {
+      if (!hasApproved) {
+        runCount++;
+        holidayBadgeMap[d] = { x: prevCarryoverSum + runCount, y: annualHolidayDays };
+      } else {
+        holidayBadgeMap[d] = null;
+      }
+    } else {
+      holidayBadgeMap[d] = !hasApproved ? '✕' : null;
+    }
+  }
+
   return (
     <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
       {/* ヘッダー */}
@@ -319,7 +422,7 @@ export function MobileShiftManager({
           <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent font-bold">
             シフト管理システム
           </span>
-          <span className="text-gray-500" style={{ fontSize: '0.7em' }}>Ver. 7.2</span>
+          <span className="text-gray-500" style={{ fontSize: '0.7em' }}>Ver. 8.0</span>
           {departmentName && (
             <span className="text-xs font-bold text-indigo-700 ml-1">｜ {departmentName}</span>
           )}
@@ -378,6 +481,28 @@ export function MobileShiftManager({
           </>
         )}
       </div>
+
+      {/* 当月休日数（休日管理オンの従業員のみ） */}
+      {selectedEmp?.holidayManagement && (
+        <div className="bg-white border-b border-gray-100 px-4 py-1.5 flex items-center gap-2 flex-shrink-0">
+          <span className="text-sm font-semibold text-gray-700 whitespace-nowrap">当月休日数：</span>
+          <input
+            type="number"
+            min="0"
+            value={displayCarryoverDays}
+            onChange={e => handleCarryoverChange(e.target.value === '' ? null : parseInt(e.target.value))}
+            disabled={!isManager}
+            className={`w-16 px-2 py-0.5 text-base text-center border rounded-lg focus:outline-none focus:ring-1 font-bold [appearance:textfield] [&::-webkit-outer-spin-button]:hidden [&::-webkit-inner-spin-button]:hidden disabled:opacity-70 disabled:cursor-default ${
+              displayIsManual
+                ? 'text-blue-600 border-blue-200 bg-blue-50'
+                : 'text-red-600 border-red-200 bg-red-50'
+            }`}
+          />
+          <span className={`text-sm font-semibold ${displayIsManual ? 'text-blue-500' : 'text-red-500'}`}>
+            {displayIsManual ? '手動' : '自動'}
+          </span>
+        </div>
+      )}
 
       {/* 月ナビゲーション */}
       <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200 flex-shrink-0">
@@ -497,6 +622,13 @@ export function MobileShiftManager({
                     {shifts.filter(a => a.status === 'pending').length > 0 && (
                       <span className="text-xs bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded-full border border-yellow-300">
                         待ち{shifts.filter(a => a.status === 'pending').length}
+                      </span>
+                    )}
+                    {holidayBadgeMap[day] && (
+                      <span className="text-xs font-semibold text-gray-700 whitespace-nowrap bg-gray-100 px-1.5 py-0.5 rounded-full">
+                        {typeof holidayBadgeMap[day] === 'string'
+                          ? holidayBadgeMap[day]
+                          : `✕ ( ${(holidayBadgeMap[day] as { x: number; y: number }).x} / ${(holidayBadgeMap[day] as { x: number; y: number }).y} )`}
                       </span>
                     )}
                   </div>

@@ -71,6 +71,7 @@ export function MobileShiftConditionSettings({ currentUser, departmentName, onBa
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [mode, setMode] = useState<'register' | 'update' | null>(null);
   const [rows, setRows] = useState<ShiftConditionRow[]>([]);
+  const [annualHolidayDays, setAnnualHolidayDays] = useState(108);
   const [expandedRow, setExpandedRow] = useState<ShiftConditionRowType | null>(null);
   const inputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
 
@@ -87,6 +88,7 @@ export function MobileShiftConditionSettings({ currentUser, departmentName, onBa
     if (existing) {
       setMode('update');
       setRows(existing.rows);
+      setAnnualHolidayDays(existing.annualHolidayDays ?? 108);
     } else {
       setMode('register');
       setRows(ROW_TYPES.map(type => ({
@@ -94,6 +96,7 @@ export function MobileShiftConditionSettings({ currentUser, departmentName, onBa
         requiredStaff: 0,
         dates: type === 'holiday' ? getHolidays(year) : [],
       })));
+      setAnnualHolidayDays(108);
     }
   };
 
@@ -103,7 +106,7 @@ export function MobileShiftConditionSettings({ currentUser, departmentName, onBa
       ...row,
       dates: row.dates.filter(d => d.trim() !== ''),
     }));
-    const condition: ShiftCondition = { year: selectedYear, rows: cleanedRows };
+    const condition: ShiftCondition = { year: selectedYear, rows: cleanedRows, annualHolidayDays };
     try {
       await saveShiftCondition(selectedYear, condition, departmentId);
       alert(mode === 'register' ? '登録しました' : '更新しました');
@@ -131,6 +134,7 @@ export function MobileShiftConditionSettings({ currentUser, departmentName, onBa
     setRows([]);
     setInputYear('');
     setExpandedRow(null);
+    setAnnualHolidayDays(108);
   };
 
   const updateRequiredStaff = (rowIndex: number, value: number) => {
@@ -172,7 +176,7 @@ export function MobileShiftConditionSettings({ currentUser, departmentName, onBa
           <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent font-bold">
             シフト管理システム
           </span>
-          <span className="text-gray-500" style={{ fontSize: '0.7em' }}>Ver. 7.2</span>
+          <span className="text-gray-500" style={{ fontSize: '0.7em' }}>Ver. 8.0</span>
           {departmentName && (
             <span className="text-xs font-bold text-indigo-700 ml-1">｜ {departmentName}</span>
           )}
@@ -218,6 +222,24 @@ export function MobileShiftConditionSettings({ currentUser, departmentName, onBa
             <div className="bg-indigo-50 rounded-xl px-4 py-2 flex items-center justify-between">
               <span className="text-sm font-bold text-indigo-700">{selectedYear}年 — {mode === 'register' ? '新規登録' : '更新'}</span>
               <button onClick={handleCancel} className="text-xs text-gray-500 underline">戻る</button>
+            </div>
+
+            {/* 年間休日日数 */}
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm px-4 py-3">
+              <p className="text-xs font-semibold text-gray-700 mb-2">年間休日日数</p>
+              <div className="flex items-center gap-1.5 flex-wrap text-sm text-gray-700">
+                <span>{(selectedYear ?? 0) - 1}年10月〜{selectedYear}年9月</span>
+                <span>：</span>
+                <input
+                  type="number"
+                  min="0"
+                  max="365"
+                  value={annualHolidayDays}
+                  onChange={e => setAnnualHolidayDays(parseInt(e.target.value) || 0)}
+                  className="w-20 px-3 py-1.5 border border-indigo-200 rounded-xl text-center text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+                <span>日</span>
+              </div>
             </div>
 
             {/* 行ごとのカード */}

@@ -94,6 +94,7 @@ export interface ShiftExcelEmployee {
   id: string;
   name: string;
   color: string;
+  holidayManagement?: boolean;
 }
 
 export interface ShiftExcelShift {
@@ -116,6 +117,8 @@ export interface ShiftExcelParams {
   isSaleDay: (date: Date) => boolean;
   dailyNotes: { [isoKey: string]: string };
   procedures: [string, string, string];
+  annualHolidayDays?: number;
+  carryoverDays?: Record<string, number>;
 }
 
 const PAGE_COLS        = 26;
@@ -165,7 +168,8 @@ function addHalfSheet(
 
   // Dynamic row positions based on actual number of days
   const numDataRows   = days.length;
-  const firstDataRow  = 4;
+  const carryoverRow  = 4;  // 休日の繰越行（非表示）
+  const firstDataRow  = 5;
   const lastDataRow   = firstDataRow + numDataRows - 1;
   const spacerRow     = lastDataRow + 1;
   const procTitleRow  = spacerRow + 1;
@@ -217,6 +221,8 @@ function addHalfSheet(
   sheet.getRow(1).height = pxH(34);
   sheet.getRow(2).height = pxH(21);
   sheet.getRow(3).height = pxH(42);
+  sheet.getRow(carryoverRow).height = pxH(16);
+  sheet.getRow(carryoverRow).hidden = true;
   for (let r = firstDataRow; r <= lastDataRow; r++) sheet.getRow(r).height = pxH(48);
   sheet.getRow(spacerRow).height     = pxH(10);
   sheet.getRow(procTitleRow).height  = pxH(29);
@@ -235,7 +241,7 @@ function addHalfSheet(
     const gc = (localCol: number) => off + localCol;
 
     // ── Row 1: Title ───────────────────────────────────────────────
-    const titleText = `${p.departmentName}　${p.year}年${p.month}月${halfLabel}　シフト管理表　[Ver. 7.2]`;
+    const titleText = `${p.departmentName}　${p.year}年${p.month}月${halfLabel}　シフト管理表　[Ver. 8.0]`;
     const verIdx1   = titleText.indexOf('[Ver.');
     const mainPart1 = verIdx1 >= 0 ? titleText.slice(0, verIdx1) : titleText;
     const verPart1  = verIdx1 >= 0 ? titleText.slice(verIdx1) : '';
@@ -309,6 +315,32 @@ function addHalfSheet(
       stdBorder(cell);
     }
 
+    // ── Carryover row (row 4, hidden) ────────────────────────────────
+    for (let e = 0; e < MAX_EMP_PER_PAGE; e++) {
+      const emp = e < pageEmps.length ? pageEmps[e] : null;
+      const nc  = sheet.getCell(carryoverRow, gc(2 + e * 2));
+      const wc  = sheet.getCell(carryoverRow, gc(3 + e * 2));
+      if (emp?.holidayManagement) {
+        let firstHalfHolidays = 0;
+        if (half === 'second') {
+          for (let d = 1; d <= 15; d++) {
+            const day = new Date(p.year, p.month - 1, d);
+            if (p.getConfirmedShifts(emp.id, day).length === 0) firstHalfHolidays++;
+          }
+        }
+        nc.value = (p.carryoverDays?.[emp.id] ?? 0) + firstHalfHolidays;
+        wc.value = p.annualHolidayDays ?? 108;
+      } else {
+        nc.value = '';
+        wc.value = '';
+      }
+      for (const cell of [nc, wc]) {
+        cell.font = { name: 'Century', size: 9 };
+        cell.alignment = alignCenter;
+        stdBorder(cell);
+      }
+    }
+
     // ── Data rows ──────────────────────────────────────────────────
     days.forEach((day, di) => {
       const rowIdx = firstDataRow + di;
@@ -332,16 +364,20 @@ function addHalfSheet(
       // Employee cells
       for (let e = 0; e < MAX_EMP_PER_PAGE; e++) {
         const emp = e < pageEmps.length ? pageEmps[e] : null;
-        const nc  = sheet.getCell(rowIdx, gc(2 + e * 2));
-        const wc  = sheet.getCell(rowIdx, gc(3 + e * 2));
+        const ncColIdx = gc(2 + e * 2);
+        const wcColIdx = gc(3 + e * 2);
+        const ncLetter = colLetter(ncColIdx);
+        const wcLetter = colLetter(wcColIdx);
+        const nc  = sheet.getCell(rowIdx, ncColIdx);
+        const wc  = sheet.getCell(rowIdx, wcColIdx);
         let cellHasPL = false;
 
         if (emp) {
           const shifts = p.getConfirmedShifts(emp.id, day);
 
           if (shifts.length === 0) {
-            // No shift
-            nc.value     = '×';
+            // No shift - COUNTIF formula for ✕(X/Y)
+            nc.value = { formula: `=IF(${wcLetter}${rowIdx}="",IF(AND(${ncLetter}$${carryoverRow}<>"",${wcLetter}$${carryoverRow}<>""),"✕ ( "&(${ncLetter}$${carryoverRow}+COUNTIF(${wcLetter}$${firstDataRow}:${wcLetter}${rowIdx},""))&" / "&${wcLetter}$${carryoverRow}&" )","✕"),"")` };
             nc.font      = { name: 'Century', size: 9 };
             nc.alignment = alignCenter;
             fillCell(nc, empBg);
@@ -485,7 +521,8 @@ function addFullSheet(workbook: ExcelJS.Workbook, p: ShiftExcelParams) {
   const numDays = getDaysInMonth(new Date(p.year, p.month - 1));
   const days: Date[] = Array.from({ length: numDays }, (_, i) => new Date(p.year, p.month - 1, i + 1));
 
-  const firstDataRow   = 4;
+  const carryoverRow   = 4;  // 休日の繰越行（非表示）
+  const firstDataRow   = 5;
   const lastDataRow    = firstDataRow + numDays - 1;
   const spacerRow      = lastDataRow + 1;
   const procTitleRow   = spacerRow + 1;
@@ -536,6 +573,8 @@ function addFullSheet(workbook: ExcelJS.Workbook, p: ShiftExcelParams) {
   sheet.getRow(1).height = pxH(34);
   sheet.getRow(2).height = pxH(21);
   sheet.getRow(3).height = pxH(30);
+  sheet.getRow(carryoverRow).height = pxH(16);
+  sheet.getRow(carryoverRow).hidden = true;
   for (let r = firstDataRow; r <= lastDataRow; r++) sheet.getRow(r).height = pxH(26);
   sheet.getRow(spacerRow).height    = pxH(10);
   sheet.getRow(procTitleRow).height = pxH(29);
@@ -553,7 +592,7 @@ function addFullSheet(workbook: ExcelJS.Workbook, p: ShiftExcelParams) {
     const gc = (localCol: number) => off + localCol;
 
     // ── Row 1: Title ────────────────────────────────────────────────
-    const titleText = `${p.departmentName}　${p.year}年${p.month}月　シフト管理表　[Ver. 7.2]`;
+    const titleText = `${p.departmentName}　${p.year}年${p.month}月　シフト管理表　[Ver. 8.0]`;
     const verIdx2   = titleText.indexOf('[Ver.');
     const mainPart2 = verIdx2 >= 0 ? titleText.slice(0, verIdx2) : titleText;
     const verPart2  = verIdx2 >= 0 ? titleText.slice(verIdx2) : '';
@@ -627,6 +666,25 @@ function addFullSheet(workbook: ExcelJS.Workbook, p: ShiftExcelParams) {
       stdBorder(cell);
     }
 
+    // ── Carryover row (row 4, hidden) ────────────────────────────────
+    for (let e = 0; e < MAX_EMP_PER_PAGE; e++) {
+      const emp = e < pageEmps.length ? pageEmps[e] : null;
+      const nc  = sheet.getCell(carryoverRow, gc(2 + e * 2));
+      const wc  = sheet.getCell(carryoverRow, gc(3 + e * 2));
+      if (emp?.holidayManagement) {
+        nc.value = p.carryoverDays?.[emp.id] ?? 0;
+        wc.value = p.annualHolidayDays ?? 108;
+      } else {
+        nc.value = '';
+        wc.value = '';
+      }
+      for (const cell of [nc, wc]) {
+        cell.font = { name: 'Century', size: 9 };
+        cell.alignment = alignCenter;
+        stdBorder(cell);
+      }
+    }
+
     // ── Data rows ────────────────────────────────────────────────────
     days.forEach((day, di) => {
       const rowIdx   = firstDataRow + di;
@@ -653,13 +711,17 @@ function addFullSheet(workbook: ExcelJS.Workbook, p: ShiftExcelParams) {
 
       for (let e = 0; e < MAX_EMP_PER_PAGE; e++) {
         const emp = e < pageEmps.length ? pageEmps[e] : null;
-        const nc  = sheet.getCell(rowIdx, gc(2 + e * 2));
-        const wc  = sheet.getCell(rowIdx, gc(3 + e * 2));
+        const ncColIdx = gc(2 + e * 2);
+        const wcColIdx = gc(3 + e * 2);
+        const ncLetter = colLetter(ncColIdx);
+        const wcLetter = colLetter(wcColIdx);
+        const nc  = sheet.getCell(rowIdx, ncColIdx);
+        const wc  = sheet.getCell(rowIdx, wcColIdx);
 
         if (emp) {
           const shifts = p.getConfirmedShifts(emp.id, day);
           if (shifts.length === 0) {
-            nc.value = '×';
+            nc.value = { formula: `=IF(${wcLetter}${rowIdx}="",IF(AND(${ncLetter}$${carryoverRow}<>"",${wcLetter}$${carryoverRow}<>""),"✕ ( "&(${ncLetter}$${carryoverRow}+COUNTIF(${wcLetter}$${firstDataRow}:${wcLetter}${rowIdx},""))&" / "&${wcLetter}$${carryoverRow}&" )","✕"),"")` };
             nc.font  = { name: 'Century', size: 9 };
             fillCell(nc, empBg);
             wc.font  = { name: 'Century', size: 9 };
@@ -711,7 +773,7 @@ function addFullSheet(workbook: ExcelJS.Workbook, p: ShiftExcelParams) {
       {
         const cell = sheet.getCell(rowIdx, gc(PAGE_COLS));
         cell.value     = p.dailyNotes[day.toISOString()] || '';
-        cell.font      = { name: 'HG丸ｺﾞｼｯｸM-PRO', size: 9 };
+        cell.font      = { name: 'HG丸ｺﾞｼｯｸM-PRO', size: 7 };
         if (isSale) {
           cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C.saleBg } };
         } else {
@@ -1078,7 +1140,7 @@ function addCalendarSheet(workbook: ExcelJS.Workbook, p: ShiftExcelParams) {
     const cell = sheet.getCell(NOTES_ROW, c);
     if (c === COL_A) cell.value = '備考欄';
     cell.font      = { size: 14 };
-    cell.alignment = { horizontal: 'left', vertical: 'top', wrapText: true };
+    cell.alignment = { horizontal: 'left', vertical: 'top', wrapText: false };
     stdBk(cell);
     // 内部の縦線を全て消去（外枠左右はapplyOuterBkが後から設定）
     if (c > COL_A)   cell.border = { ...cell.border, left:  undefined };
@@ -1160,7 +1222,7 @@ function addCalendarSheet(workbook: ExcelJS.Workbook, p: ShiftExcelParams) {
 
 export async function generateShiftExcel(p: ShiftExcelParams): Promise<void> {
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = 'シフト管理システム Ver. 7.2';
+  workbook.creator = 'シフト管理システム Ver. 8.0';
   workbook.created = new Date();
 
   addHalfSheet(workbook, 'first',  p);

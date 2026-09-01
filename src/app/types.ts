@@ -24,6 +24,11 @@ export interface Employee {
   defaultShiftType?: 'karintou' | 'cafe';
   defaultDays?: string[];
   defaultWishLevel?: number;
+  // 入社・退職年月（YYYY-MM形式）
+  hireDate?: string;
+  retirementDate?: string;
+  // 休日管理フラグ
+  holidayManagement?: boolean;
 }
 
 
@@ -73,4 +78,15 @@ export interface ShiftConditionRow {
 export interface ShiftCondition {
   year: number;
   rows: ShiftConditionRow[];
+  annualHolidayDays?: number;
+}
+
+export interface HolidayCarryover {
+  id: string;
+  employeeId: string;
+  year: number;
+  month: number;
+  carryoverDays: number;
+  isManual: boolean;
+  updatedAt?: string;
 }

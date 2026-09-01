@@ -1,4 +1,4 @@
-import { useRef, forwardRef, useImperativeHandle, useState, useEffect } from 'react';
+import { useRef, forwardRef, useImperativeHandle, useState, useEffect, useCallback } from 'react';
 import { format, isSameDay, getDaysInMonth } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { Calendar, Check, X, Edit, Trash2, Clock, CheckCheck, XCircle, Zap, Leaf } from 'lucide-react';
@@ -43,9 +43,27 @@ export const ShiftCalendar = forwardRef<ShiftCalendarRef, ShiftCalendarProps>(({
   onRemoveAvailability,
   onBulkAdd,
 }, ref) => {
-  const { getShiftCondition } = useData();
+  const { getShiftCondition, getHolidayCarryover, upsertHolidayCarryover } = useData();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [shiftCondition, setShiftCondition] = useState<ShiftCondition | null>(null);
+  const [carryoverMap, setCarryoverMap] = useState<Record<string, { days: number; isManual: boolean } | null>>({});
+
+  // 入社・退職年月によるフィルタ関数（useEffectより前に宣言）
+  const isEmployeeVisible = (emp: { hireDate?: string; retirementDate?: string }) => {
+    if (!emp.hireDate && !emp.retirementDate) return false;
+    const displayYM = year * 100 + month;
+    const toYM = (s: string) => Number(s.substring(0, 4)) * 100 + Number(s.substring(5, 7));
+    const hireYM = emp.hireDate ? toYM(emp.hireDate) : null;
+    const retireYM = emp.retirementDate ? toYM(emp.retirementDate) : null;
+    if (hireYM && retireYM) return hireYM <= displayYM && displayYM <= retireYM;
+    if (hireYM) return hireYM <= displayYM;
+    return false;
+  };
+  const visibleEmployees = employees.filter(isEmployeeVisible).sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
+  const sortedEmployees = [
+    ...(isEmployeeVisible(currentUser) ? [currentUser] : []),
+    ...visibleEmployees.filter(emp => emp.id !== currentUser.id)
+  ];
 
   // シフト条件設定を読み込み
   useEffect(() => {
@@ -56,6 +74,41 @@ export const ShiftCalendar = forwardRef<ShiftCalendarRef, ShiftCalendarProps>(({
     loadShiftCondition();
   }, [year, getShiftCondition]);
 
+  // 前月繰越日数を読み込み
+  useEffect(() => {
+    if (sortedEmployees.length === 0) return;
+    const loadCarryovers = async () => {
+      const results = await Promise.all(
+        sortedEmployees.map(emp => getHolidayCarryover(emp.id, year, month))
+      );
+      const map: Record<string, { days: number; isManual: boolean } | null> = {};
+      sortedEmployees.forEach((emp, i) => {
+        const data = results[i];
+        map[emp.id] = data ? { days: data.carryoverDays, isManual: data.isManual } : null;
+      });
+      setCarryoverMap(map);
+    };
+    loadCarryovers();
+  }, [year, month, sortedEmployees.map(e => e.id).join(','), getHolidayCarryover]);
+
+  const handleCarryoverChange = useCallback(async (employeeId: string, value: number | null) => {
+    if (value === null) {
+      // 空白 = 自動計算リセット
+      const approvedDates = new Set(
+        availabilities
+          .filter(a => a.employeeId === employeeId && a.status === 'approved' &&
+            new Date(a.date).getFullYear() === year && new Date(a.date).getMonth() + 1 === month)
+          .map(a => new Date(a.date).getDate())
+      );
+      const autoValue = approvedDates.size === 0 ? 0 : new Date(year, month, 0).getDate() - approvedDates.size;
+      setCarryoverMap(prev => ({ ...prev, [employeeId]: { days: autoValue, isManual: false } }));
+      try { await upsertHolidayCarryover(employeeId, year, month, autoValue, false); } catch {}
+    } else {
+      setCarryoverMap(prev => ({ ...prev, [employeeId]: { days: value, isManual: true } }));
+      try { await upsertHolidayCarryover(employeeId, year, month, value, true); } catch {}
+    }
+  }, [year, month, availabilities, upsertHolidayCarryover]);
+
   // 親コンポーネントからスクロール位置にアクセスできるようにする
   useImperativeHandle(ref, () => ({
     getScrollTop: () => scrollContainerRef.current?.scrollTop || 0,
@@ -65,11 +118,6 @@ export const ShiftCalendar = forwardRef<ShiftCalendarRef, ShiftCalendarProps>(({
       }
     }
   }));
-  // 従業員をソート：1行目はログイン中の従業員、それ以降はdisplayOrder順
-  const sortedEmployees = [
-    currentUser,
-    ...employees.filter(emp => emp.id !== currentUser.id).sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0))
-  ];
 
   const handleBulkInput = async (targetEmployee: Employee) => {
     if (!targetEmployee.defaultDays || targetEmployee.defaultDays.length === 0) {
@@ -393,7 +441,7 @@ export const ShiftCalendar = forwardRef<ShiftCalendarRef, ShiftCalendarProps>(({
       <div ref={scrollContainerRef} className="overflow-auto max-h-[calc(100vh-240px)]">
         <table className="w-full border-collapse table-fixed">
           <colgroup>
-            <col style={{ width: '100px' }} />
+            <col style={{ width: '110px' }} />
             {displayDays.map((day) => (
               <col key={day.toISOString()} style={{ width: '90px' }} />
             ))}
@@ -441,24 +489,65 @@ export const ShiftCalendar = forwardRef<ShiftCalendarRef, ShiftCalendarProps>(({
                     />
                     <span className="font-medium text-gray-700 text-sm">{employee.name}</span>
                   </div>
-                  {(currentUser.isManager || employee.id === currentUser.id) && (
-                    <button
-                      onClick={() => handleBulkInput(employee)}
-                      className="mt-1.5 mx-auto block px-2.5 py-0.5 text-[10px] font-bold text-amber-900 rounded-md bg-gradient-to-r from-amber-400 to-yellow-300 hover:from-amber-500 hover:to-yellow-400 shadow-sm shadow-amber-200 hover:shadow-amber-300 hover:scale-105 transition-all duration-200 flex items-center justify-center gap-0.5 border border-amber-500"
-                    >
-                      <Zap className="w-2.5 h-2.5" />
-                      一括入力
-                    </button>
-                  )}
-                  {currentUser.isManager && (
-                    <button
-                      onClick={() => handleBulkApprove(employee)}
-                      className="mt-1 mx-auto block px-2.5 py-0.5 text-[10px] font-bold text-slate-600 rounded-md bg-gradient-to-r from-slate-300 to-gray-100 hover:from-slate-400 hover:to-gray-200 shadow-sm shadow-slate-200 hover:shadow-slate-300 hover:scale-105 transition-all duration-200 flex items-center justify-center gap-0.5 border border-slate-400"
-                    >
-                      <CheckCheck className="w-2.5 h-2.5" />
-                      一括承認
-                    </button>
-                  )}
+                  {/* ボタン＋当月休日数：共通コンテナで左端を揃える */}
+                  {(() => {
+                    const isManual = carryoverMap[employee.id]?.isManual ?? false;
+                    const displayValue = (() => {
+                      const stored = carryoverMap[employee.id];
+                      if (stored !== null && stored !== undefined) return stored.days;
+                      const approvedDates = new Set(
+                        availabilities.filter(a => a.employeeId === employee.id && a.status === 'approved' &&
+                          new Date(a.date).getFullYear() === year && new Date(a.date).getMonth() + 1 === month)
+                          .map(a => new Date(a.date).getDate())
+                      );
+                      return approvedDates.size === 0 ? 0 : new Date(year, month, 0).getDate() - approvedDates.size;
+                    })();
+                    return (
+                      <div className="mt-1.5 mx-auto w-fit flex flex-col gap-1">
+                        {(currentUser.isManager || employee.id === currentUser.id) && (
+                          <button
+                            onClick={() => handleBulkInput(employee)}
+                            className="w-full px-2.5 py-0.5 text-[10px] font-bold text-amber-900 rounded-md bg-gradient-to-r from-amber-400 to-yellow-300 hover:from-amber-500 hover:to-yellow-400 shadow-sm shadow-amber-200 hover:shadow-amber-300 hover:scale-105 transition-all duration-200 flex items-center justify-center gap-0.5 border border-amber-500"
+                          >
+                            <Zap className="w-2.5 h-2.5" />
+                            一括入力
+                          </button>
+                        )}
+                        {currentUser.isManager && (
+                          <button
+                            onClick={() => handleBulkApprove(employee)}
+                            className="w-full px-2.5 py-0.5 text-[10px] font-bold text-slate-600 rounded-md bg-gradient-to-r from-slate-300 to-gray-100 hover:from-slate-400 hover:to-gray-200 shadow-sm shadow-slate-200 hover:shadow-slate-300 hover:scale-105 transition-all duration-200 flex items-center justify-center gap-0.5 border border-slate-400"
+                          >
+                            <CheckCheck className="w-2.5 h-2.5" />
+                            一括承認
+                          </button>
+                        )}
+                        {/* 当月休日数（休日管理オンの従業員のみ） */}
+                        {employee.holidayManagement && (
+                          <div className="w-full">
+                            <div className="text-[10px] text-gray-600 font-semibold">当月休日数</div>
+                            <div className="flex items-center gap-1.5">
+                              <input
+                                type="number"
+                                min="0"
+                                value={displayValue}
+                                onChange={e => handleCarryoverChange(employee.id, e.target.value === '' ? null : parseInt(e.target.value))}
+                                disabled={!currentUser.isManager}
+                                className={`w-10 px-1 py-0.5 text-xs text-center border rounded-md focus:outline-none focus:ring-1 font-bold [appearance:textfield] [&::-webkit-outer-spin-button]:hidden [&::-webkit-inner-spin-button]:hidden disabled:opacity-70 disabled:cursor-default ${
+                                  isManual
+                                    ? 'text-blue-600 border-blue-200 bg-blue-50'
+                                    : 'text-red-600 border-red-200 bg-red-50'
+                                }`}
+                              />
+                              <span className={`text-sm font-semibold ${isManual ? 'text-blue-500' : 'text-red-500'}`}>
+                                {isManual ? '手動' : '自動'}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </td>
                 {displayDays.map((day) => {
                   const isSundayDay = isSunday(day);

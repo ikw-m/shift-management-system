@@ -28,7 +28,7 @@ export function ConfirmedShiftTable({
   onYearChange,
   onMonthChange,
 }: ConfirmedShiftTableProps) {
-  const { getDailyNotesForMonth, saveDailyNote, getMonthlyProcedure, saveMonthlyProcedure, getProcedureTemplates, addProcedureTemplate, deleteProcedureTemplate, getShiftCondition } = useData();
+  const { getDailyNotesForMonth, saveDailyNote, getMonthlyProcedure, saveMonthlyProcedure, getProcedureTemplates, addProcedureTemplate, deleteProcedureTemplate, getShiftCondition, getHolidayCarryoverRange } = useData();
   const [downloading, setDownloading] = useState(false);
   const [procedureRows, setProcedureRows] = useState<[string, string, string]>(['', '', '']);
   const procedureRowsRef = useRef<[string, string, string]>(['', '', '']);
@@ -36,10 +36,30 @@ export function ConfirmedShiftTable({
   const [openTemplatePickerRow, setOpenTemplatePickerRow] = useState<number | null>(null);
   const [dailyNotes, setDailyNotes] = useState<{ [key: string]: string }>({});
   const [shiftCondition, setShiftCondition] = useState<ShiftCondition | null>(null);
+  const [annualHolidayDays, setAnnualHolidayDays] = useState<number>(0);
+  const [prevCarryoverSumMap, setPrevCarryoverSumMap] = useState<Record<string, number>>({});
 
   const isManager = currentUser?.role === 'manager' || currentUser?.isManager || false;
 
-  // シフト条件設定を読み込み
+  // 入社・退職年月によるフィルタ関数（useEffectより前に宣言）
+  const isEmployeeVisible = (emp: { hireDate?: string; retirementDate?: string }) => {
+    if (!emp.hireDate && !emp.retirementDate) return false;
+    const displayYM = year * 100 + month;
+    const toYM = (s: string) => Number(s.substring(0, 4)) * 100 + Number(s.substring(5, 7));
+    const hireYM = emp.hireDate ? toYM(emp.hireDate) : null;
+    const retireYM = emp.retirementDate ? toYM(emp.retirementDate) : null;
+    if (hireYM && retireYM) return hireYM <= displayYM && displayYM <= retireYM;
+    if (hireYM) return hireYM <= displayYM;
+    return false;
+  };
+
+  // 従業員をdisplayOrderでソート・フィルタ（最大15人まで表示）
+  const sortedEmployees = [...employees]
+    .sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0))
+    .filter(isEmployeeVisible)
+    .slice(0, 15);
+
+  // シフト条件設定を読み込み（祝日・セール日判定用：カレンダー年）
   useEffect(() => {
     const loadShiftCondition = async () => {
       const condition = await getShiftCondition(year, currentUser?.departmentId);
@@ -47,6 +67,30 @@ export function ConfirmedShiftTable({
     };
     loadShiftCondition();
   }, [year, currentUser?.departmentId, getShiftCondition]);
+
+  // 年間休日日数を読み込み（✕バッジY値用：年度ベース）
+  useEffect(() => {
+    const fiscalYear = month >= 10 ? year + 1 : year;
+    getShiftCondition(fiscalYear, currentUser?.departmentId).then(condition => {
+      setAnnualHolidayDays(condition?.annualHolidayDays ?? 0);
+    });
+  }, [year, month, currentUser?.departmentId, getShiftCondition]);
+
+  // 年度初め〜前月の当月休日数合計を全従業員分一括読み込み（✕バッジ用）
+  useEffect(() => {
+    if (sortedEmployees.length === 0) return;
+    const fiscalStartYear = month >= 10 ? year : year - 1;
+    const prevMonths: { year: number; month: number }[] = [];
+    let fy = fiscalStartYear; let fm = 10;
+    while (fy < year || (fy === year && fm < month)) {
+      prevMonths.push({ year: fy, month: fm });
+      fm++; if (fm > 12) { fm = 1; fy++; }
+    }
+    if (prevMonths.length === 0) { setPrevCarryoverSumMap({}); return; }
+    getHolidayCarryoverRange(sortedEmployees.map(e => e.id), prevMonths).then(result => {
+      setPrevCarryoverSumMap(result);
+    });
+  }, [year, month, sortedEmployees.map(e => e.id).join(','), getHolidayCarryoverRange]);
 
   // 月別業務手順を読み込み
   useEffect(() => {
@@ -148,8 +192,6 @@ export function ConfirmedShiftTable({
     }
   }, [deleteProcedureTemplate, getProcedureTemplates, currentUser?.departmentId]);
 
-  // 従業員をdisplayOrderでソート（最大15人まで表示）
-  const sortedEmployees = [...employees].sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0)).slice(0, 15);
 
   // 年のオプション（現在の年から前後2年）
   const currentYear = new Date().getFullYear();
@@ -166,6 +208,30 @@ export function ConfirmedShiftTable({
   };
 
   const displayDays = getDisplayDays();
+
+  // 各従業員の✕(X/Y)バッジ計算（年度初め〜前月合計 + 当月累計空き日数）
+  const holidayBadgeByEmpDay: Record<string, Record<number, { x: number; y: number } | '✕' | null>> = {};
+  for (const emp of sortedEmployees) {
+    const prevSum = prevCarryoverSumMap[emp.id] ?? 0;
+    holidayBadgeByEmpDay[emp.id] = {};
+    let runCount = 0;
+    for (const day of displayDays) {
+      const d = day.getDate();
+      const hasApproved = availabilities.some(a =>
+        a.employeeId === emp.id && a.status === 'approved' && isSameDay(new Date(a.date), day)
+      );
+      if (emp.holidayManagement) {
+        if (!hasApproved) {
+          runCount++;
+          holidayBadgeByEmpDay[emp.id][d] = { x: prevSum + runCount, y: annualHolidayDays };
+        } else {
+          holidayBadgeByEmpDay[emp.id][d] = null;
+        }
+      } else {
+        holidayBadgeByEmpDay[emp.id][d] = !hasApproved ? '✕' : null;
+      }
+    }
+  }
 
   // 特定日のすべての従業員の承認済みシフト数をカウント（1人につき1カウント）
   const getApprovedShiftsCountForDate = (date: Date): number => {
@@ -214,6 +280,8 @@ export function ConfirmedShiftTable({
         isSaleDay,
         dailyNotes,
         procedures: procedureRowsRef.current,
+        annualHolidayDays: shiftCondition?.annualHolidayDays ?? 108,
+        carryoverDays: prevCarryoverSumMap,
       });
     } catch {
       alert('ダウンロードに失敗しました。');
@@ -498,11 +566,12 @@ export function ConfirmedShiftTable({
           <table className="w-full border-collapse">
             <thead>
               <tr>
-                <th className="p-2.5 border border-emerald-100 bg-emerald-100 min-w-[60px] sticky z-20 relative confirmed-shift-corner-cell">日付</th>
+                <th className="p-2.5 border border-emerald-100 bg-emerald-100 sticky z-20 relative confirmed-shift-corner-cell" style={{ width: '90px', minWidth: '90px', maxWidth: '90px' }}>日付</th>
                 {sortedEmployees.map((employee) => (
                   <th
                     key={employee.id}
-                    className="p-2.5 border border-emerald-100 bg-emerald-100 min-w-[120px] sticky top-0 z-10 confirmed-shift-fixed-row-top confirmed-shift-fixed-row-bottom"
+                    className="p-2.5 border border-emerald-100 bg-emerald-100 sticky top-0 z-10 confirmed-shift-fixed-row-top confirmed-shift-fixed-row-bottom"
+                    style={{ width: '114px', minWidth: '114px', maxWidth: '114px' }}
                   >
                     <div className="text-center">
                       <div className="flex items-center justify-center gap-1 mb-1">
@@ -515,7 +584,9 @@ export function ConfirmedShiftTable({
                     </div>
                   </th>
                 ))}
-                <th className="p-2.5 border border-emerald-100 bg-emerald-100 min-w-[120px] sticky z-20 relative confirmed-shift-notes-header-cell">
+                {/* フィラー列：残りスペースを吸収して他列の幅を固定する */}
+                <th className="border border-emerald-100 bg-emerald-100 sticky top-0 z-10 confirmed-shift-fixed-row-top confirmed-shift-fixed-row-bottom" />
+                <th className="p-2.5 border border-emerald-100 bg-emerald-100 sticky z-20 relative confirmed-shift-notes-header-cell" style={{ width: '100px', minWidth: '100px', maxWidth: '100px' }}>
                   備考
                 </th>
               </tr>
@@ -537,7 +608,7 @@ export function ConfirmedShiftTable({
 
                 return (
                   <tr key={day.toISOString()} className="hover:bg-emerald-50/30 transition-colors">
-                    <td className={`p-1 border border-emerald-100 ${dateCellBg} w-28 sticky left-0 z-10 relative confirmed-shift-fixed-column confirmed-shift-fixed-column-left confirmed-shift-fixed-column-right`}>
+                    <td className={`p-1 border border-emerald-100 ${dateCellBg} sticky left-0 z-10 relative confirmed-shift-fixed-column confirmed-shift-fixed-column-left confirmed-shift-fixed-column-right`} style={{ width: '90px', minWidth: '90px', maxWidth: '90px' }}>
                       <div className="text-center">
                         <div className={`font-semibold text-sm leading-tight ${dateFontColor}`}>
                           {day.getDate()}日({format(day, 'E', { locale: ja })})
@@ -549,27 +620,28 @@ export function ConfirmedShiftTable({
                     </td>
                     {sortedEmployees.map((employee) => {
                       const confirmedShifts = getConfirmedShiftsForEmployeeAndDate(employee.id, day);
+                      const badge = holidayBadgeByEmpDay[employee.id]?.[day.getDate()];
                       return (
                         <td
                           key={`${employee.id}-${day.toISOString()}`}
-                          className={`p-1 border border-emerald-100 align-top ${rowCellBg}`}
+                          className={`p-1 border border-emerald-100 align-middle ${rowCellBg}`}
                         >
                           <div className="space-y-1">
                             {confirmedShifts.map((shift) => (
                               <div
                                 key={shift.id}
-                                className="px-1.5 py-0.5 rounded-lg text-center shadow-sm hover:shadow-md transition-all duration-200"
+                                className="px-0 py-0.5 rounded-lg text-center shadow-sm hover:shadow-md transition-all duration-200"
                                 style={{
                                   backgroundColor: shiftTypeConfig[shift.shiftType].color,
                                   color: 'white',
                                   border: `1px solid ${shiftTypeConfig[shift.shiftType].color}`
                                 }}
                               >
-                                <div className="font-semibold text-xs">
+                                <div className="font-semibold text-[13px]">
                                   {shift.shiftType === 'karintou' ? '◉' : '◆'} {shift.startTime} - {shift.endTime}
                                 </div>
                                 {shift.isPaidLeave && (
-                                  <div className="mt-0.5 mx-[-4px]">
+                                  <div className="mt-0.5 mx-0">
                                     <span className="flex items-center justify-center gap-1 text-[13px] font-bold px-1 rounded-lg w-full bg-pink-100 text-pink-700 border border-pink-300">
                                       <Leaf className="w-3.5 h-3.5 flex-shrink-0" />有休
                                     </span>
@@ -577,11 +649,18 @@ export function ConfirmedShiftTable({
                                 )}
                               </div>
                             ))}
+                            {confirmedShifts.length === 0 && badge && (
+                              <div className="text-center text-[12px] text-gray-500 font-medium whitespace-nowrap">
+                                {typeof badge === 'string' ? badge : `✕ ( ${badge.x} / ${badge.y} )`}
+                              </div>
+                            )}
                           </div>
                         </td>
                       );
                     })}
-                    <td className={`p-1 border border-emerald-100 ${isSpecialDay ? 'bg-red-50' : 'bg-white'} sticky right-0 z-10 relative confirmed-shift-notes-column confirmed-shift-notes-column-left confirmed-shift-notes-column-right`}>
+                    {/* フィラー列：残りスペースを吸収して他列の幅を固定する */}
+                    <td className={`border border-emerald-100 ${isSpecialDay ? 'bg-red-50' : 'bg-white'}`} />
+                    <td className={`p-1 border border-emerald-100 ${isSpecialDay ? 'bg-red-50' : 'bg-white'} sticky right-0 z-10 relative confirmed-shift-notes-column confirmed-shift-notes-column-left confirmed-shift-notes-column-right`} style={{ width: '100px', minWidth: '100px', maxWidth: '100px' }}>
                       <textarea
                         value={dailyNotes[day.toISOString()] || ''}
                         onChange={(e) => handleNoteChange(day, e.target.value)}

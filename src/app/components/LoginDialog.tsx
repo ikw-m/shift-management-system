@@ -109,7 +109,7 @@ export function LoginDialog({ employees, departments, onLogin }: LoginDialogProp
             </div>
             <div className="flex flex-col items-start">
               <h1 className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">シフト管理システム</h1>
-              <span className="text-xs text-gray-500 ml-1">Ver. 7.2</span>
+              <span className="text-xs text-gray-500 ml-1">Ver. 8.0</span>
             </div>
           </div>
 

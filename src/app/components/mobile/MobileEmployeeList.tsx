@@ -42,6 +42,9 @@ export function MobileEmployeeList({ currentUser, departmentName, onBack, onLogo
   const [editDefaultShiftType, setEditDefaultShiftType] = useState<'karintou' | 'cafe' | ''>('');
   const [editDefaultDays, setEditDefaultDays] = useState<string[]>([]);
   const [editDefaultWishLevel, setEditDefaultWishLevel] = useState<number | undefined>(undefined);
+  const [editHireDate, setEditHireDate] = useState('');
+  const [editRetirementDate, setEditRetirementDate] = useState('');
+  const [editHolidayManagement, setEditHolidayManagement] = useState(false);
 
   // 追加フォーム用ステート
   const [isAdding, setIsAdding] = useState(false);
@@ -55,6 +58,9 @@ export function MobileEmployeeList({ currentUser, departmentName, onBack, onLogo
   const [newDefaultShiftType, setNewDefaultShiftType] = useState<'karintou' | 'cafe' | ''>('');
   const [newDefaultDays, setNewDefaultDays] = useState<string[]>([]);
   const [newDefaultWishLevel, setNewDefaultWishLevel] = useState<number | undefined>(undefined);
+  const [newHireDate, setNewHireDate] = useState('');
+  const [newRetirementDate, setNewRetirementDate] = useState('');
+  const [newHolidayManagement, setNewHolidayManagement] = useState(false);
 
   const toggleEditDay = (value: string) => {
     setEditDefaultDays(prev =>
@@ -92,9 +98,13 @@ export function MobileEmployeeList({ currentUser, departmentName, onBack, onLogo
         defaultShiftType: (newDefaultShiftType || undefined) as 'karintou' | 'cafe' | undefined,
         defaultDays: newDefaultDays.length > 0 ? newDefaultDays : undefined,
         defaultWishLevel: newDefaultWishLevel,
+        hireDate: newHireDate || undefined,
+        retirementDate: newRetirementDate || undefined,
+        holidayManagement: newHolidayManagement,
       });
       setNewName(''); setNewPosition(''); setNewIsManager(false); setNewPassword('');
       setNewDefaultStartTime(''); setNewDefaultEndTime(''); setNewDefaultShiftType(''); setNewDefaultDays([]); setNewDefaultWishLevel(undefined);
+      setNewHireDate(''); setNewRetirementDate(''); setNewHolidayManagement(false);
       setIsAdding(false);
     } catch { alert('追加に失敗しました'); }
   };
@@ -131,6 +141,9 @@ export function MobileEmployeeList({ currentUser, departmentName, onBack, onLogo
         defaultShiftType: (editDefaultShiftType || undefined) as 'karintou' | 'cafe' | undefined,
         defaultDays: editDefaultDays.length > 0 ? editDefaultDays : undefined,
         defaultWishLevel: editDefaultWishLevel,
+        hireDate: editHireDate || undefined,
+        retirementDate: editRetirementDate || undefined,
+        holidayManagement: editHolidayManagement,
       });
       setEditingId(null);
     } catch { alert('更新に失敗しました'); }
@@ -178,6 +191,9 @@ export function MobileEmployeeList({ currentUser, departmentName, onBack, onLogo
     setEditDefaultShiftType(emp.defaultShiftType || '');
     setEditDefaultDays(emp.defaultDays || []);
     setEditDefaultWishLevel(emp.defaultWishLevel ?? undefined);
+    setEditHireDate(emp.hireDate || '');
+    setEditRetirementDate(emp.retirementDate || '');
+    setEditHolidayManagement(emp.holidayManagement ?? false);
   };
 
   return (
@@ -188,7 +204,7 @@ export function MobileEmployeeList({ currentUser, departmentName, onBack, onLogo
           <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent font-bold">
             シフト管理システム
           </span>
-          <span className="text-gray-500" style={{ fontSize: '0.7em' }}>Ver. 7.2</span>
+          <span className="text-gray-500" style={{ fontSize: '0.7em' }}>Ver. 8.0</span>
           {departmentName && (
             <span className="text-xs font-bold text-indigo-700 ml-1">｜ {departmentName}</span>
           )}
@@ -220,6 +236,25 @@ export function MobileEmployeeList({ currentUser, departmentName, onBack, onLogo
                 </div>
                 <input value={editName} onChange={e => setEditName(e.target.value)}
                   placeholder="氏名" className="w-full px-3 py-2.5 border border-indigo-200 rounded-xl text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">入社年月日・退職年月日</label>
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <label className="block text-xs text-gray-400 mb-0.5">入社年月日</label>
+                      <input type="date" value={editHireDate}
+                        onChange={e => { setEditHireDate(e.target.value); if (!e.target.value) setEditRetirementDate(''); }}
+                        className="w-full px-2 py-2 border border-indigo-200 rounded-xl text-xs bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                    </div>
+                    <div className="flex-1">
+                      <label className="block text-xs text-gray-400 mb-0.5">退職年月日</label>
+                      <input type="date" value={editRetirementDate}
+                        onChange={e => setEditRetirementDate(e.target.value)}
+                        disabled={!editHireDate}
+                        min={editHireDate || undefined}
+                        className="w-full px-2 py-2 border border-indigo-200 rounded-xl text-xs bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-200 disabled:cursor-not-allowed" />
+                    </div>
+                  </div>
+                </div>
                 <input value={editPosition} onChange={e => setEditPosition(e.target.value)}
                   placeholder="肩書き（例：チーフ、アルバイト）" className="w-full px-3 py-2.5 border border-indigo-200 rounded-xl text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                 <select value={editIsManager ? 'manager' : 'staff'} onChange={e => setEditIsManager(e.target.value === 'manager')}
@@ -245,16 +280,31 @@ export function MobileEmployeeList({ currentUser, departmentName, onBack, onLogo
                 <div className="pt-1 border-t border-gray-100">
                   <p className="text-xs text-gray-400 mb-2">テンプレート設定</p>
                   <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs text-gray-500">休日管理</label>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs font-medium ${editHolidayManagement ? 'text-indigo-600' : 'text-gray-400'}`}>
+                          {editHolidayManagement ? 'オン' : 'オフ'}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setEditHolidayManagement(v => !v)}
+                          className={`relative flex-shrink-0 w-10 h-5 rounded-full overflow-hidden transition-colors duration-200 focus:outline-none ${editHolidayManagement ? 'bg-indigo-500' : 'bg-gray-300'}`}
+                        >
+                          <span
+                            style={{ transform: editHolidayManagement ? 'translateX(1.25rem)' : 'translateX(0.125rem)' }}
+                            className="absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200"
+                          />
+                        </button>
+                      </div>
+                    </div>
                     <div>
-                      <div className="flex items-center gap-2 justify-center">
-                        <div className="flex flex-col items-start gap-0.5">
-                          <label className="block text-xs text-gray-500 mb-1">勤務開始時間</label>
-                          <TimeSelect value={editDefaultStartTime} onChange={setEditDefaultStartTime} allowEmpty className="w-32 text-base" />
-                        </div>
-                        <span className="text-gray-400 mt-4">〜</span>
-                        <div className="flex flex-col items-start gap-0.5">
-                          <label className="block text-xs text-gray-500 mb-1">勤務終了時間</label>
-                          <TimeSelect value={editDefaultEndTime} onChange={setEditDefaultEndTime} allowEmpty className="w-32 text-base" />
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs text-gray-500">デフォルト用勤務時間</label>
+                        <div className="flex items-center gap-2">
+                          <TimeSelect value={editDefaultStartTime} onChange={setEditDefaultStartTime} allowEmpty className="w-20 text-sm" />
+                          <span className="text-gray-400">〜</span>
+                          <TimeSelect value={editDefaultEndTime} onChange={setEditDefaultEndTime} allowEmpty className="w-20 text-sm" />
                         </div>
                       </div>
                     </div>
@@ -384,6 +434,25 @@ export function MobileEmployeeList({ currentUser, departmentName, onBack, onLogo
           <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
             <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="氏名"
               className="w-full px-4 py-3 border border-indigo-200 rounded-2xl text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500" autoFocus />
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">入社年月日・退職年月日</label>
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <label className="block text-xs text-gray-400 mb-0.5">入社年月日</label>
+                  <input type="date" value={newHireDate}
+                    onChange={e => { setNewHireDate(e.target.value); if (!e.target.value) setNewRetirementDate(''); }}
+                    className="w-full px-2 py-2.5 border border-indigo-200 rounded-2xl text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-xs text-gray-400 mb-0.5">退職年月日</label>
+                  <input type="date" value={newRetirementDate}
+                    onChange={e => setNewRetirementDate(e.target.value)}
+                    disabled={!newHireDate}
+                    min={newHireDate || undefined}
+                    className="w-full px-2 py-2.5 border border-indigo-200 rounded-2xl text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-200 disabled:cursor-not-allowed" />
+                </div>
+              </div>
+            </div>
             <input value={newPosition} onChange={e => setNewPosition(e.target.value)} placeholder="肩書き（例：チーフ、アルバイト）"
               className="w-full px-4 py-3 border border-indigo-200 rounded-2xl text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
             <select value={newIsManager ? 'manager' : 'staff'} onChange={e => setNewIsManager(e.target.value === 'manager')}
@@ -408,16 +477,31 @@ export function MobileEmployeeList({ currentUser, departmentName, onBack, onLogo
             <div className="pt-1 border-t border-gray-100">
               <p className="text-xs text-gray-400 mb-2">テンプレート設定（任意）</p>
               <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs text-gray-500">休日管理</label>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-xs font-medium ${newHolidayManagement ? 'text-indigo-600' : 'text-gray-400'}`}>
+                      {newHolidayManagement ? 'オン' : 'オフ'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setNewHolidayManagement(v => !v)}
+                      className={`relative flex-shrink-0 w-10 h-5 rounded-full overflow-hidden transition-colors duration-200 focus:outline-none ${newHolidayManagement ? 'bg-indigo-500' : 'bg-gray-300'}`}
+                    >
+                      <span
+                        style={{ transform: newHolidayManagement ? 'translateX(1.25rem)' : 'translateX(0.125rem)' }}
+                        className="absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200"
+                      />
+                    </button>
+                  </div>
+                </div>
                 <div>
-                  <div className="flex items-center gap-2 justify-center">
-                    <div className="flex flex-col items-start gap-0.5">
-                      <label className="block text-xs text-gray-500 mb-1">勤務開始時間</label>
-                      <TimeSelect value={newDefaultStartTime} onChange={setNewDefaultStartTime} allowEmpty className="w-32 text-base" />
-                    </div>
-                    <span className="text-gray-400 mt-4">〜</span>
-                    <div className="flex flex-col items-start gap-0.5">
-                      <label className="block text-xs text-gray-500 mb-1">勤務終了時間</label>
-                      <TimeSelect value={newDefaultEndTime} onChange={setNewDefaultEndTime} allowEmpty className="w-32 text-base" />
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs text-gray-500">デフォルト用勤務時間</label>
+                    <div className="flex items-center gap-2">
+                      <TimeSelect value={newDefaultStartTime} onChange={setNewDefaultStartTime} allowEmpty className="w-20 text-sm" />
+                      <span className="text-gray-400">〜</span>
+                      <TimeSelect value={newDefaultEndTime} onChange={setNewDefaultEndTime} allowEmpty className="w-20 text-sm" />
                     </div>
                   </div>
                 </div>

@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Employee, Availability, ShiftCondition, Department, ProcedureTemplate } from '../types';
+import { Employee, Availability, ShiftCondition, HolidayCarryover, Department, ProcedureTemplate } from '../types';
 import { supabase } from '../../lib/supabase';
 
 interface DataContextType {
@@ -31,6 +31,9 @@ interface DataContextType {
   deleteProcedureTemplate: (id: string) => Promise<void>;
   getShiftCondition: (year: number, departmentId?: string) => Promise<ShiftCondition | null>;
   saveShiftCondition: (year: number, condition: ShiftCondition, departmentId?: string) => Promise<void>;
+  getHolidayCarryover: (employeeId: string, year: number, month: number) => Promise<HolidayCarryover | null>;
+  upsertHolidayCarryover: (employeeId: string, year: number, month: number, carryoverDays: number, isManual: boolean) => Promise<void>;
+  getHolidayCarryoverRange: (employeeIds: string[], months: { year: number; month: number }[]) => Promise<Record<string, number>>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -107,6 +110,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
         defaultShiftType: emp.default_shift_type ?? undefined,
         defaultDays: emp.default_days ?? undefined,
         defaultWishLevel: emp.default_wish_level ?? undefined,
+        hireDate: emp.hire_date ? emp.hire_date.substring(0, 10) : undefined,
+        retirementDate: emp.retirement_date ? emp.retirement_date.substring(0, 10) : undefined,
+        holidayManagement: emp.holiday_management ?? false,
       })) || [];
 
       setEmployees(processedEmployees);
@@ -203,6 +209,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
         default_shift_type: employee.defaultShiftType ?? null,
         default_days: employee.defaultDays ?? null,
         default_wish_level: employee.defaultWishLevel ?? null,
+        hire_date: employee.hireDate || null,
+        retirement_date: employee.retirementDate || null,
+        holiday_management: employee.holidayManagement ?? false,
       };
 
       const { data, error } = await supabase
@@ -222,6 +231,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
           defaultShiftType: data.default_shift_type ?? undefined,
           defaultDays: data.default_days ?? undefined,
           defaultWishLevel: data.default_wish_level ?? undefined,
+          hireDate: data.hire_date ? data.hire_date.substring(0, 10) : undefined,
+          retirementDate: data.retirement_date ? data.retirement_date.substring(0, 10) : undefined,
+          holidayManagement: data.holiday_management ?? false,
         }]);
       }
     } catch (error) {
@@ -246,6 +258,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
         default_shift_type: employee.defaultShiftType ?? null,
         default_days: employee.defaultDays ?? null,
         default_wish_level: employee.defaultWishLevel ?? null,
+        hire_date: employee.hireDate || null,
+        retirement_date: employee.retirementDate || null,
+        holiday_management: employee.holidayManagement ?? false,
       };
 
       const { error } = await supabase
@@ -271,6 +286,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
         defaultShiftType: employee.defaultShiftType,
         defaultDays: employee.defaultDays,
         defaultWishLevel: employee.defaultWishLevel,
+        hireDate: employee.hireDate,
+        retirementDate: employee.retirementDate,
+        holidayManagement: employee.holidayManagement,
       } : e));
     } catch (error) {
       throw error;
@@ -395,6 +413,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const approveAvailability = async (id: string, reviewerName: string) => {
     try {
+      const target = availabilities.find(a => a.id === id);
+
       const { error } = await supabase
         .from('availabilities')
         .update({
@@ -403,17 +423,65 @@ export function DataProvider({ children }: { children: ReactNode }) {
           reviewed_by: reviewerName
         })
         .eq('id', id);
-      
+
       if (error) throw error;
-      setAvailabilities(prev => prev.map(a => a.id === id ? {
+
+      const updatedAvailabilities = availabilities.map(a => a.id === id ? {
         ...a,
         status: 'approved' as const,
         reviewedAt: new Date().toISOString(),
         reviewedBy: reviewerName
-      } : a));
+      } : a);
+
+      setAvailabilities(updatedAvailabilities);
+
+      // 承認後に翌月の前月繰越日数を自動更新（fire and forget）
+      if (target) {
+        autoUpdateCarryover(target, updatedAvailabilities).catch(() => {});
+      }
     } catch (error) {
       throw error;
     }
+  };
+
+  const autoUpdateCarryover = async (approvedAvail: Availability, allAvailabilities: Availability[]) => {
+    const date = new Date(approvedAvail.date);
+    const empId = approvedAvail.employeeId;
+    const m = date.getMonth() + 1;
+    const y = date.getFullYear();
+
+    // 当月が手動入力済みの場合はスキップ
+    const { data: currentData } = await supabase
+      .from('holiday_carryover')
+      .select('is_manual')
+      .eq('employee_id', empId)
+      .eq('year', y)
+      .eq('month', m)
+      .maybeSingle();
+    if (currentData?.is_manual) return;
+
+    // 当月の承認済み日付を重複なしでカウント（有休含む）
+    const approvedDates = new Set<string>();
+    allAvailabilities.forEach(a => {
+      if (a.employeeId !== empId || a.status !== 'approved') return;
+      const d = new Date(a.date);
+      if (d.getFullYear() === y && d.getMonth() + 1 === m) {
+        approvedDates.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
+      }
+    });
+
+    const totalDaysInM = new Date(y, m, 0).getDate();
+    const monthlyHolidayDays = approvedDates.size === 0 ? 0 : totalDaysInM - approvedDates.size;
+
+    // 当月レコードに書き込む（旧: 翌月に書込）
+    await supabase.from('holiday_carryover').upsert({
+      employee_id: empId,
+      year: y,
+      month: m,
+      carryover_days: monthlyHolidayDays,
+      is_manual: false,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'employee_id,year,month' });
   };
 
   const rejectAvailability = async (id: string, reviewerName: string) => {
@@ -551,7 +619,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     try {
       let query = supabase
         .from('shift_conditions')
-        .select('data')
+        .select('data, annual_holiday_days')
         .eq('year', year);
       if (departmentId) {
         query = query.eq('department_id', departmentId);
@@ -559,26 +627,97 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const { data, error } = await query.single();
 
       if (error && error.code !== 'PGRST116') throw error;
-      return data?.data || null;
+      if (!data?.data) return null;
+      return { ...data.data, annualHolidayDays: data.annual_holiday_days ?? 108 };
     } catch (error) {
       return null;
     }
   };
 
   const saveShiftCondition = async (year: number, condition: ShiftCondition, departmentId?: string): Promise<void> => {
+    const { annualHolidayDays, ...conditionForData } = condition;
+    const annualHolidayDaysVal = annualHolidayDays ?? 108;
+
     let checkQuery = supabase.from('shift_conditions').select('id').eq('year', year);
     if (departmentId) checkQuery = checkQuery.eq('department_id', departmentId);
     const { data: existing } = await checkQuery.maybeSingle();
 
     if (existing) {
-      const { error } = await supabase.from('shift_conditions').update({ data: condition }).eq('id', existing.id);
+      const { error } = await supabase.from('shift_conditions').update({
+        data: conditionForData,
+        annual_holiday_days: annualHolidayDaysVal,
+      }).eq('id', existing.id);
       if (error) throw error;
     } else {
-      const record: Record<string, unknown> = { year, data: condition };
+      const record: Record<string, unknown> = { year, data: conditionForData, annual_holiday_days: annualHolidayDaysVal };
       if (departmentId) record.department_id = departmentId;
       const { error } = await supabase.from('shift_conditions').insert(record);
       if (error) throw error;
     }
+  };
+
+  const getHolidayCarryover = async (employeeId: string, year: number, month: number): Promise<HolidayCarryover | null> => {
+    try {
+      const { data, error } = await supabase
+        .from('holiday_carryover')
+        .select('*')
+        .eq('employee_id', employeeId)
+        .eq('year', year)
+        .eq('month', month)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) return null;
+      return {
+        id: data.id,
+        employeeId: data.employee_id,
+        year: data.year,
+        month: data.month,
+        carryoverDays: data.carryover_days,
+        isManual: data.is_manual,
+        updatedAt: data.updated_at,
+      };
+    } catch {
+      return null;
+    }
+  };
+
+  const getHolidayCarryoverRange = async (employeeIds: string[], months: { year: number; month: number }[]): Promise<Record<string, number>> => {
+    const result: Record<string, number> = {};
+    employeeIds.forEach(id => { result[id] = 0; });
+    if (employeeIds.length === 0 || months.length === 0) return result;
+    try {
+      const monthSet = new Set(months.map(m => `${m.year}-${m.month}`));
+      const minYear = Math.min(...months.map(m => m.year));
+      const maxYear = Math.max(...months.map(m => m.year));
+      const { data } = await supabase
+        .from('holiday_carryover')
+        .select('employee_id, year, month, carryover_days')
+        .in('employee_id', employeeIds)
+        .gte('year', minYear)
+        .lte('year', maxYear);
+      if (data) {
+        data.forEach((row: { employee_id: string; year: number; month: number; carryover_days: number }) => {
+          if (monthSet.has(`${row.year}-${row.month}`) && result[row.employee_id] !== undefined) {
+            result[row.employee_id] += row.carryover_days ?? 0;
+          }
+        });
+      }
+      return result;
+    } catch {
+      return result;
+    }
+  };
+
+  const upsertHolidayCarryover = async (employeeId: string, year: number, month: number, carryoverDays: number, isManual: boolean): Promise<void> => {
+    const { error } = await supabase.from('holiday_carryover').upsert({
+      employee_id: employeeId,
+      year,
+      month,
+      carryover_days: carryoverDays,
+      is_manual: isManual,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'employee_id,year,month' });
+    if (error) throw error;
   };
 
   return (
@@ -612,6 +751,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
         deleteProcedureTemplate,
         getShiftCondition,
         saveShiftCondition,
+        getHolidayCarryover,
+        upsertHolidayCarryover,
+        getHolidayCarryoverRange,
       }}
     >
       {children}
@@ -642,6 +784,9 @@ export function useData() {
       deleteProcedureTemplate: async () => {},
       getShiftCondition: async () => null,
       saveShiftCondition: async () => {},
+      getHolidayCarryover: async () => null,
+      upsertHolidayCarryover: async () => {},
+      getHolidayCarryoverRange: async () => ({}),
     } as DataContextType;
   }
   return context;

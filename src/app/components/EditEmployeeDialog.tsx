@@ -30,6 +30,9 @@ interface EditEmployeeDialogProps {
     defaultShiftType?: 'karintou' | 'cafe',
     defaultDays?: string[],
     defaultWishLevel?: number,
+    hireDate?: string,
+    retirementDate?: string,
+    holidayManagement?: boolean,
   ) => void;
 }
 
@@ -45,6 +48,9 @@ export function EditEmployeeDialog({ isOpen, onClose, employee, employees, templ
   const [defaultShiftType, setDefaultShiftType] = useState<'karintou' | 'cafe' | ''>('');
   const [defaultDays, setDefaultDays] = useState<string[]>([]);
   const [defaultWishLevel, setDefaultWishLevel] = useState<number | undefined>(undefined);
+  const [hireDate, setHireDate] = useState('');
+  const [retirementDate, setRetirementDate] = useState('');
+  const [holidayManagement, setHolidayManagement] = useState(false);
 
   const toggleDay = (value: string) => {
     setDefaultDays(prev =>
@@ -65,6 +71,9 @@ export function EditEmployeeDialog({ isOpen, onClose, employee, employees, templ
       setDefaultShiftType(employee.defaultShiftType || '');
       setDefaultDays(employee.defaultDays || []);
       setDefaultWishLevel(employee.defaultWishLevel ?? undefined);
+      setHireDate(employee.hireDate || '');
+      setRetirementDate(employee.retirementDate || '');
+      setHolidayManagement(employee.holidayManagement ?? false);
     }
   }, [employee]);
 
@@ -97,14 +106,25 @@ export function EditEmployeeDialog({ isOpen, onClose, employee, employees, templ
       (defaultShiftType || undefined) as 'karintou' | 'cafe' | undefined,
       defaultDays.length > 0 ? defaultDays : undefined,
       defaultWishLevel,
+      templateMode ? undefined : (hireDate || undefined),
+      templateMode ? undefined : (retirementDate || undefined),
+      holidayManagement,
     );
     onClose();
   };
 
+  const formatYearMonth = (ymd: string) => {
+    if (!ymd) return '（未設定）';
+    const parts = ymd.split('-');
+    if (parts.length === 3) return `${parts[0]}年${parts[1]}月${parts[2]}日`;
+    if (parts.length === 2) return `${parts[0]}年${parts[1]}月`;
+    return ymd;
+  };
+
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-4 border border-indigo-100 shadow-2xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-4">
+      <div className="bg-white rounded-2xl p-3 max-w-md w-full mx-4 border border-indigo-100 shadow-2xl max-h-[95vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-1">
           <h3 className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
             {templateMode ? 'テンプレート設定' : '従業員を編集'}
           </h3>
@@ -113,11 +133,11 @@ export function EditEmployeeDialog({ isOpen, onClose, employee, employees, templ
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-1.5">
           <div>
-            <label className="block mb-2 text-gray-700">名前</label>
+            <label className="block mb-0.5 text-gray-700">名前</label>
             {templateMode ? (
-              <p className="px-4 py-2.5 bg-gray-50 rounded-xl border border-gray-200 text-gray-800">{name}</p>
+              <p className="px-4 py-1 bg-gray-50 rounded-xl border border-gray-200 text-gray-800">{name}</p>
             ) : (
               <input
                 id="edit-name"
@@ -125,16 +145,58 @@ export function EditEmployeeDialog({ isOpen, onClose, employee, employees, templ
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="山田 太郎"
-                className="w-full px-4 py-2.5 bg-white rounded-xl border border-indigo-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all shadow-sm"
+                className="w-full px-4 py-1 bg-white rounded-xl border border-indigo-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all shadow-sm"
                 autoFocus
               />
             )}
           </div>
 
           <div>
-            <label className="block mb-2 text-gray-700">肩書き（自由入力）</label>
+            <label className="block mb-0.5 text-gray-700">入社年月日・退職年月日</label>
             {templateMode ? (
-              <p className="px-4 py-2.5 bg-gray-50 rounded-xl border border-gray-200 text-gray-800">
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <label className="block text-xs text-gray-500 mb-0.5">入社年月日</label>
+                  <p className="px-3 py-1 bg-gray-50 rounded-xl border border-gray-200 text-gray-800 text-sm">{formatYearMonth(hireDate)}</p>
+                </div>
+                <div className="flex-1">
+                  <label className="block text-xs text-gray-500 mb-0.5">退職年月日</label>
+                  <p className="px-3 py-1 bg-gray-50 rounded-xl border border-gray-200 text-gray-800 text-sm">{formatYearMonth(retirementDate)}</p>
+                </div>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <label className="block text-xs text-gray-500 mb-0.5">入社年月日</label>
+                  <input
+                    type="date"
+                    value={hireDate}
+                    onChange={e => {
+                      setHireDate(e.target.value);
+                      if (!e.target.value) setRetirementDate('');
+                    }}
+                    className="w-full px-2 py-1 bg-white rounded-xl border border-indigo-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm transition-all shadow-sm"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-xs text-gray-500 mb-0.5">退職年月日</label>
+                  <input
+                    type="date"
+                    value={retirementDate}
+                    onChange={e => setRetirementDate(e.target.value)}
+                    disabled={!hireDate}
+                    min={hireDate || undefined}
+                    className="w-full px-2 py-1 bg-white rounded-xl border border-indigo-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm transition-all shadow-sm disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className="block mb-0.5 text-gray-700">肩書き（自由入力）</label>
+            {templateMode ? (
+              <p className="px-4 py-1 bg-gray-50 rounded-xl border border-gray-200 text-gray-800">
                 {position || '（未設定）'}
               </p>
             ) : (
@@ -144,22 +206,22 @@ export function EditEmployeeDialog({ isOpen, onClose, employee, employees, templ
                 value={position}
                 onChange={(e) => setPosition(e.target.value)}
                 placeholder="例：チーフ、アルバイト、副店長"
-                className="w-full px-4 py-2.5 bg-white rounded-xl border border-indigo-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all shadow-sm"
+                className="w-full px-4 py-1 bg-white rounded-xl border border-indigo-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all shadow-sm"
               />
             )}
           </div>
 
           <div>
-            <label className="block mb-2 text-gray-700">管理者権限</label>
+            <label className="block mb-0.5 text-gray-700">管理者権限</label>
             {templateMode ? (
-              <p className="px-4 py-2.5 bg-gray-50 rounded-xl border border-gray-200 text-gray-800">
+              <p className="px-4 py-1 bg-gray-50 rounded-xl border border-gray-200 text-gray-800">
                 {isManager ? 'あり（管理者）' : 'なし（スタッフ）'}
               </p>
             ) : (
               <select
                 value={isManager ? 'manager' : 'staff'}
                 onChange={(e) => setIsManager(e.target.value === 'manager')}
-                className="w-full px-4 py-2.5 bg-white rounded-xl border border-indigo-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all shadow-sm"
+                className="w-full px-4 py-1 bg-white rounded-xl border border-indigo-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all shadow-sm"
               >
                 <option value="staff">なし（スタッフ）</option>
                 <option value="manager">あり（管理者）</option>
@@ -168,7 +230,7 @@ export function EditEmployeeDialog({ isOpen, onClose, employee, employees, templ
           </div>
 
           <div>
-            <label htmlFor="edit-password" className="block mb-2 text-gray-700">パスワード</label>
+            <label htmlFor="edit-password" className="block mb-0.5 text-gray-700">パスワード</label>
             <div className="relative">
               <input
                 id="edit-password"
@@ -177,7 +239,7 @@ export function EditEmployeeDialog({ isOpen, onClose, employee, employees, templ
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="変更する場合は入力"
-                className="w-full px-4 py-2.5 pr-10 bg-white rounded-xl border border-indigo-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all shadow-sm"
+                className="w-full px-4 py-1 pr-10 bg-white rounded-xl border border-indigo-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all shadow-sm"
               />
               {password.length > 0 && (
                 <button type="button" onClick={() => setShowPassword(v => !v)}
@@ -189,35 +251,50 @@ export function EditEmployeeDialog({ isOpen, onClose, employee, employees, templ
             </div>
           </div>
 
-          <div className="pt-2 border-t border-gray-100">
+          <div className="pt-1 border-t border-gray-100">
             {templateMode && (
               <p className="text-xs text-gray-500 mb-1">以下は「勤務希望追加ダイアログ」の初期値として使用されます。</p>
             )}
-          </div>
-
-          <div>
-            <div className="flex items-center gap-2 justify-center">
-              <div className="flex flex-col items-start gap-0.5">
-                <label className="block mb-1 text-gray-700">勤務開始時間</label>
-                <TimeSelect value={defaultStartTime} onChange={setDefaultStartTime} allowEmpty className="w-32 text-base" />
-              </div>
-              <span className="text-gray-500 mt-5">〜</span>
-              <div className="flex flex-col items-start gap-0.5">
-                <label className="block mb-1 text-gray-700">勤務終了時間</label>
-                <TimeSelect value={defaultEndTime} onChange={setDefaultEndTime} allowEmpty className="w-32 text-base" />
+            <div className="flex items-center justify-between py-1">
+              <label className="text-gray-700">休日管理</label>
+              <div className="flex items-center gap-2">
+                <span className={`text-xs font-medium ${holidayManagement ? 'text-indigo-600' : 'text-gray-400'}`}>
+                  {holidayManagement ? 'オン' : 'オフ'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setHolidayManagement(v => !v)}
+                  className={`relative flex-shrink-0 w-10 h-5 rounded-full overflow-hidden transition-colors duration-200 focus:outline-none ${holidayManagement ? 'bg-indigo-500' : 'bg-gray-300'}`}
+                >
+                  <span
+                    style={{ transform: holidayManagement ? 'translateX(1.25rem)' : 'translateX(0.125rem)' }}
+                    className="absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200"
+                  />
+                </button>
               </div>
             </div>
           </div>
 
           <div>
-            <label className="block mb-2 text-gray-700">デフォルト用シフトタイプ</label>
+            <div className="flex items-center justify-between">
+              <label className="text-gray-700">デフォルト用勤務時間</label>
+              <div className="flex items-center gap-2">
+                <TimeSelect value={defaultStartTime} onChange={setDefaultStartTime} allowEmpty className="w-24 text-sm" />
+                <span className="text-gray-500">〜</span>
+                <TimeSelect value={defaultEndTime} onChange={setDefaultEndTime} allowEmpty className="w-24 text-sm" />
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label className="block mb-0.5 text-gray-700">デフォルト用シフトタイプ</label>
             <div className="flex gap-2">
               {Object.entries(shiftTypeConfig).map(([key, val]) => {
                 const isSelected = defaultShiftType === key;
                 return (
                   <button key={key} type="button"
                     onClick={() => setDefaultShiftType(isSelected ? '' : key as 'karintou' | 'cafe')}
-                    className={`flex-1 py-2.5 rounded-xl text-sm font-bold border-2 transition-all active:scale-95 ${isSelected ? 'border-transparent text-white' : 'border-gray-200 text-gray-600 bg-white'}`}
+                    className={`flex-1 py-2 rounded-xl text-sm font-bold border-2 transition-all active:scale-95 ${isSelected ? 'border-transparent text-white' : 'border-gray-200 text-gray-600 bg-white'}`}
                     style={isSelected ? { backgroundColor: val.color } : {}}>
                     {key === 'karintou' ? '◉' : '◆'} {val.label}
                   </button>
@@ -227,7 +304,7 @@ export function EditEmployeeDialog({ isOpen, onClose, employee, employees, templ
           </div>
 
           <div>
-            <label className="block mb-2 text-gray-700">デフォルト用曜日</label>
+            <label className="block mb-0.5 text-gray-700">デフォルト用曜日</label>
             <div className="flex gap-1.5">
               {DAY_OPTIONS.map(({ value, label }) => {
                 const selected = defaultDays.includes(value);
@@ -238,7 +315,7 @@ export function EditEmployeeDialog({ isOpen, onClose, employee, employees, templ
                     key={value}
                     type="button"
                     onClick={() => toggleDay(value)}
-                    className={`flex-1 py-2 rounded-xl text-xs font-bold border-2 transition-all duration-200 hover:scale-105 ${
+                    className={`flex-1 py-1 rounded-xl text-xs font-bold border-2 transition-all duration-200 hover:scale-105 ${
                       selected
                         ? isSat
                           ? 'bg-blue-500 border-blue-500 text-white'
@@ -260,7 +337,7 @@ export function EditEmployeeDialog({ isOpen, onClose, employee, employees, templ
           </div>
 
           <div>
-            <label className="block mb-2 text-gray-700">デフォルト用希望レベル</label>
+            <label className="block mb-0.5 text-gray-700">デフォルト用希望レベル</label>
             <div className="flex gap-1.5">
               {[3, 2, 1].map(level => {
                 const cfg = wishLevelConfig[level];
@@ -270,7 +347,7 @@ export function EditEmployeeDialog({ isOpen, onClose, employee, employees, templ
                     key={level}
                     type="button"
                     onClick={() => setDefaultWishLevel(selected ? undefined : level)}
-                    className={`flex-1 py-2 rounded-xl text-xs font-bold border-2 transition-all duration-200 hover:scale-105 ${
+                    className={`flex-1 py-1 rounded-xl text-xs font-bold border-2 transition-all duration-200 hover:scale-105 ${
                       selected
                         ? `${cfg.bgColor} ${cfg.textColor} ${cfg.borderColor}`
                         : 'bg-white border-gray-200 text-gray-400'
@@ -291,13 +368,13 @@ export function EditEmployeeDialog({ isOpen, onClose, employee, employees, templ
             </div>
           )}
 
-          <div className="flex gap-3 pt-4">
+          <div className="flex gap-3 pt-1">
             <button type="button" onClick={onClose}
-              className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 hover:scale-105 transition-all duration-200 shadow-sm">
+              className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 hover:scale-105 transition-all duration-200 shadow-sm">
               キャンセル
             </button>
             <button type="submit"
-              className="flex-1 px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:shadow-lg hover:scale-105 transition-all duration-200 shadow-md">
+              className="flex-1 px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:shadow-lg hover:scale-105 transition-all duration-200 shadow-md">
               {templateMode ? '保存' : '更新'}
             </button>
           </div>

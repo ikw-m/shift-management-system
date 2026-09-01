@@ -202,6 +202,9 @@ export function AppContent() {
     defaultShiftType?: 'karintou' | 'cafe',
     defaultDays?: string[],
     defaultWishLevel?: number,
+    hireDate?: string,
+    retirementDate?: string,
+    holidayManagement?: boolean,
   ) => {
     try {
       const maxOrder = Math.max(...employees.map((e) => e.displayOrder ?? 0), -1);
@@ -220,6 +223,9 @@ export function AppContent() {
         defaultShiftType,
         defaultDays,
         defaultWishLevel,
+        hireDate,
+        retirementDate,
+        holidayManagement,
       });
       setAddEmployeeDialogOpen(false);
     } catch (error) {
@@ -238,6 +244,9 @@ export function AppContent() {
     defaultShiftType?: 'karintou' | 'cafe',
     defaultDays?: string[],
     defaultWishLevel?: number,
+    hireDate?: string,
+    retirementDate?: string,
+    holidayManagement?: boolean,
   ) => {
     const employee = employees.find(e => e.id === id);
     if (!employee) return;
@@ -258,6 +267,9 @@ export function AppContent() {
         defaultShiftType: defaultShiftType ?? employee.defaultShiftType,
         defaultDays: defaultDays ?? employee.defaultDays,
         defaultWishLevel: defaultWishLevel ?? employee.defaultWishLevel,
+        hireDate,
+        retirementDate,
+        holidayManagement: holidayManagement ?? employee.holidayManagement,
       });
       setEditEmployeeDialogOpen(false);
     } catch (error) {
@@ -276,6 +288,9 @@ export function AppContent() {
     defaultShiftType?: 'karintou' | 'cafe',
     defaultDays?: string[],
     defaultWishLevel?: number,
+    _hireDate?: string,
+    _retirementDate?: string,
+    holidayManagement?: boolean,
   ) => {
     const employee = employees.find(e => e.id === id);
     if (!employee) return;
@@ -296,6 +311,9 @@ export function AppContent() {
         defaultShiftType,
         defaultDays,
         defaultWishLevel,
+        hireDate: employee.hireDate,
+        retirementDate: employee.retirementDate,
+        holidayManagement: holidayManagement ?? employee.holidayManagement,
       });
       setTemplateDialogOpen(false);
     } catch (error) {
@@ -442,7 +460,7 @@ export function AppContent() {
           <div className="flex items-center justify-between mb-4 h-[44px]">
             <div className="flex items-baseline gap-2">
               <h1 className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">シフト管理システム</h1>
-              <span className="text-xs text-gray-500">Ver. 7.2</span>
+              <span className="text-xs text-gray-500">Ver. 8.0</span>
               {departmentName && (
                 <span className="text-sm font-bold text-indigo-700 ml-2">｜ {departmentName}</span>
               )}

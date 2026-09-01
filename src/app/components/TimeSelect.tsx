@@ -23,7 +23,7 @@ function snapToSlot(raw: string): string {
 export function TimeSelect({ value, onChange, allowEmpty, className }: TimeSelectProps) {
   const snapped = value ? snapToSlot(value) : '';
 
-  const cls = `px-2 py-2.5 bg-white rounded-xl border border-indigo-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all shadow-sm text-center ${className ?? ''}`;
+  const cls = `px-2 py-1.5 bg-white rounded-xl border border-indigo-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all shadow-sm text-center ${className ?? ''}`;
 
   return (
     <select
