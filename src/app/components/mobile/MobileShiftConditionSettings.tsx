@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { Save, Trash2, X } from 'lucide-react';
 import { Employee, ShiftCondition, ShiftConditionRow, ShiftConditionRowType } from '../../types';
 import { useData } from '../../context/DataContext';
+import { APP_VERSION } from '../../version';
 
 const ROW_LABELS: Record<ShiftConditionRowType, string> = {
   monday: '月曜日',
@@ -176,7 +177,7 @@ export function MobileShiftConditionSettings({ currentUser, departmentName, onBa
           <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent font-bold">
             シフト管理システム
           </span>
-          <span className="text-gray-500" style={{ fontSize: '0.7em' }}>Ver. 8.0</span>
+          <span className="text-gray-500" style={{ fontSize: '0.7em' }}>{APP_VERSION}</span>
           {departmentName && (
             <span className="text-xs font-bold text-indigo-700 ml-1">｜ {departmentName}</span>
           )}

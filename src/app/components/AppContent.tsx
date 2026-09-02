@@ -15,6 +15,7 @@ import { useIsMobile } from '../hooks/useIsMobile';
 import { Employee, Availability } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
+import { APP_VERSION } from '../version';
 
 const employeeColors = [
   '#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e',
@@ -460,7 +461,7 @@ export function AppContent() {
           <div className="flex items-center justify-between mb-4 h-[44px]">
             <div className="flex items-baseline gap-2">
               <h1 className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">シフト管理システム</h1>
-              <span className="text-xs text-gray-500">Ver. 8.0</span>
+              <span className="text-xs text-gray-500">{APP_VERSION}</span>
               {departmentName && (
                 <span className="text-sm font-bold text-indigo-700 ml-2">｜ {departmentName}</span>
               )}

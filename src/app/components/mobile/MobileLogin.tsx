@@ -3,6 +3,7 @@ import { LogIn, User, Store } from 'lucide-react';
 import { Employee, Department } from '../../types';
 import { supabase } from '../../../lib/supabase';
 import { MobileDepartmentList } from './MobileDepartmentList';
+import { APP_VERSION } from '../../version';
 
 interface MobileLoginProps {
   employees: Employee[];
@@ -97,7 +98,7 @@ export function MobileLogin({ employees, departments, onLogin }: MobileLoginProp
         <h1 className="text-2xl bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent font-bold select-none">
           シフト管理システム
         </h1>
-        <span className="text-sm text-gray-500 mt-1">Ver. 8.0</span>
+        <span className="text-sm text-gray-500 mt-1">{APP_VERSION}</span>
         <div className="flex items-center gap-1 mt-2">
           <span className={`w-2 h-2 rounded-full ${dbStatus === 'connected' ? 'bg-green-500' : dbStatus === 'error' ? 'bg-red-500' : 'bg-yellow-400'}`} />
           <span className="text-xs text-gray-500">

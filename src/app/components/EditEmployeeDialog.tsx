@@ -264,11 +264,11 @@ export function EditEmployeeDialog({ isOpen, onClose, employee, employees, templ
                 <button
                   type="button"
                   onClick={() => setHolidayManagement(v => !v)}
-                  className={`relative flex-shrink-0 w-10 h-5 rounded-full overflow-hidden transition-colors duration-200 focus:outline-none ${holidayManagement ? 'bg-indigo-500' : 'bg-gray-300'}`}
+                  className={`flex-shrink-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none ${holidayManagement ? 'bg-gradient-to-b from-blue-400 to-blue-600' : 'bg-gradient-to-b from-gray-300 to-gray-400'}`}
+                  style={{ boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.3)' }}
                 >
                   <span
-                    style={{ transform: holidayManagement ? 'translateX(1.25rem)' : 'translateX(0.125rem)' }}
-                    className="absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200"
+                    className={`inline-block h-5 w-5 rounded-full bg-gradient-to-b from-white to-gray-100 shadow-lg transition-transform duration-200 ${holidayManagement ? 'translate-x-5' : 'translate-x-1'}`}
                   />
                 </button>
               </div>
