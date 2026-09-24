@@ -576,7 +576,7 @@ function addFullSheet(workbook: ExcelJS.Workbook, p: ShiftExcelParams) {
   sheet.getRow(3).height = pxH(30);
   sheet.getRow(carryoverRow).height = pxH(16);
   sheet.getRow(carryoverRow).hidden = true;
-  for (let r = firstDataRow; r <= lastDataRow; r++) sheet.getRow(r).height = pxH(26);
+  for (let r = firstDataRow; r <= lastDataRow; r++) sheet.getRow(r).height = pxH(36);
   sheet.getRow(spacerRow).height    = pxH(10);
   sheet.getRow(procTitleRow).height = pxH(29);
   sheet.getRow(procTextRow1).height = pxH(26);
