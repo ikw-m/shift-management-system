@@ -535,10 +535,13 @@ function addFullSheet(workbook: ExcelJS.Workbook, p: ShiftExcelParams) {
   const lastSheetCol = numPages * PAGE_COLS;
   const printArea    = `A1:${colLetter(lastSheetCol)}${lastContentRow}`;
 
+  const dpr        = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1;
+  const printScale = Math.round(80 * dpr);
+
   sheet.pageSetup = {
     paperSize: 9,
     orientation: 'landscape',
-    scale: 80,
+    scale: printScale,
     fitToPage: false,
     horizontalDpi: 600,
     verticalDpi: 600,
