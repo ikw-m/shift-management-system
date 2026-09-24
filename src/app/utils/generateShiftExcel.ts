@@ -780,7 +780,7 @@ function addFullSheet(workbook: ExcelJS.Workbook, p: ShiftExcelParams) {
         } else {
           cell.fill = { type: 'pattern', pattern: 'none' };
         }
-        cell.alignment = { horizontal: 'left', vertical: 'top', wrapText: true };
+        cell.alignment = { horizontal: 'left', vertical: 'top', shrinkToFit: true };
         stdBorder(cell);
       }
     });
