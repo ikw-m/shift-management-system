@@ -538,9 +538,8 @@ function addFullSheet(workbook: ExcelJS.Workbook, p: ShiftExcelParams) {
   sheet.pageSetup = {
     paperSize: 9,
     orientation: 'landscape',
-    fitToPage: true,
-    fitToWidth: 1,
-    fitToHeight: 1,
+    scale: 80,
+    fitToPage: false,
     horizontalDpi: 600,
     verticalDpi: 600,
     horizontalCentered: true,
