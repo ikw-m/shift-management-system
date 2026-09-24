@@ -772,9 +772,8 @@ function addFullSheet(workbook: ExcelJS.Workbook, p: ShiftExcelParams) {
       }
 
       {
-        const noteText = p.dailyNotes[day.toISOString()] || '';
         const cell = sheet.getCell(rowIdx, gc(PAGE_COLS));
-        cell.value     = noteText;
+        cell.value     = p.dailyNotes[day.toISOString()] || '';
         cell.font      = { name: 'HG丸ｺﾞｼｯｸM-PRO', size: 7 };
         if (isSale) {
           cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C.saleBg } };
@@ -783,9 +782,6 @@ function addFullSheet(workbook: ExcelJS.Workbook, p: ShiftExcelParams) {
         }
         cell.alignment = { horizontal: 'left', vertical: 'top', wrapText: true };
         stdBorder(cell);
-        // 改行数に応じて行高を明示設定（表示スケーリング差異を吸収）
-        const lineCount = noteText ? noteText.split('\n').length : 1;
-        if (lineCount > 1) sheet.getRow(rowIdx).height = pxH(26 * lineCount);
       }
     });
 
