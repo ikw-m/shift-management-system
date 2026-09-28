@@ -1,6 +1,10 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Employee } from '../types';
 import { supabase } from '../../lib/supabase';
+import { toast } from 'sonner';
+
+const SESSION_TIMEOUT_MS = 3 * 60 * 1000; // 3分
+const ACTIVITY_THROTTLE_MS = 10 * 1000;    // イベント処理を10秒に1回に間引く
 
 interface AuthContextType {
   currentUser: Employee | null;
@@ -71,6 +75,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     }
   };
+
+  // 30分無操作でセッション自動終了
+  useEffect(() => {
+    if (!currentUser) return;
+
+    let timer: ReturnType<typeof setTimeout>;
+    let lastReset = 0;
+
+    const resetTimer = () => {
+      const now = Date.now();
+      if (now - lastReset < ACTIVITY_THROTTLE_MS) return;
+      lastReset = now;
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        const minutes = SESSION_TIMEOUT_MS / (60 * 1000);
+        toast.warning(`${minutes}分間操作がなかったため、自動的にログアウトしました。`, { duration: 6000 });
+        setCurrentUser(null);
+      }, SESSION_TIMEOUT_MS);
+    };
+
+    const events = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click'];
+    events.forEach(e => window.addEventListener(e, resetTimer, { passive: true }));
+    resetTimer(); // ログイン直後にタイマーをセット
+
+    return () => {
+      clearTimeout(timer);
+      events.forEach(e => window.removeEventListener(e, resetTimer));
+    };
+  }, [currentUser]);
 
   const logout = () => {
     setCurrentUser(null);
