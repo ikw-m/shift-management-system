@@ -3,7 +3,7 @@ import { Employee } from '../types';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
 
-const SESSION_TIMEOUT_MS = 3 * 60 * 1000; // 3分
+const SESSION_TIMEOUT_MS = 10 * 60 * 1000; // 10分
 const ACTIVITY_THROTTLE_MS = 10 * 1000;    // イベント処理を10秒に1回に間引く
 
 interface AuthContextType {
