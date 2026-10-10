@@ -61,7 +61,7 @@ export function MobileShiftManager({
   const listContainerRef = useRef<HTMLDivElement>(null);
   const dayRefs = useRef<Map<number, HTMLDivElement>>(new Map());
 
-  const { getShiftCondition, employees: contextEmployees, addAvailability, approveAvailability, getHolidayCarryover, upsertHolidayCarryover, getHolidayCarryoverRange } = useData();
+  const { getShiftCondition, employees: contextEmployees, addAvailability, approveAvailability, getHolidayCarryover, upsertHolidayCarryover, getHolidayCarryoverRange, loadAvailabilitiesForMonth } = useData();
   const isManager = currentUser.role === 'manager' || currentUser.isManager === true;
   const latestCurrentUser = contextEmployees.find(e => e.id === currentUser.id) ?? currentUser;
 
@@ -156,13 +156,19 @@ export function MobileShiftManager({
 
   const prevMonth = () => {
     clearDayState();
-    if (month === 1) { setYear(y => y - 1); setMonth(12); }
-    else setMonth(m => m - 1);
+    const newYear = month === 1 ? year - 1 : year;
+    const newMonth = month === 1 ? 12 : month - 1;
+    setYear(newYear);
+    setMonth(newMonth);
+    loadAvailabilitiesForMonth(newYear, newMonth);
   };
   const nextMonth = () => {
     clearDayState();
-    if (month === 12) { setYear(y => y + 1); setMonth(1); }
-    else setMonth(m => m + 1);
+    const newYear = month === 12 ? year + 1 : year;
+    const newMonth = month === 12 ? 1 : month + 1;
+    setYear(newYear);
+    setMonth(newMonth);
+    loadAvailabilitiesForMonth(newYear, newMonth);
   };
 
   // ========== 一括処理 ==========

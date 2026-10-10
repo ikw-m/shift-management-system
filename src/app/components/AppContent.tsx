@@ -42,6 +42,7 @@ export function AppContent() {
     approveAvailability,
     rejectAvailability,
     reorderEmployees,
+    loadAvailabilitiesForMonth,
   } = useData();
 
   const employeeListRef = useRef<EmployeeListRef>(null);
@@ -64,11 +65,21 @@ export function AppContent() {
   useEffect(() => {
     if (currentUser) {
       const today = new Date();
+      const year = getYear(today);
+      const month = getMonth(today) + 1;
       setViewMode('calendar');
-      setSelectedYear(getYear(today));
-      setSelectedMonth(getMonth(today) + 1);
+      setSelectedYear(year);
+      setSelectedMonth(month);
+      loadAvailabilitiesForMonth(year, month);
     }
   }, [currentUser?.id]);
+
+  // 年月切り替え時にその月のデータを取得
+  useEffect(() => {
+    if (currentUser) {
+      loadAvailabilitiesForMonth(selectedYear, selectedMonth);
+    }
+  }, [selectedYear, selectedMonth]);
 
   const handleCellClick = (employeeId: string, date: Date) => {
     if (!currentUser) return;

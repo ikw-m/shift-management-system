@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { Employee, Availability, ShiftCondition, HolidayCarryover, Department, ProcedureTemplate } from '../types';
 import { supabase } from '../../lib/supabase';
 
@@ -34,6 +34,7 @@ interface DataContextType {
   getHolidayCarryover: (employeeId: string, year: number, month: number) => Promise<HolidayCarryover | null>;
   upsertHolidayCarryover: (employeeId: string, year: number, month: number, carryoverDays: number, isManual: boolean) => Promise<void>;
   getHolidayCarryoverRange: (employeeIds: string[], months: { year: number; month: number }[]) => Promise<Record<string, number>>;
+  loadAvailabilitiesForMonth: (year: number, month: number) => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -43,6 +44,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [availabilities, setAvailabilities] = useState<Availability[]>([]);
   const [loading, setLoading] = useState(true);
+  // リアルタイム購読が現在表示中の月を参照するためのref
+  const displayYearRef = useRef(new Date().getFullYear());
+  const displayMonthRef = useRef(new Date().getMonth() + 1);
 
   // Supabaseからデータを取得 + availabilitiesリアルタイム購読
   useEffect(() => {
@@ -51,7 +55,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const channel = supabase
       .channel('availabilities-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'availabilities' }, async () => {
-        const { data } = await supabase.from('availabilities').select('*').order('date');
+        const yr = displayYearRef.current;
+        const mo = displayMonthRef.current;
+        const from = `${yr}-${String(mo).padStart(2, '0')}-01`;
+        const lastDay = new Date(yr, mo, 0).getDate();
+        const to = `${yr}-${String(mo).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+        const { data } = await supabase.from('availabilities').select('*').gte('date', from).lte('date', to).order('date');
         if (data) {
           setAvailabilities(data.map(a => ({
             id: a.id,
@@ -117,14 +126,24 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
       setEmployees(processedEmployees);
 
-      // 利用可能時間データを取得
-      const { data: availabilitiesData, error: availabilitiesError } = await supabase
-        .from('availabilities')
-        .select('*')
-        .order('date');
+      // availabilitiesはログイン後にloadAvailabilitiesForMonthで月別取得する
 
-      if (availabilitiesError) throw availabilitiesError;
-      setAvailabilities(availabilitiesData?.map(a => ({
+    } catch (error) {
+      // エラーが発生してもローディングを解除
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadAvailabilitiesForMonth = async (year: number, month: number) => {
+    displayYearRef.current = year;
+    displayMonthRef.current = month;
+    const from = `${year}-${String(month).padStart(2, '0')}-01`;
+    const lastDay = new Date(year, month, 0).getDate();
+    const to = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+    const { data } = await supabase.from('availabilities').select('*').gte('date', from).lte('date', to).order('date');
+    if (data) {
+      setAvailabilities(data.map(a => ({
         id: a.id,
         employeeId: a.employee_id,
         date: a.date,
@@ -137,12 +156,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         submittedAt: a.submitted_at,
         reviewedAt: a.reviewed_at,
         reviewedBy: a.reviewed_by
-      })) || []);
-
-    } catch (error) {
-      // エラーが発生してもローディングを解除
-    } finally {
-      setLoading(false);
+      })));
     }
   };
 
@@ -754,6 +768,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         getHolidayCarryover,
         upsertHolidayCarryover,
         getHolidayCarryoverRange,
+        loadAvailabilitiesForMonth,
       }}
     >
       {children}
@@ -787,6 +802,7 @@ export function useData() {
       getHolidayCarryover: async () => null,
       upsertHolidayCarryover: async () => {},
       getHolidayCarryoverRange: async () => ({}),
+      loadAvailabilitiesForMonth: async () => {},
     } as DataContextType;
   }
   return context;
