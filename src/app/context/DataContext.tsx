@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { Employee, Availability, ShiftCondition, HolidayCarryover, Department, ProcedureTemplate } from '../types';
 import { supabase } from '../../lib/supabase';
+import { toast } from 'sonner';
 
 interface DataContextType {
   departments: Department[];
@@ -35,6 +36,7 @@ interface DataContextType {
   upsertHolidayCarryover: (employeeId: string, year: number, month: number, carryoverDays: number, isManual: boolean) => Promise<void>;
   getHolidayCarryoverRange: (employeeIds: string[], months: { year: number; month: number }[]) => Promise<Record<string, number>>;
   loadAvailabilitiesForMonth: (year: number, month: number) => Promise<void>;
+  isMaintenanceMode: boolean;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -47,6 +49,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
   // リアルタイム購読が現在表示中の月を参照するためのref
   const displayYearRef = useRef(new Date().getFullYear());
   const displayMonthRef = useRef(new Date().getMonth() + 1);
+  const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
+  const isMaintenanceModeRef = useRef(false);
+
+  useEffect(() => { isMaintenanceModeRef.current = isMaintenanceMode; }, [isMaintenanceMode]);
 
   // Supabaseからデータを取得 + availabilitiesリアルタイム購読
   useEffect(() => {
@@ -76,6 +82,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
             reviewedAt: a.reviewed_at,
             reviewedBy: a.reviewed_by
           })));
+        }
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'system_settings' }, (payload: { new: Record<string, unknown> | null }) => {
+        const rec = payload.new as { key?: string; value?: string } | null;
+        if (rec?.key === 'maintenance_mode') {
+          const val = rec.value === 'true';
+          setIsMaintenanceMode(val);
+          isMaintenanceModeRef.current = val;
         }
       })
       .subscribe();
@@ -125,6 +139,18 @@ export function DataProvider({ children }: { children: ReactNode }) {
       })) || [];
 
       setEmployees(processedEmployees);
+
+      // メンテナンスモードの状態を取得（テーブル未作成時はスキップ）
+      try {
+        const { data: settingsData } = await supabase
+          .from('system_settings')
+          .select('value')
+          .eq('key', 'maintenance_mode')
+          .maybeSingle();
+        const maintenanceVal = settingsData?.value === 'true';
+        setIsMaintenanceMode(maintenanceVal);
+        isMaintenanceModeRef.current = maintenanceVal;
+      } catch { /* system_settingsテーブル未作成時は無視 */ }
 
       // availabilitiesはログイン後にloadAvailabilitiesForMonthで月別取得する
 
@@ -346,10 +372,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
 
   const addAvailability = async (availability: Omit<Availability, 'id' | 'status' | 'submittedAt'>) => {
+    if (isMaintenanceModeRef.current) {
+      toast.warning('現在メンテナンス中のため操作できません', { id: 'maintenance-block', action: { label: 'OK', onClick: () => {} }, duration: 10000 });
+      return;
+    }
     try {
       const newAvailability = {
         employee_id: availability.employeeId,
-        date: availability.date,
+        date: availability.date as string,
         start_time: availability.startTime,
         end_time: availability.endTime,
         shift_type: availability.shiftType || 'karintou',
@@ -388,10 +418,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
 
   const updateAvailability = async (id: string, availability: Omit<Availability, 'id' | 'status' | 'submittedAt'>) => {
+    if (isMaintenanceModeRef.current) {
+      toast.warning('現在メンテナンス中のため操作できません', { id: 'maintenance-block', action: { label: 'OK', onClick: () => {} }, duration: 10000 });
+      return;
+    }
     try {
       const updateData = {
         employee_id: availability.employeeId,
-        date: availability.date,
+        date: availability.date as string,
         start_time: availability.startTime,
         end_time: availability.endTime,
         shift_type: availability.shiftType || 'karintou',
@@ -412,6 +446,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
 
   const deleteAvailability = async (id: string) => {
+    if (isMaintenanceModeRef.current) {
+      toast.warning('現在メンテナンス中のため操作できません', { id: 'maintenance-block', action: { label: 'OK', onClick: () => {} }, duration: 10000 });
+      return;
+    }
     try {
       const { error } = await supabase
         .from('availabilities')
@@ -426,6 +464,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
 
   const approveAvailability = async (id: string, reviewerName: string) => {
+    if (isMaintenanceModeRef.current) {
+      toast.warning('現在メンテナンス中のため操作できません', { id: 'maintenance-block', action: { label: 'OK', onClick: () => {} }, duration: 10000 });
+      return;
+    }
     try {
       const target = availabilities.find(a => a.id === id);
 
@@ -499,6 +541,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
 
   const rejectAvailability = async (id: string, reviewerName: string) => {
+    if (isMaintenanceModeRef.current) {
+      toast.warning('現在メンテナンス中のため操作できません', { id: 'maintenance-block', action: { label: 'OK', onClick: () => {} }, duration: 10000 });
+      return;
+    }
     try {
       const { error } = await supabase
         .from('availabilities')
@@ -769,6 +815,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         upsertHolidayCarryover,
         getHolidayCarryoverRange,
         loadAvailabilitiesForMonth,
+        isMaintenanceMode,
       }}
     >
       {children}
@@ -803,6 +850,7 @@ export function useData() {
       upsertHolidayCarryover: async () => {},
       getHolidayCarryoverRange: async () => ({}),
       loadAvailabilitiesForMonth: async () => {},
+      isMaintenanceMode: false,
     } as DataContextType;
   }
   return context;

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { LogIn, User, Database, Store } from 'lucide-react';
 import { Employee, Department } from '../types';
 import { supabase } from '../../lib/supabase';
+import { toast } from 'sonner';
 import { DepartmentList } from './DepartmentList';
 import { ShiftPrintScreen } from './ShiftPrintScreen';
 import { APP_VERSION } from '../version';
@@ -22,6 +23,11 @@ export function LoginDialog({ employees, departments, onLogin }: LoginDialogProp
   const [showDepartmentList, setShowDepartmentList] = useState(false);
   const [showShiftPrint, setShowShiftPrint] = useState(false);
   const [accessError, setAccessError] = useState('');
+  const [showMaintenanceModal, setShowMaintenanceModal] = useState(false);
+  const [maintenancePassword, setMaintenancePassword] = useState('');
+  const [maintenanceLoading, setMaintenanceLoading] = useState(false);
+  const [maintenanceError, setMaintenanceError] = useState('');
+  const [maintenanceMode, setMaintenanceMode] = useState<boolean | null>(null);
 
   // 店舗リスト・印刷画面から戻った時にパスワード・エラーをクリア
   useEffect(() => {
@@ -31,6 +37,58 @@ export function LoginDialog({ employees, departments, onLogin }: LoginDialogProp
       setAccessError('');
     }
   }, [showDepartmentList, showShiftPrint]);
+
+  useEffect(() => {
+    const loadMaintenanceMode = async () => {
+      try {
+        const { data } = await supabase.from('system_settings').select('value').eq('key', 'maintenance_mode').maybeSingle();
+        setMaintenanceMode(data?.value === 'true');
+      } catch { setMaintenanceMode(false); }
+    };
+    loadMaintenanceMode();
+  }, []);
+
+  const handleDBStatusClick = async () => {
+    if (password !== '') {
+      toggleMaintenanceMode(password);
+    } else {
+      try {
+        const { data } = await supabase.from('system_settings').select('value').eq('key', 'maintenance_mode').maybeSingle();
+        if (data !== null) setMaintenanceMode(data.value === 'true');
+      } catch { /* ignore */ }
+      setMaintenancePassword('');
+      setMaintenanceError('');
+      setShowMaintenanceModal(true);
+    }
+  };
+
+  const toggleMaintenanceMode = async (pw: string) => {
+    setMaintenanceLoading(true);
+    setMaintenanceError('');
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: 'sysadmin@shift-management.internal',
+        password: pw,
+      });
+      if (error || !data.user) {
+        setMaintenanceError('管理者パスワードが正しくありません');
+        setMaintenanceLoading(false);
+        return;
+      }
+      await supabase.auth.signOut();
+      const newMode = !maintenanceMode;
+      await supabase.from('system_settings').upsert({ key: 'maintenance_mode', value: newMode.toString() }, { onConflict: 'key' });
+      setMaintenanceMode(newMode);
+      setShowMaintenanceModal(false);
+      setMaintenancePassword('');
+      setPassword('');
+      toast.success(newMode ? '🔧 メンテナンスモードをONにしました' : '✅ メンテナンスモードを解除しました');
+    } catch {
+      setMaintenanceError('エラーが発生しました。再度お試しください。');
+    } finally {
+      setMaintenanceLoading(false);
+    }
+  };
 
   const sortedDepts = [...departments].sort((a, b) => a.displayOrder - b.displayOrder);
   const filteredEmployees = selectedDepartmentId
@@ -189,13 +247,63 @@ export function LoginDialog({ employees, departments, onLogin }: LoginDialogProp
             <div className="flex items-center gap-2 mb-1">
               <Database className="w-4 h-4 text-gray-600" />
               <span className="text-xs font-semibold text-gray-700">DB状態</span>
-              <span className={`text-xs ml-2 ${dbStatus === 'connected' ? 'text-green-600' : dbStatus === 'error' ? 'text-red-600' : 'text-yellow-600'}`}>
+              <button
+                type="button"
+                onClick={handleDBStatusClick}
+                className={`text-xs ml-2 cursor-pointer hover:underline focus:outline-none ${dbStatus === 'connected' ? 'text-green-600' : dbStatus === 'error' ? 'text-red-600' : 'text-yellow-600'}`}
+                title="クリックでメンテナンスモード管理"
+              >
                 {dbStatus === 'connected' ? '✓ 接続済み' : dbStatus === 'error' ? '✗ エラー' : '確認中...'}
-              </span>
+              </button>
             </div>
+            {maintenanceMode !== null && (
+              <div className={`text-xs mt-0.5 ${maintenanceMode ? 'text-orange-600 font-semibold' : 'text-gray-400'}`}>
+                {maintenanceMode ? '⚠️ メンテナンスモード中' : 'メンテナンスモード: OFF'}
+              </div>
+            )}
           </div>
         </div>
       </div>
+      {showMaintenanceModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 shadow-2xl w-80 mx-4">
+            <h3 className="text-base font-bold text-gray-800 mb-1">🔧 メンテナンスモード管理</h3>
+            <p className="text-xs text-gray-500 mb-4">
+              現在: {maintenanceMode ? 'ON（メンテナンス中）' : 'OFF（通常運用中）'}
+            </p>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">システム管理者パスワード</label>
+              <input
+                type="password"
+                value={maintenancePassword}
+                onChange={e => { setMaintenancePassword(e.target.value); setMaintenanceError(''); }}
+                onKeyDown={e => { if (e.key === 'Enter' && maintenancePassword) toggleMaintenanceMode(maintenancePassword); }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                placeholder="パスワードを入力"
+                autoFocus
+              />
+              {maintenanceError && <p className="text-xs text-red-600 mt-1">{maintenanceError}</p>}
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => { setShowMaintenanceModal(false); setMaintenancePassword(''); setMaintenanceError(''); }}
+                className="flex-1 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50"
+              >
+                キャンセル
+              </button>
+              <button
+                type="button"
+                onClick={() => toggleMaintenanceMode(maintenancePassword)}
+                disabled={maintenanceLoading || !maintenancePassword}
+                className="flex-1 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
+              >
+                {maintenanceLoading ? '処理中...' : maintenanceMode ? 'モード解除' : 'ONにする'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
