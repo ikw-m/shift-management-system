@@ -63,9 +63,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'availabilities' }, async () => {
         const yr = displayYearRef.current;
         const mo = displayMonthRef.current;
-        const from = `${yr}-${String(mo).padStart(2, '0')}-01`;
-        const lastDay = new Date(yr, mo, 0).getDate();
-        const to = `${yr}-${String(mo).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+        const from = new Date(Date.UTC(yr, mo - 1, 1) - 9 * 60 * 60 * 1000).toISOString();
+        const to = new Date(Date.UTC(yr, mo, 1) - 9 * 60 * 60 * 1000 - 1).toISOString();
         const { data } = await supabase.from('availabilities').select('*').gte('date', from).lte('date', to).order('date');
         if (data) {
           setAvailabilities(data.map(a => ({
@@ -164,9 +163,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const loadAvailabilitiesForMonth = async (year: number, month: number) => {
     displayYearRef.current = year;
     displayMonthRef.current = month;
-    const from = `${year}-${String(month).padStart(2, '0')}-01`;
-    const lastDay = new Date(year, month, 0).getDate();
-    const to = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+    const from = new Date(Date.UTC(year, month - 1, 1) - 9 * 60 * 60 * 1000).toISOString();
+    const to = new Date(Date.UTC(year, month, 1) - 9 * 60 * 60 * 1000 - 1).toISOString();
     const { data } = await supabase.from('availabilities').select('*').gte('date', from).lte('date', to).order('date');
     if (data) {
       setAvailabilities(data.map(a => ({
