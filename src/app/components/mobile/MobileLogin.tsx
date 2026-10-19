@@ -130,6 +130,7 @@ export function MobileLogin({ employees, departments, onLogin }: MobileLoginProp
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (maintenanceMode) { setError('現在メンテナンス中のためログインできません'); return; }
     const employee = employees.find(e => e.id === selectedEmployeeId);
     if (!employee) { setError('従業員を選択してください'); return; }
     setIsLoading(true);
@@ -242,8 +243,13 @@ export function MobileLogin({ employees, departments, onLogin }: MobileLoginProp
             <div className="p-3 bg-rose-50 border border-rose-300 rounded-xl text-rose-700 text-sm">{error}</div>
           )}
 
-          <button type="submit" disabled={isLoading}
-            className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-4 rounded-2xl text-base font-semibold shadow-md active:scale-95 transition-all disabled:opacity-50">
+          {maintenanceMode && (
+            <div className="p-3 bg-orange-50 border border-orange-300 rounded-2xl text-orange-700 text-sm text-center font-medium">
+              ⚠️ メンテナンス中のためログインできません
+            </div>
+          )}
+          <button type="submit" disabled={isLoading || !!maintenanceMode}
+            className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-4 rounded-2xl text-base font-semibold shadow-md active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
             {isLoading ? 'ログイン中...' : 'ログイン'}
           </button>
         </form>
