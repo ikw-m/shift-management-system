@@ -4,6 +4,7 @@ import { Employee, Department } from '../../types';
 import { supabase } from '../../../lib/supabase';
 import { toast } from 'sonner';
 import { MobileDepartmentList } from './MobileDepartmentList';
+import { MobileSystemAdminDialog } from './MobileSystemAdminDialog';
 import { APP_VERSION } from '../../version';
 
 interface MobileLoginProps {
@@ -20,6 +21,7 @@ export function MobileLogin({ employees, departments, onLogin }: MobileLoginProp
   const [isLoading, setIsLoading] = useState(false);
   const [dbStatus, setDbStatus] = useState<'connected' | 'error' | 'checking'>('checking');
   const [showDepartmentList, setShowDepartmentList] = useState(false);
+  const [showSystemAdminDialog, setShowSystemAdminDialog] = useState(false);
   const [accessError, setAccessError] = useState('');
   const [showMaintenanceModal, setShowMaintenanceModal] = useState(false);
   const [maintenancePassword, setMaintenancePassword] = useState('');
@@ -27,14 +29,14 @@ export function MobileLogin({ employees, departments, onLogin }: MobileLoginProp
   const [maintenanceError, setMaintenanceError] = useState('');
   const [maintenanceMode, setMaintenanceMode] = useState<boolean | null>(null);
 
-  // 店舗リスト画面から戻った時にパスワード・エラーをクリア
+  // 店舗リスト・システム管理者画面から戻った時にパスワード・エラーをクリア
   useEffect(() => {
-    if (!showDepartmentList) {
+    if (!showDepartmentList && !showSystemAdminDialog) {
       setPassword('');
       setError('');
       setAccessError('');
     }
-  }, [showDepartmentList]);
+  }, [showDepartmentList, showSystemAdminDialog]);
 
   useEffect(() => {
     const loadMaintenanceMode = async () => {
@@ -106,18 +108,30 @@ export function MobileLogin({ employees, departments, onLogin }: MobileLoginProp
   const handleIconClick = async () => {
     if (selectedDepartmentId === '' && selectedEmployeeId === '') {
       try {
-        const { data, error } = await supabase.auth.signInWithPassword({
+        // ① storemanager（店舗管理者）で試行
+        const storeRes = await supabase.auth.signInWithPassword({
+          email: 'storemanager@shift-management.internal',
+          password: password
+        });
+        if (storeRes.data.user && !storeRes.error) {
+          await supabase.auth.signOut();
+          setError(''); setAccessError('');
+          setShowDepartmentList(true);
+          return;
+        }
+        // ② sysadmin（システム管理者）で試行
+        const sysRes = await supabase.auth.signInWithPassword({
           email: 'sysadmin@shift-management.internal',
           password: password
         });
-        if (data.user && !error) {
+        if (sysRes.data.user && !sysRes.error) {
           await supabase.auth.signOut();
-          setAccessError('');
-          setShowDepartmentList(true);
-        } else {
-          setAccessError('店舗情報のメンテナンス権限がありません！');
-          setTimeout(() => setAccessError(''), 3000);
+          setError(''); setAccessError('');
+          setShowSystemAdminDialog(true);
+          return;
         }
+        setAccessError('店舗情報のメンテナンス権限がありません！');
+        setTimeout(() => setAccessError(''), 3000);
       } catch {
         setAccessError('店舗情報のメンテナンス権限がありません！');
         setTimeout(() => setAccessError(''), 3000);
@@ -130,9 +144,12 @@ export function MobileLogin({ employees, departments, onLogin }: MobileLoginProp
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (maintenanceMode) { setError('現在メンテナンス中のためログインできません'); return; }
     const employee = employees.find(e => e.id === selectedEmployeeId);
     if (!employee) { setError('従業員を選択してください'); return; }
+    // システム管理者従業員はメンテナンス中もログイン可能
+    if (maintenanceMode && employee.adminType !== 'system_admin') {
+      setError('現在メンテナンス中のためログインできません'); return;
+    }
     setIsLoading(true);
     setError('');
     try {
@@ -144,6 +161,9 @@ export function MobileLogin({ employees, departments, onLogin }: MobileLoginProp
 
   if (showDepartmentList) {
     return <MobileDepartmentList onClose={() => setShowDepartmentList(false)} />;
+  }
+  if (showSystemAdminDialog) {
+    return <MobileSystemAdminDialog onClose={() => setShowSystemAdminDialog(false)} />;
   }
 
   return (
@@ -243,12 +263,12 @@ export function MobileLogin({ employees, departments, onLogin }: MobileLoginProp
             <div className="p-3 bg-rose-50 border border-rose-300 rounded-xl text-rose-700 text-sm">{error}</div>
           )}
 
-          {maintenanceMode && (
+          {maintenanceMode && employees.find(e => e.id === selectedEmployeeId)?.adminType !== 'system_admin' && (
             <div className="p-3 bg-orange-50 border border-orange-300 rounded-2xl text-orange-700 text-sm text-center font-medium">
               ⚠️ メンテナンス中のためログインできません
             </div>
           )}
-          <button type="submit" disabled={isLoading || !!maintenanceMode}
+          <button type="submit" disabled={isLoading || (!!maintenanceMode && employees.find(e => e.id === selectedEmployeeId)?.adminType !== 'system_admin')}
             className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-4 rounded-2xl text-base font-semibold shadow-md active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
             {isLoading ? 'ログイン中...' : 'ログイン'}
           </button>

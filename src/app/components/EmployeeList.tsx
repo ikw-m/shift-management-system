@@ -36,8 +36,11 @@ export const EmployeeList = forwardRef<EmployeeListRef, EmployeeListProps>(({
     }
   }));
 
-  // 従業員をdisplayOrderでソート
-  const sortedEmployees = [...employees].sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
+  // システム管理者従業員は、システム管理者従業員本人以外には非表示
+  const visibleEmployees = currentUser.adminType === 'system_admin'
+    ? employees
+    : employees.filter(e => e.adminType !== 'system_admin');
+  const sortedEmployees = [...visibleEmployees].sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
   return (
     <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-white/50 shadow-xl overflow-hidden">
       {/* 固定ヘッダー */}
@@ -126,13 +129,16 @@ export const EmployeeList = forwardRef<EmployeeListRef, EmployeeListProps>(({
                     >
                       <Edit className="w-4 h-4" />
                     </button>
-                    <button
-                      onClick={() => onRemoveEmployee(employee.id)}
-                      className="p-2 text-rose-600 hover:bg-rose-100 rounded-lg transition-all duration-200 hover:scale-110"
-                      title="削除"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    {/* システム管理者従業員本人は自己削除不可 */}
+                    {!(employee.adminType === 'system_admin' && employee.id === currentUser.id) && (
+                      <button
+                        onClick={() => onRemoveEmployee(employee.id)}
+                        className="p-2 text-rose-600 hover:bg-rose-100 rounded-lg transition-all duration-200 hover:scale-110"
+                        title="削除"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 )}
               </div>

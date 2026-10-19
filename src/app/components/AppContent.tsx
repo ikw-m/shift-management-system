@@ -45,6 +45,11 @@ export function AppContent() {
     loadAvailabilitiesForMonth,
   } = useData();
 
+  // システム管理者従業員はシステム管理者本人以外には非表示
+  const displayEmployees = currentUser?.adminType === 'system_admin'
+    ? employees
+    : employees.filter(e => e.adminType !== 'system_admin');
+
   const employeeListRef = useRef<EmployeeListRef>(null);
   const shiftCalendarRef = useRef<ShiftCalendarRef>(null);
   const now = new Date();
@@ -377,8 +382,8 @@ export function AppContent() {
   const handleMoveEmployee = async (id: string, direction: 'up' | 'down') => {
     // 表示中の店舗の従業員のみを対象にソート（表示順と一致させる）
     const deptEmployees = currentUser?.departmentId
-      ? [...employees].filter(e => e.departmentId === currentUser.departmentId)
-      : [...employees];
+      ? [...displayEmployees].filter(e => e.departmentId === currentUser.departmentId)
+      : [...displayEmployees];
     const sorted = deptEmployees.sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
 
     const currentIndex = sorted.findIndex((e) => e.id === id);
@@ -424,7 +429,7 @@ export function AppContent() {
   const departmentName = currentDepartment?.departmentName ?? '';
 
   // 同じ店舗の従業員に絞り込み（先に定義）
-  const allProcessedEmployees = employees.map(e => ({
+  const allProcessedEmployees = displayEmployees.map(e => ({
     ...e,
     isManager: e.role === 'manager' || e.isManager === true,
   }));

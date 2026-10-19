@@ -67,6 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         ...data,
         departmentId: data.department_id ?? undefined,
         displayOrder: data.display_order ?? 0,
+        adminType: data.admin_type === 'system_admin' ? 'system_admin' as const : undefined,
       });
       return true;
     } catch (error) {

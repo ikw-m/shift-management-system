@@ -75,9 +75,10 @@ export function MobileEmployeeList({ currentUser, departmentName, onBack, onLogo
     );
   };
 
-  // 同じ店舗の従業員のみ表示
+  // 同じ店舗の従業員のみ表示。システム管理者従業員はシステム管理者本人以外には非表示
   const deptEmployees = [...employees]
     .filter(e => e.departmentId === currentUser.departmentId)
+    .filter(e => currentUser.adminType === 'system_admin' || e.adminType !== 'system_admin')
     .sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
 
   const handleAdd = async () => {
@@ -416,11 +417,14 @@ export function MobileEmployeeList({ currentUser, departmentName, onBack, onLogo
                     className="p-2 text-indigo-600 bg-indigo-50 rounded-xl active:scale-95">
                     <Edit className="w-4 h-4" />
                   </button>
-                  <button onClick={() => handleDelete(emp.id, emp.name)}
-                    className="p-2 text-rose-600 bg-rose-50 rounded-xl active:scale-95"
-                    title="削除">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  {/* システム管理者従業員本人は自己削除不可 */}
+                  {!(emp.adminType === 'system_admin' && emp.id === currentUser.id) && (
+                    <button onClick={() => handleDelete(emp.id, emp.name)}
+                      className="p-2 text-rose-600 bg-rose-50 rounded-xl active:scale-95"
+                      title="削除">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
 
               </div>

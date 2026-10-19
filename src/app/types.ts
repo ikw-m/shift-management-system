@@ -29,6 +29,8 @@ export interface Employee {
   retirementDate?: string;
   // 休日管理フラグ
   holidayManagement?: boolean;
+  // 管理者区分（'system_admin' = システム管理者従業員、undefined/null = 一般従業員）
+  adminType?: 'system_admin';
 }
 
 

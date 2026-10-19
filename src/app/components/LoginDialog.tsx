@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
 import { DepartmentList } from './DepartmentList';
 import { ShiftPrintScreen } from './ShiftPrintScreen';
+import { SystemAdminDialog } from './SystemAdminDialog';
 import { APP_VERSION } from '../version';
 
 interface LoginDialogProps {
@@ -22,6 +23,7 @@ export function LoginDialog({ employees, departments, onLogin }: LoginDialogProp
   const [dbStatus, setDbStatus] = useState<'connected' | 'error' | 'checking'>('checking');
   const [showDepartmentList, setShowDepartmentList] = useState(false);
   const [showShiftPrint, setShowShiftPrint] = useState(false);
+  const [showSystemAdminDialog, setShowSystemAdminDialog] = useState(false);
   const [accessError, setAccessError] = useState('');
   const [showMaintenanceModal, setShowMaintenanceModal] = useState(false);
   const [maintenancePassword, setMaintenancePassword] = useState('');
@@ -111,20 +113,32 @@ export function LoginDialog({ employees, departments, onLogin }: LoginDialogProp
       setError(''); setAccessError('');
       setShowShiftPrint(true);
     } else if (selectedDepartmentId === '' && selectedEmployeeId === '') {
-      // システム管理者認証（Supabase Auth）
+      // 店舗管理者認証 → 失敗時にシステム管理者認証を試みる
       try {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: 'sysadmin@shift-management.internal',
+        // ① storemanager（店舗管理者）で試行
+        const storeRes = await supabase.auth.signInWithPassword({
+          email: 'storemanager@shift-management.internal',
           password: password
         });
-        if (data.user && !error) {
+        if (storeRes.data.user && !storeRes.error) {
           await supabase.auth.signOut();
           setError(''); setAccessError('');
           setShowDepartmentList(true);
-        } else {
-          setAccessError('店舗情報のメンテナンス権限がありません！');
-          setTimeout(() => setAccessError(''), 3000);
+          return;
         }
+        // ② sysadmin（システム管理者）で試行
+        const sysRes = await supabase.auth.signInWithPassword({
+          email: 'sysadmin@shift-management.internal',
+          password: password
+        });
+        if (sysRes.data.user && !sysRes.error) {
+          await supabase.auth.signOut();
+          setError(''); setAccessError('');
+          setShowSystemAdminDialog(true);
+          return;
+        }
+        setAccessError('店舗情報のメンテナンス権限がありません！');
+        setTimeout(() => setAccessError(''), 3000);
       } catch {
         setAccessError('店舗情報のメンテナンス権限がありません！');
         setTimeout(() => setAccessError(''), 3000);
@@ -137,11 +151,14 @@ export function LoginDialog({ employees, departments, onLogin }: LoginDialogProp
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (maintenanceMode) { setError('現在メンテナンス中のためログインできません'); return; }
+    const employee = employees.find(e => e.id === selectedEmployeeId);
+    if (!employee) { setError('従業員を選択してください'); return; }
+    // システム管理者従業員はメンテナンス中もログイン可能
+    if (maintenanceMode && employee.adminType !== 'system_admin') {
+      setError('現在メンテナンス中のためログインできません'); return;
+    }
     setIsLoading(true);
     setError('');
-    const employee = employees.find(e => e.id === selectedEmployeeId);
-    if (!employee) { setError('従業員を選択してください'); setIsLoading(false); return; }
     try {
       const success = await onLogin(employee.email, password);
       if (!success) setError('パスワードが正しくありません');
@@ -154,6 +171,7 @@ export function LoginDialog({ employees, departments, onLogin }: LoginDialogProp
   return (
     <>
       {showDepartmentList && <DepartmentList onClose={() => setShowDepartmentList(false)} />}
+      {showSystemAdminDialog && <SystemAdminDialog onClose={() => setShowSystemAdminDialog(false)} />}
       {showShiftPrint && (
         <ShiftPrintScreen
           departmentId={selectedDepartmentId}
@@ -238,12 +256,12 @@ export function LoginDialog({ employees, departments, onLogin }: LoginDialogProp
               </div>
             )}
 
-            {maintenanceMode && (
+            {maintenanceMode && employees.find(e => e.id === selectedEmployeeId)?.adminType !== 'system_admin' && (
               <div className="p-3 bg-orange-50 border border-orange-300 rounded-xl text-orange-700 text-sm text-center font-medium">
                 ⚠️ メンテナンス中のためログインできません
               </div>
             )}
-            <button type="submit" disabled={isLoading || !!maintenanceMode}
+            <button type="submit" disabled={isLoading || (!!maintenanceMode && employees.find(e => e.id === selectedEmployeeId)?.adminType !== 'system_admin')}
               className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 rounded-xl hover:shadow-lg hover:scale-105 transition-all duration-200 shadow-md font-medium disabled:opacity-50 disabled:cursor-not-allowed">
               {isLoading ? 'ログイン中...' : 'ログイン'}
             </button>

@@ -28,7 +28,7 @@ export function ShiftPrintScreen({ departmentId, departmentName, onClose }: Shif
   const yearOptions = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
 
   const sortedEmployees = [...allEmployees]
-    .filter(e => e.departmentId === departmentId)
+    .filter(e => e.departmentId === departmentId && e.adminType !== 'system_admin')
     .sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0))
     .slice(0, 15);
 

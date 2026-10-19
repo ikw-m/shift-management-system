@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useRef, ReactNode } fro
 import { Employee, Availability, ShiftCondition, HolidayCarryover, Department, ProcedureTemplate } from '../types';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
+import { useAuth } from './AuthContext';
 
 interface DataContextType {
   departments: Department[];
@@ -49,8 +50,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
   // リアルタイム購読が現在表示中の月を参照するためのref
   const displayYearRef = useRef(new Date().getFullYear());
   const displayMonthRef = useRef(new Date().getMonth() + 1);
+  const { currentUser } = useAuth();
   const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
   const isMaintenanceModeRef = useRef(false);
+  // システム管理者従業員はメンテナンスモードのブロックをスキップ
+  const isSystemAdminUser = currentUser?.adminType === 'system_admin';
 
   useEffect(() => { isMaintenanceModeRef.current = isMaintenanceMode; }, [isMaintenanceMode]);
 
@@ -135,6 +139,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         hireDate: emp.hire_date ? emp.hire_date.substring(0, 10) : undefined,
         retirementDate: emp.retirement_date ? emp.retirement_date.substring(0, 10) : undefined,
         holidayManagement: emp.holiday_management ?? false,
+        adminType: emp.admin_type === 'system_admin' ? 'system_admin' as const : undefined,
       })) || [];
 
       setEmployees(processedEmployees);
@@ -250,6 +255,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         hire_date: employee.hireDate || null,
         retirement_date: employee.retirementDate || null,
         holiday_management: employee.holidayManagement ?? false,
+        admin_type: (employee as any).adminType === 'system_admin' ? 'system_admin' : null,
       };
 
       const { data, error } = await supabase
@@ -272,6 +278,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           hireDate: data.hire_date ? data.hire_date.substring(0, 10) : undefined,
           retirementDate: data.retirement_date ? data.retirement_date.substring(0, 10) : undefined,
           holidayManagement: data.holiday_management ?? false,
+          adminType: data.admin_type === 'system_admin' ? 'system_admin' as const : undefined,
         }]);
       }
     } catch (error) {
@@ -299,6 +306,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
         hire_date: employee.hireDate || null,
         retirement_date: employee.retirementDate || null,
         holiday_management: employee.holidayManagement ?? false,
+        // admin_type: 'system_admin'→設定、null→解除、undefined→既存値を保持
+        ...((employee as any).adminType === 'system_admin'
+          ? { admin_type: 'system_admin' }
+          : (employee as any).adminType === null
+            ? { admin_type: null }
+            : {}),
       };
 
       const { error } = await supabase
@@ -327,6 +340,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
         hireDate: employee.hireDate,
         retirementDate: employee.retirementDate,
         holidayManagement: employee.holidayManagement,
+        // admin_type: 'system_admin'→設定、null→解除、undefined→既存値を保持
+        adminType: (employee as any).adminType === 'system_admin'
+          ? 'system_admin' as const
+          : (employee as any).adminType === null
+            ? undefined
+            : e.adminType,
       } : e));
     } catch (error) {
       throw error;
@@ -370,7 +389,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
 
   const addAvailability = async (availability: Omit<Availability, 'id' | 'status' | 'submittedAt'>) => {
-    if (isMaintenanceModeRef.current) {
+    if (isMaintenanceModeRef.current && !isSystemAdminUser) {
       toast.warning('現在メンテナンス中のため操作できません', { id: 'maintenance-block', action: { label: 'OK', onClick: () => {} }, duration: 10000 });
       return;
     }
@@ -416,7 +435,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
 
   const updateAvailability = async (id: string, availability: Omit<Availability, 'id' | 'status' | 'submittedAt'>) => {
-    if (isMaintenanceModeRef.current) {
+    if (isMaintenanceModeRef.current && !isSystemAdminUser) {
       toast.warning('現在メンテナンス中のため操作できません', { id: 'maintenance-block', action: { label: 'OK', onClick: () => {} }, duration: 10000 });
       return;
     }
@@ -444,7 +463,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
 
   const deleteAvailability = async (id: string) => {
-    if (isMaintenanceModeRef.current) {
+    if (isMaintenanceModeRef.current && !isSystemAdminUser) {
       toast.warning('現在メンテナンス中のため操作できません', { id: 'maintenance-block', action: { label: 'OK', onClick: () => {} }, duration: 10000 });
       return;
     }
@@ -462,7 +481,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
 
   const approveAvailability = async (id: string, reviewerName: string) => {
-    if (isMaintenanceModeRef.current) {
+    if (isMaintenanceModeRef.current && !isSystemAdminUser) {
       toast.warning('現在メンテナンス中のため操作できません', { id: 'maintenance-block', action: { label: 'OK', onClick: () => {} }, duration: 10000 });
       return;
     }
@@ -539,7 +558,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
 
   const rejectAvailability = async (id: string, reviewerName: string) => {
-    if (isMaintenanceModeRef.current) {
+    if (isMaintenanceModeRef.current && !isSystemAdminUser) {
       toast.warning('現在メンテナンス中のため操作できません', { id: 'maintenance-block', action: { label: 'OK', onClick: () => {} }, duration: 10000 });
       return;
     }
