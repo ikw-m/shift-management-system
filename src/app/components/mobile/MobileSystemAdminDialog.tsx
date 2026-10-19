@@ -1,0 +1,255 @@
+import { useState } from 'react';
+import { X, Plus, ShieldCheck, User, Store, ArrowLeft } from 'lucide-react';
+import { useData } from '../../context/DataContext';
+
+const employeeColors = [
+  '#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e',
+  '#14b8a6', '#06b6d4', '#3b82f6', '#6366f1', '#8b5cf6',
+];
+
+interface MobileSystemAdminDialogProps {
+  onClose: () => void;
+}
+
+export function MobileSystemAdminDialog({ onClose }: MobileSystemAdminDialogProps) {
+  const { departments, employees, addEmployee, deleteEmployee, updateEmployee } = useData();
+
+  const adminEmployees = employees.filter(e => e.adminType === 'system_admin');
+
+  const [isAdding, setIsAdding] = useState(false);
+  const [selectedDeptId, setSelectedDeptId] = useState('');
+  const [newDeptName, setNewDeptName] = useState('');
+  const [deptMode, setDeptMode] = useState<'select' | 'input'>('select');
+  const [selectedEmpId, setSelectedEmpId] = useState('');
+  const [newEmpName, setNewEmpName] = useState('');
+  const [empMode, setEmpMode] = useState<'select' | 'input'>('select');
+  const [newPassword, setNewPassword] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const sortedDepts = [...departments].sort((a, b) => a.displayOrder - b.displayOrder);
+
+  const resetForm = () => {
+    setSelectedDeptId('');
+    setNewDeptName('');
+    setDeptMode('select');
+    setSelectedEmpId('');
+    setNewEmpName('');
+    setEmpMode('select');
+    setNewPassword('');
+    setIsAdding(false);
+  };
+
+  const handleAdd = async () => {
+    const isExistingEmp = empMode === 'select' && selectedEmpId;
+    if (!isExistingEmp && !newPassword.trim()) { alert('パスワードを入力してください'); return; }
+
+    setIsSubmitting(true);
+    try {
+      if (isExistingEmp) {
+        const emp = employees.find(e => e.id === selectedEmpId);
+        if (!emp) { setIsSubmitting(false); return; }
+        if (!window.confirm(`「${emp.name}」をシステム管理者従業員に設定しますか？`)) { setIsSubmitting(false); return; }
+        const updatePayload: any = { ...emp, adminType: 'system_admin' };
+        if (newPassword.trim()) updatePayload.password = newPassword.trim();
+        try {
+          await updateEmployee(selectedEmpId, updatePayload);
+        } catch { alert('更新に失敗しました'); }
+        resetForm();
+        return;
+      }
+
+      if (!newEmpName.trim()) { alert('従業員名を入力してください'); setIsSubmitting(false); return; }
+
+      let departmentId: string | undefined;
+      if (deptMode === 'select' && selectedDeptId) {
+        departmentId = selectedDeptId;
+      } else if (deptMode === 'input' && newDeptName.trim()) {
+        const existing = departments.find(d => d.departmentName === newDeptName.trim());
+        if (existing) {
+          departmentId = existing.id;
+        } else {
+          alert('店舗を選択するか、既存の店舗名を入力してください（新規店舗追加はできません）');
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
+      const colorIndex = employees.length % employeeColors.length;
+      await addEmployee({
+        name: newEmpName.trim(),
+        email: `${newEmpName.trim().toLowerCase().replace(/[\s　]/g, '')}_${Date.now()}@example.com`,
+        phone: '000-0000-0000',
+        position: 'システム管理者',
+        role: 'staff',
+        password: newPassword.trim(),
+        color: employeeColors[colorIndex],
+        displayOrder: 0,
+        departmentId,
+        adminType: 'system_admin',
+      } as any);
+      resetForm();
+    } catch { alert('追加に失敗しました'); }
+    finally { setIsSubmitting(false); }
+  };
+
+  const handleDelete = async (id: string, name: string) => {
+    const emp = employees.find(e => e.id === id);
+    if (!emp) return;
+    try {
+      await updateEmployee(id, { ...emp, adminType: null } as any);
+    } catch { alert('解除に失敗しました'); }
+  };
+
+  const getDeptName = (deptId?: string) => {
+    if (!deptId) return '未設定';
+    return departments.find(d => d.id === deptId)?.departmentName ?? '未設定';
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col" style={{ background: 'linear-gradient(135deg, #f5f7fa 0%, #e8ebf0 100%)' }}>
+      {/* ヘッダー */}
+      <div className="flex items-center gap-3 px-4 pt-safe pt-4 pb-3 bg-white border-b border-gray-200 shadow-sm">
+        <button onClick={onClose} className="p-2 rounded-xl hover:bg-gray-100 active:bg-gray-200 transition-colors">
+          <ArrowLeft className="w-5 h-5 text-gray-600" />
+        </button>
+        <ShieldCheck className="w-5 h-5 text-indigo-600" />
+        <h1 className="text-base font-bold text-gray-800">システム管理者従業員</h1>
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-4 py-5 space-y-5">
+        {/* 登録済み一覧 */}
+        <div>
+          <h2 className="text-sm font-semibold text-gray-600 mb-3">登録済みシステム管理者従業員</h2>
+          {adminEmployees.length === 0 ? (
+            <p className="text-sm text-gray-400 text-center py-6">未登録</p>
+          ) : (
+            <div className="space-y-2">
+              {adminEmployees.map(emp => (
+                <div key={emp.id} className="flex items-center justify-between p-4 bg-white border border-indigo-200 rounded-2xl shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold"
+                      style={{ backgroundColor: emp.color }}>
+                      {emp.name[0]}
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium text-gray-800">{emp.name}</div>
+                      <div className="text-xs text-gray-500">{getDeptName(emp.departmentId)}</div>
+                    </div>
+                  </div>
+                  <button onClick={() => handleDelete(emp.id, emp.name)}
+                    className="px-3 py-1.5 text-xs text-rose-500 active:bg-rose-50 rounded-xl border border-rose-200">
+                    解除
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* 新規追加フォーム */}
+        {isAdding ? (
+          <div className="bg-white border border-indigo-200 rounded-2xl p-5 space-y-4 shadow-sm">
+            <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-1">
+              <Plus className="w-4 h-4" /> 新しいシステム管理者従業員を追加
+            </h3>
+
+            {/* 店舗 */}
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-2">店舗名</label>
+              <div className="flex gap-2 mb-3">
+                <button type="button" onClick={() => setDeptMode('select')}
+                  className={`text-xs px-3 py-1.5 rounded-xl border ${deptMode === 'select' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-300'}`}>
+                  既存から選択
+                </button>
+                <button type="button" onClick={() => setDeptMode('input')}
+                  className={`text-xs px-3 py-1.5 rounded-xl border ${deptMode === 'input' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-300'}`}>
+                  名前で指定
+                </button>
+              </div>
+              {deptMode === 'select' ? (
+                <div className="relative">
+                  <Store className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-400" />
+                  <select value={selectedDeptId} onChange={e => setSelectedDeptId(e.target.value)}
+                    className="w-full pl-9 pr-3 py-3 border border-indigo-200 rounded-xl text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                    <option value="">（未設定）</option>
+                    {sortedDepts.map(d => (
+                      <option key={d.id} value={d.id}>{d.departmentName}</option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <input type="text" value={newDeptName} onChange={e => setNewDeptName(e.target.value)}
+                  placeholder="店舗名を入力"
+                  className="w-full px-4 py-3 border border-indigo-200 rounded-xl text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+              )}
+            </div>
+
+            {/* 従業員 */}
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-2">従業員</label>
+              <div className="flex gap-2 mb-3">
+                <button type="button" onClick={() => setEmpMode('select')}
+                  className={`text-xs px-3 py-1.5 rounded-xl border ${empMode === 'select' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-300'}`}>
+                  既存から選択
+                </button>
+                <button type="button" onClick={() => setEmpMode('input')}
+                  className={`text-xs px-3 py-1.5 rounded-xl border ${empMode === 'input' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-300'}`}>
+                  新規入力
+                </button>
+              </div>
+              {empMode === 'select' ? (
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-400" />
+                  <select value={selectedEmpId} onChange={e => setSelectedEmpId(e.target.value)}
+                    className="w-full pl-9 pr-3 py-3 border border-indigo-200 rounded-xl text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                    <option value="">選択してください</option>
+                    {employees
+                      .filter(e => e.adminType !== 'system_admin')
+                      .filter(e => !selectedDeptId || e.departmentId === selectedDeptId)
+                      .map(emp => (
+                        <option key={emp.id} value={emp.id}>{emp.name}（{getDeptName(emp.departmentId)}）</option>
+                      ))}
+                  </select>
+                </div>
+              ) : (
+                <input type="text" value={newEmpName} onChange={e => setNewEmpName(e.target.value)}
+                  placeholder="従業員名を入力"
+                  className="w-full px-4 py-3 border border-indigo-200 rounded-xl text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+              )}
+            </div>
+
+            {/* パスワード */}
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-2">
+                パスワード
+                {empMode === 'select' && selectedEmpId && (
+                  <span className="ml-1 text-gray-400 font-normal">（空欄なら変更しません）</span>
+                )}
+              </label>
+              <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)}
+                placeholder={empMode === 'select' && selectedEmpId ? '変更する場合のみ入力' : 'パスワードを入力'}
+                className="w-full px-4 py-3 border border-indigo-200 rounded-xl text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+            </div>
+
+            <div className="flex gap-3 pt-1">
+              <button type="button" onClick={resetForm}
+                className="flex-1 py-3 border border-gray-300 rounded-2xl text-sm text-gray-600 active:bg-gray-50">
+                キャンセル
+              </button>
+              <button type="button" onClick={handleAdd} disabled={isSubmitting}
+                className="flex-1 py-3 bg-indigo-600 text-white rounded-2xl text-sm font-semibold active:opacity-80 disabled:opacity-50">
+                {isSubmitting ? '処理中...' : empMode === 'select' && selectedEmpId ? '設定' : '追加'}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button type="button" onClick={() => setIsAdding(true)}
+            className="w-full flex items-center justify-center gap-2 py-4 border-2 border-dashed border-indigo-300 text-indigo-600 rounded-2xl active:bg-indigo-50 transition-colors text-sm font-medium">
+            <Plus className="w-5 h-5" />
+            新しいシステム管理者従業員を追加
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
