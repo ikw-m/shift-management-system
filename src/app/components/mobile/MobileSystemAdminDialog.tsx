@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Plus, ShieldCheck, User, Store, ArrowLeft } from 'lucide-react';
+import { LogOut, Plus, ShieldCheck, User, Store } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 
 const employeeColors = [
@@ -108,12 +108,18 @@ export function MobileSystemAdminDialog({ onClose }: MobileSystemAdminDialogProp
   return (
     <div className="min-h-screen flex flex-col" style={{ background: 'linear-gradient(135deg, #f5f7fa 0%, #e8ebf0 100%)' }}>
       {/* ヘッダー */}
-      <div className="flex items-center gap-3 px-4 pt-safe pt-4 pb-3 bg-white border-b border-gray-200 shadow-sm">
-        <button onClick={onClose} className="p-2 rounded-xl hover:bg-gray-100 active:bg-gray-200 transition-colors">
-          <ArrowLeft className="w-5 h-5 text-gray-600" />
-        </button>
-        <ShieldCheck className="w-5 h-5 text-indigo-600" />
-        <h1 className="text-base font-bold text-gray-800">システム管理者従業員</h1>
+      <div className="sticky top-0 z-10 bg-white border-b border-gray-200 flex-shrink-0">
+        <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-lg">
+              <ShieldCheck className="w-4 h-4 text-white" />
+            </div>
+            <span className="font-bold text-gray-800">システム管理者従業員</span>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-xl bg-gray-100 active:bg-gray-200" title="閉じる">
+            <LogOut className="w-4 h-4 text-gray-600" />
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-5 space-y-5">

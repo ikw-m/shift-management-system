@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Plus, ShieldCheck, User, Store } from 'lucide-react';
+import { LogOut, Plus, ShieldCheck, User, Store } from 'lucide-react';
 import { useData } from '../context/DataContext';
 
 const employeeColors = [
@@ -119,12 +119,14 @@ export function SystemAdminDialog({ onClose }: SystemAdminDialogProps) {
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
         {/* ヘッダー */}
         <div className="flex items-center justify-between p-5 border-b border-gray-200">
-          <div className="flex items-center gap-2">
-            <ShieldCheck className="w-6 h-6 text-indigo-600" />
-            <h2 className="text-lg font-bold text-gray-800">システム管理者従業員</h2>
-          </div>
-          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg transition-colors">
-            <X className="w-5 h-5 text-gray-500" />
+          <h3 className="flex items-center gap-2 font-bold text-gray-800">
+            <div className="p-1.5 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-lg">
+              <ShieldCheck className="w-4 h-4 text-white" />
+            </div>
+            システム管理者従業員
+          </h3>
+          <button onClick={onClose} className="p-2 rounded-xl bg-gray-100 hover:bg-gray-200" title="閉じる">
+            <LogOut className="w-4 h-4 text-gray-600" />
           </button>
         </div>
 

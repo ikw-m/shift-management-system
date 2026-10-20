@@ -115,6 +115,11 @@ export function MobileLogin({ employees, departments, onLogin }: MobileLoginProp
         });
         if (storeRes.data.user && !storeRes.error) {
           await supabase.auth.signOut();
+          if (maintenanceMode) {
+            setAccessError('メンテナンスモード中のため、店舗管理は利用できません');
+            setTimeout(() => setAccessError(''), 3000);
+            return;
+          }
           setError(''); setAccessError('');
           setShowDepartmentList(true);
           return;
